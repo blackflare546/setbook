@@ -16,6 +16,7 @@ describe("published snapshots", () => {
       sections: [],
       notes: "private song note",
       links: { audio: "https://example.com/a" },
+      sourceText: "[Verse]\nG\nLyrics",
       createdAt: "x",
       updatedAt: "x",
     };

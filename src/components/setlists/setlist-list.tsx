@@ -28,15 +28,17 @@ export function SetlistList() {
     };
     await setlistRepository.save(setlist);
     setName("");
-    router.push(`/setlists/${setlist.id}`);
+    router.push(`/setlists/${setlist.id}?created=1`);
   }
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8 pb-24 sm:px-6 lg:py-10">
+    <div className="mx-auto max-w-6xl px-3 py-6 pb-24 min-[375px]:px-4 sm:px-6 sm:py-8 lg:py-10">
       <div className="mb-7">
         <p className="mb-1 text-sm font-semibold text-indigo-600">
           Plan the show
         </p>
-        <h1 className="text-3xl font-bold tracking-tight">Setlists</h1>
+        <h1 className="text-2xl font-bold tracking-tight min-[375px]:text-3xl">
+          Setlists
+        </h1>
         <p className="mt-1 text-slate-500">
           Build a running order, choose performance keys, and add cues.
         </p>
@@ -82,7 +84,7 @@ export function SetlistList() {
                 </div>
               </div>
               <Link href={`/setlists/${setlist.id}`}>
-                <h2 className="text-lg font-bold group-hover:text-indigo-700">
+                <h2 className="break-words text-lg font-bold group-hover:text-indigo-700 dark:group-hover:text-indigo-300">
                   {setlist.name}
                 </h2>
                 <p className="mt-1 text-sm text-slate-500">

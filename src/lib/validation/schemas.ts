@@ -34,6 +34,7 @@ export const songSchema = z.object({
   sections: z.array(songSectionSchema),
   notes: z.string(),
   links: z.object({ audio: z.url().optional(), reference: z.url().optional() }),
+  sourceText: z.string().default(""),
   createdAt: z.string(),
   updatedAt: z.string(),
 });

@@ -59,13 +59,13 @@ export function SongLibrary() {
   }
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8 pb-24 sm:px-6 lg:py-10">
+    <div className="mx-auto max-w-7xl px-3 py-6 pb-24 min-[375px]:px-4 sm:px-6 sm:py-8 lg:py-10">
       <div className="mb-7 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div>
           <p className="mb-1 text-sm font-semibold text-indigo-600">
             Your repertoire
           </p>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-950">
+          <h1 className="text-2xl font-bold tracking-tight text-slate-950 min-[375px]:text-3xl dark:text-white">
             Song library
           </h1>
           <p className="mt-1 text-slate-500">
@@ -73,7 +73,7 @@ export function SongLibrary() {
             offline on this device
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="grid grid-cols-2 gap-2 sm:flex">
           <input
             ref={importRef}
             className="hidden"
@@ -92,7 +92,7 @@ export function SongLibrary() {
             <Download size={16} />
             Backup
           </Button>
-          <Button asChild>
+          <Button asChild className="col-span-2 sm:col-span-1">
             <Link href="/songs/new">Add song</Link>
           </Button>
         </div>
@@ -119,20 +119,20 @@ export function SongLibrary() {
         </Button>
       </Card>
       {filtered.length ? (
-        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
           {filtered.map((song, index) => (
             <div
               key={song.id}
-              className={`group flex items-center gap-4 p-4 ${index ? "border-t border-slate-100" : ""}`}
+              className={`group flex min-w-0 items-center gap-3 p-4 sm:gap-4 ${index ? "border-t border-slate-100 dark:border-slate-800" : ""}`}
             >
               <div className="hidden h-10 w-10 place-items-center rounded-lg bg-indigo-50 text-indigo-600 sm:grid">
                 <FileMusic size={19} />
               </div>
               <Link href={`/songs/${song.id}`} className="min-w-0 flex-1">
-                <h2 className="truncate font-semibold text-slate-950 group-hover:text-indigo-700">
+                <h2 className="break-words font-semibold text-slate-950 group-hover:text-indigo-700 dark:text-white dark:group-hover:text-indigo-300">
                   {song.title}
                 </h2>
-                <p className="truncate text-sm text-slate-500">
+                <p className="break-words text-sm text-slate-500 dark:text-slate-400">
                   {song.artist || "Unknown artist"} ·{" "}
                   {song.originalKey
                     ? `Key of ${song.originalKey}`

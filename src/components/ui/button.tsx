@@ -23,8 +23,9 @@ export function Button({
         {
           primary: "bg-indigo-600 text-white hover:bg-indigo-700",
           secondary:
-            "border border-slate-300 bg-white text-slate-800 hover:bg-slate-50",
-          ghost: "text-slate-600 hover:bg-slate-100 hover:text-slate-950",
+            "border border-slate-300 bg-white text-slate-800 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800",
+          ghost:
+            "text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white",
           danger: "bg-rose-600 text-white hover:bg-rose-700",
         }[variant],
         {

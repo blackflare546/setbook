@@ -44,6 +44,7 @@ export interface Song {
   sections: SongSection[];
   notes: string;
   links: SongLinks;
+  sourceText: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -68,6 +69,7 @@ export function createEmptySong(): Song {
     ],
     notes: "",
     links: {},
+    sourceText: "",
     createdAt: now,
     updatedAt: now,
   };

@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import {
@@ -12,8 +13,10 @@ import {
   Play,
   Plus,
   Save,
+  Search,
   Share2,
   Trash2,
+  X,
 } from "lucide-react";
 import type { Setlist } from "@/core/setlists/types";
 import { reorderEntries } from "@/core/setlists/operations";
@@ -23,13 +26,25 @@ import { createPublishedSnapshot } from "@/lib/sharing/snapshot";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input, Textarea } from "@/components/ui/input";
+import { FeedbackToast } from "@/components/ui/feedback-toast";
 
 export function SetlistEditor({ id }: { id: string }) {
+  const searchParams = useSearchParams();
   const [setlist, setSetlist] = useState<Setlist | null>(null);
   const songs = useLiveQuery(() => songRepository.list(), []) ?? [];
   const [includeNotes, setIncludeNotes] = useState(false);
   const [includeLinks, setIncludeLinks] = useState(false);
   const [publishing, setPublishing] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [songQuery, setSongQuery] = useState("");
+  const [feedback, setFeedback] = useState<{
+    message: string;
+    tone: "success" | "error";
+  } | null>(
+    searchParams.get("created") === "1"
+      ? { message: "Setlist saved", tone: "success" }
+      : null,
+  );
   useEffect(() => {
     void setlistRepository.get(id).then((value) => setSetlist(value ?? null));
   }, [id]);
@@ -42,37 +57,71 @@ export function SetlistEditor({ id }: { id: string }) {
   const update = (next: Partial<Setlist>) =>
     setSetlist({ ...currentSetlist, ...next });
   async function save() {
-    setSetlist(await setlistRepository.save(currentSetlist));
+    setFeedback(null);
+    try {
+      setSetlist(await setlistRepository.save(currentSetlist));
+      setFeedback({ message: "Setlist saved", tone: "success" });
+    } catch {
+      setFeedback({
+        message: "Setlist could not be saved. Please try again.",
+        tone: "error",
+      });
+    }
   }
   async function publish() {
     setPublishing(true);
-    const snapshot = createPublishedSnapshot(currentSetlist, songs, {
-      includeNotes,
-      includeLinks,
-    });
-    const response = await fetch(
-      currentSetlist.publishToken
-        ? `/api/published-setlists/${currentSetlist.publishToken}`
-        : "/api/published-setlists",
-      {
-        method: currentSetlist.publishToken ? "PUT" : "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(snapshot),
-      },
-    );
-    const result = await response.json();
-    if (response.ok && result.token) {
+    setFeedback(null);
+    try {
+      const snapshot = createPublishedSnapshot(currentSetlist, songs, {
+        includeNotes,
+        includeLinks,
+      });
+      const response = await fetch(
+        currentSetlist.publishToken
+          ? `/api/published-setlists/${currentSetlist.publishToken}`
+          : "/api/published-setlists",
+        {
+          method: currentSetlist.publishToken ? "PUT" : "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(snapshot),
+        },
+      );
+      const result = await response.json();
+      if (!response.ok || !result.token)
+        throw new Error(result.error ?? "Unable to publish setlist.");
       const saved = await setlistRepository.save({
         ...currentSetlist,
         publishToken: result.token,
       });
       setSetlist(saved);
-    } else alert(result.error ?? "Unable to publish setlist.");
-    setPublishing(false);
+      setFeedback({
+        message: currentSetlist.publishToken
+          ? "Published setlist updated"
+          : "Setlist published",
+        tone: "success",
+      });
+    } catch (error) {
+      setFeedback({
+        message:
+          error instanceof Error ? error.message : "Unable to publish setlist.",
+        tone: "error",
+      });
+    } finally {
+      setPublishing(false);
+    }
   }
+  const matchingSongs = songs.filter((song) =>
+    `${song.title} ${song.artist}`
+      .toLocaleLowerCase()
+      .includes(songQuery.trim().toLocaleLowerCase()),
+  );
   return (
-    <div className="mx-auto max-w-6xl px-4 py-7 pb-24 sm:px-6">
-      <div className="mb-6 flex flex-wrap items-center gap-3">
+    <div className="mx-auto max-w-6xl px-3 py-5 pb-24 min-[375px]:px-4 sm:px-6 sm:py-7">
+      <FeedbackToast
+        message={feedback?.message ?? null}
+        tone={feedback?.tone}
+      />
+      <div className="mb-6 flex flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:items-center">
         <Button asChild variant="ghost" className="-ml-3">
           <Link href="/setlists">
             <ArrowLeft size={17} />
@@ -83,18 +132,20 @@ export function SetlistEditor({ id }: { id: string }) {
           <p className="text-xs font-bold uppercase tracking-wider text-indigo-600">
             Setlist editor
           </p>
-          <h1 className="truncate text-2xl font-bold">{setlist.name}</h1>
+          <h1 className="break-words text-2xl font-bold">{setlist.name}</h1>
         </div>
-        <Button variant="secondary" onClick={() => void save()}>
-          <Save size={16} />
-          Save
-        </Button>
-        <Button asChild disabled={!setlist.entries.length}>
-          <Link href={`/performance/${setlist.id}`}>
-            <Play size={16} />
-            Perform
-          </Link>
-        </Button>
+        <div className="grid grid-cols-2 gap-2 sm:flex">
+          <Button variant="secondary" onClick={() => void save()}>
+            <Save size={16} />
+            Save
+          </Button>
+          <Button asChild disabled={!setlist.entries.length}>
+            <Link href={`/performance/${setlist.id}`}>
+              <Play size={16} />
+              Perform
+            </Link>
+          </Button>
+        </div>
       </div>
       <div className="grid gap-5 lg:grid-cols-[1fr_310px]">
         <div className="space-y-4">
@@ -129,60 +180,98 @@ export function SetlistEditor({ id }: { id: string }) {
               </label>
             </div>
           </Card>
-          <div className="flex items-end justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <h2 className="text-lg font-bold">Running order</h2>
               <p className="text-sm text-slate-500">
-                {setlist.entries.length} songs
+                {setlist.entries.length}{" "}
+                {setlist.entries.length === 1 ? "song" : "songs"}
               </p>
             </div>
-            <select
-              aria-label="Add song"
-              className="h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold"
-              value=""
-              onChange={(e) => {
-                if (!e.target.value) return;
-                update({
-                  entries: [
-                    ...setlist.entries,
-                    {
-                      id: crypto.randomUUID(),
-                      songId: e.target.value,
-                      arrangementCue: "",
-                    },
-                  ],
-                });
-              }}
+            <Button
+              className="w-full sm:w-auto"
+              variant="secondary"
+              onClick={() => setPickerOpen((open) => !open)}
+              aria-expanded={pickerOpen}
             >
-              <option value="">+ Add song</option>
-              {songs.map((song) => (
-                <option key={song.id} value={song.id}>
-                  {song.title} — {song.artist}
-                </option>
-              ))}
-            </select>
+              {pickerOpen ? <X size={17} /> : <Plus size={17} />}
+              {pickerOpen ? "Close" : "Add song"}
+            </Button>
           </div>
+          {pickerOpen && (
+            <Card className="p-3 sm:p-4">
+              <label className="relative block">
+                <Search
+                  className="pointer-events-none absolute left-3 top-3 text-slate-400"
+                  size={18}
+                />
+                <Input
+                  autoFocus
+                  aria-label="Search songs"
+                  className="pl-10"
+                  placeholder="Search songs by title or artist…"
+                  value={songQuery}
+                  onChange={(event) => setSongQuery(event.target.value)}
+                />
+              </label>
+              <div className="mt-2 max-h-72 overflow-y-auto overscroll-contain">
+                {matchingSongs.length ? (
+                  matchingSongs.map((song) => (
+                    <button
+                      key={song.id}
+                      className="flex min-h-14 w-full flex-col justify-center rounded-lg px-3 py-2 text-left hover:bg-slate-100 dark:hover:bg-slate-800"
+                      onClick={() => {
+                        update({
+                          entries: [
+                            ...setlist.entries,
+                            {
+                              id: crypto.randomUUID(),
+                              songId: song.id,
+                              arrangementCue: "",
+                            },
+                          ],
+                        });
+                        setSongQuery("");
+                        setPickerOpen(false);
+                      }}
+                    >
+                      <span className="break-words font-semibold">
+                        {song.title}
+                      </span>
+                      <span className="text-sm text-slate-500 dark:text-slate-400">
+                        {song.artist || "Unknown artist"}
+                      </span>
+                    </button>
+                  ))
+                ) : (
+                  <p className="px-3 py-6 text-center text-sm text-slate-500">
+                    No matching songs
+                  </p>
+                )}
+              </div>
+            </Card>
+          )}
           {setlist.entries.map((entry, index) => {
             const song = songMap.get(entry.songId);
             return (
-              <Card key={entry.id} className="p-4">
-                <div className="flex gap-3">
-                  <div className="flex flex-col items-center gap-1 text-slate-400">
+              <Card key={entry.id} className="min-w-0 p-3 min-[375px]:p-4">
+                <div className="flex min-w-0 flex-col gap-3 sm:flex-row">
+                  <div className="flex items-center gap-2 text-slate-400 sm:flex-col sm:gap-1">
                     <GripVertical size={18} />
-                    <span className="text-xs font-bold">{index + 1}</span>
+                    <span className="text-xs font-bold">Song {index + 1}</span>
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className="flex gap-2">
+                    <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-start">
                       <div className="min-w-0 flex-1">
-                        <h3 className="truncate font-bold">
+                        <h3 className="break-words text-base font-bold">
                           {song?.title ?? "Missing song"}
                         </h3>
-                        <p className="text-sm text-slate-500">
+                        <p className="break-words text-sm text-slate-500 dark:text-slate-400">
                           {song?.artist || "Unknown artist"} · Original key{" "}
                           {song?.originalKey || "—"}
                         </p>
                       </div>
-                      <div className="flex">
+                      <div className="flex self-start rounded-lg border border-slate-200 dark:border-slate-800">
                         <Button
                           size="icon"
                           variant="ghost"
@@ -230,7 +319,7 @@ export function SetlistEditor({ id }: { id: string }) {
                         </Button>
                       </div>
                     </div>
-                    <div className="mt-3 grid gap-3 sm:grid-cols-[140px_1fr]">
+                    <div className="mt-3 grid min-w-0 gap-3 sm:grid-cols-[140px_minmax(0,1fr)]">
                       <label className="text-xs font-bold uppercase tracking-wide text-slate-500">
                         Performance key
                         <Input

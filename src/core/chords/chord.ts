@@ -43,9 +43,10 @@ export interface ParsedChord {
   bass?: string;
 }
 
-const QUALITY = "(?:maj7|min7|m7|add9|sus2|sus4|dim|aug|m6|m|6|7|5)?";
+export const CHORD_QUALITY_PATTERN =
+  "(?:maj7|min7|m7|add9|sus2|sus4|dim|aug|m6|m|6|7|5|2)?";
 const CHORD_RE = new RegExp(
-  `^([A-G](?:#|b)?)(${QUALITY})(?:\\/([A-G](?:#|b)?))?$`,
+  `^([A-G](?:#|b)?)(${CHORD_QUALITY_PATTERN})(?:\\/([A-G](?:#|b)?))?$`,
 );
 
 export function parseChord(value: string): ParsedChord | null {

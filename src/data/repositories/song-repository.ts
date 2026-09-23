@@ -1,17 +1,27 @@
 import type { Song } from "@/core/songs/types";
+import { sectionsToText } from "@/core/parser/parser";
 import { db, type SongbookDatabase } from "@/data/db/songbook-db";
 
 export class SongRepository {
   constructor(private readonly database: SongbookDatabase = db) {}
 
-  list(): Promise<Song[]> {
-    return this.database.songs.orderBy("updatedAt").reverse().toArray();
+  async list(): Promise<Song[]> {
+    const songs = await this.database.songs
+      .orderBy("updatedAt")
+      .reverse()
+      .toArray();
+    return songs.map(normalizeSong);
   }
-  get(id: string): Promise<Song | undefined> {
-    return this.database.songs.get(id);
+  async get(id: string): Promise<Song | undefined> {
+    const song = await this.database.songs.get(id);
+    return song ? normalizeSong(song) : undefined;
   }
   async save(song: Song): Promise<Song> {
-    const saved = { ...song, updatedAt: new Date().toISOString() };
+    const saved = {
+      ...song,
+      sourceText: song.sourceText || sectionsToText(song.sections),
+      updatedAt: new Date().toISOString(),
+    };
     await this.database.songs.put(saved);
     return saved;
   }
@@ -35,3 +45,10 @@ export class SongRepository {
 }
 
 export const songRepository = new SongRepository();
+
+function normalizeSong(song: Song): Song {
+  return {
+    ...song,
+    sourceText: song.sourceText || sectionsToText(song.sections),
+  };
+}

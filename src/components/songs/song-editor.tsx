@@ -15,11 +15,12 @@ import {
 } from "lucide-react";
 import type { Song } from "@/core/songs/types";
 import { createEmptySong, newId } from "@/core/songs/types";
-import { parseSong } from "@/core/parser/parser";
+import { parseSong, sectionsToText } from "@/core/parser/parser";
 import { songRepository } from "@/data/repositories/song-repository";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input, Textarea } from "@/components/ui/input";
+import { FeedbackToast } from "@/components/ui/feedback-toast";
 
 const example = `[Verse 1]\nG                 D\nI found a love for me\nEm                           C\nDarling, just dive right in\n\n[Chorus]\n[G]Take me into your [D]loving arms`;
 
@@ -31,15 +32,35 @@ export function SongEditor({ songId }: { songId?: string }) {
   const [paste, setPaste] = useState("");
   const [mode, setMode] = useState<"paste" | "edit">(songId ? "edit" : "paste");
   const [saving, setSaving] = useState(false);
+  const [feedback, setFeedback] = useState<{
+    message: string;
+    tone: "success" | "error";
+  } | null>(null);
   useEffect(() => {
     if (songId)
-      void songRepository
-        .get(songId)
-        .then((found) => setSong(found ?? createEmptySong()));
+      void songRepository.get(songId).then((found) => {
+        const loaded = found ?? createEmptySong();
+        setSong(loaded);
+        setPaste(loaded.sourceText || sectionsToText(loaded.sections));
+      });
   }, [songId]);
 
   function update(next: Partial<Song>) {
-    setSong((current) => (current ? { ...current, ...next } : current));
+    setSong((current) =>
+      current
+        ? {
+            ...current,
+            ...next,
+            sourceText: next.sections
+              ? sectionsToText(next.sections)
+              : current.sourceText,
+          }
+        : current,
+    );
+  }
+  function openSmartPaste() {
+    setPaste(song?.sourceText || sectionsToText(song?.sections ?? []));
+    setMode("paste");
   }
   function smartPaste() {
     if (!paste.trim()) return;
@@ -58,9 +79,20 @@ export function SongEditor({ songId }: { songId?: string }) {
   async function save() {
     if (!song || !song.title.trim()) return;
     setSaving(true);
-    await songRepository.save(song);
-    setSaving(false);
-    router.push("/library");
+    setFeedback(null);
+    try {
+      const saved = await songRepository.save(song);
+      setSong(saved);
+      setFeedback({ message: "Song saved", tone: "success" });
+      window.setTimeout(() => router.push(`/songs/${saved.id}`), 700);
+    } catch {
+      setFeedback({
+        message: "Song could not be saved. Please try again.",
+        tone: "error",
+      });
+    } finally {
+      setSaving(false);
+    }
   }
   if (!song)
     return (
@@ -69,20 +101,24 @@ export function SongEditor({ songId }: { songId?: string }) {
 
   if (mode === "paste")
     return (
-      <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:py-12">
+      <div className="mx-auto max-w-4xl px-3 py-5 min-[375px]:px-4 sm:px-6 sm:py-8 lg:py-12">
+        <FeedbackToast
+          message={feedback?.message ?? null}
+          tone={feedback?.tone}
+        />
         <Button
           variant="ghost"
-          onClick={() => router.back()}
+          onClick={() => (songId ? setMode("edit") : router.back())}
           className="mb-5 -ml-3"
         >
           <ArrowLeft size={17} />
-          Library
+          {songId ? "Back to editor" : "Library"}
         </Button>
-        <div className="mb-7">
+        <div className="mb-5 sm:mb-7">
           <p className="mb-1 text-sm font-semibold text-indigo-600">
             Smart Paste
           </p>
-          <h1 className="text-3xl font-bold tracking-tight">
+          <h1 className="text-2xl font-bold tracking-tight min-[375px]:text-3xl">
             Create a song chart
           </h1>
           <p className="mt-2 max-w-2xl text-slate-500">
@@ -91,11 +127,11 @@ export function SongEditor({ songId }: { songId?: string }) {
           </p>
         </div>
         <Card className="overflow-hidden">
-          <div className="grid gap-4 border-b border-slate-200 bg-slate-50 p-4 sm:grid-cols-3">
+          <div className="grid gap-4 border-b border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900 sm:grid-cols-3">
             <label className="text-xs font-bold uppercase tracking-wide text-slate-500">
               Title
               <Input
-                className="mt-1.5 bg-white normal-case"
+                className="mt-1.5 normal-case"
                 value={song.title}
                 onChange={(e) => update({ title: e.target.value })}
               />
@@ -103,7 +139,7 @@ export function SongEditor({ songId }: { songId?: string }) {
             <label className="text-xs font-bold uppercase tracking-wide text-slate-500">
               Artist
               <Input
-                className="mt-1.5 bg-white normal-case"
+                className="mt-1.5 normal-case"
                 value={song.artist}
                 onChange={(e) => update({ artist: e.target.value })}
               />
@@ -111,7 +147,7 @@ export function SongEditor({ songId }: { songId?: string }) {
             <label className="text-xs font-bold uppercase tracking-wide text-slate-500">
               Original key
               <Input
-                className="mt-1.5 bg-white normal-case"
+                className="mt-1.5 normal-case"
                 placeholder="G"
                 value={song.originalKey}
                 onChange={(e) => update({ originalKey: e.target.value })}
@@ -124,7 +160,7 @@ export function SongEditor({ songId }: { songId?: string }) {
             </label>
             <Textarea
               data-testid="smart-paste-input"
-              className="min-h-[360px] resize-y font-mono leading-7"
+              className="min-h-[50dvh] resize-y font-mono leading-7 sm:min-h-[360px]"
               placeholder={example}
               value={paste}
               onChange={(e) => setPaste(e.target.value)}
@@ -135,6 +171,7 @@ export function SongEditor({ songId }: { songId?: string }) {
                 this device.
               </p>
               <Button
+                className="w-full sm:w-auto"
                 data-testid="parse-song"
                 size="lg"
                 disabled={!paste.trim()}
@@ -151,8 +188,12 @@ export function SongEditor({ songId }: { songId?: string }) {
     );
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-7 pb-24 sm:px-6">
-      <div className="mb-6 flex flex-wrap items-center gap-3">
+    <div className="mx-auto max-w-6xl px-3 py-5 pb-24 min-[375px]:px-4 sm:px-6 sm:py-7">
+      <FeedbackToast
+        message={feedback?.message ?? null}
+        tone={feedback?.tone}
+      />
+      <div className="mb-6 flex flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:items-center">
         <Button variant="ghost" onClick={() => router.back()} className="-ml-3">
           <ArrowLeft size={17} />
           Back
@@ -161,22 +202,24 @@ export function SongEditor({ songId }: { songId?: string }) {
           <p className="text-xs font-bold uppercase tracking-wider text-indigo-600">
             Chart editor
           </p>
-          <h1 className="truncate text-2xl font-bold">
+          <h1 className="break-words text-2xl font-bold">
             {song.title || "Untitled song"}
           </h1>
         </div>
-        <Button variant="secondary" onClick={() => setMode("paste")}>
-          <Sparkles size={16} />
-          Smart Paste
-        </Button>
-        <Button
-          data-testid="save-song"
-          onClick={() => void save()}
-          disabled={saving || !song.title.trim()}
-        >
-          <Save size={17} />
-          {saving ? "Saving…" : "Save song"}
-        </Button>
+        <div className="grid grid-cols-2 gap-2 sm:flex">
+          <Button variant="secondary" onClick={openSmartPaste}>
+            <Sparkles size={16} />
+            Smart Paste
+          </Button>
+          <Button
+            data-testid="save-song"
+            onClick={() => void save()}
+            disabled={saving || !song.title.trim()}
+          >
+            <Save size={17} />
+            {saving ? "Saving…" : "Save song"}
+          </Button>
+        </div>
       </div>
       <div className="grid gap-5 lg:grid-cols-[280px_1fr]">
         <div className="space-y-4">
@@ -234,11 +277,11 @@ export function SongEditor({ songId }: { songId?: string }) {
         <div className="space-y-4">
           {song.sections.map((section, sectionIndex) => (
             <Card key={section.id} className="overflow-hidden">
-              <div className="flex items-center gap-2 border-b border-slate-200 bg-slate-50 p-3">
+              <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-900">
                 <Music size={16} className="text-indigo-600" />
                 <Input
                   aria-label="Section name"
-                  className="h-8 max-w-56 bg-white font-semibold"
+                  className="min-w-0 flex-1 font-semibold sm:max-w-56"
                   value={section.title}
                   onChange={(e) =>
                     update({
@@ -250,7 +293,7 @@ export function SongEditor({ songId }: { songId?: string }) {
                     })
                   }
                 />
-                <div className="ml-auto flex">
+                <div className="ml-auto flex shrink-0">
                   <Button
                     size="icon"
                     variant="ghost"
@@ -300,7 +343,7 @@ export function SongEditor({ songId }: { songId?: string }) {
                 {section.lines.map((line) => (
                   <div
                     key={line.id}
-                    className="rounded-lg border border-slate-200 p-3"
+                    className="min-w-0 rounded-lg border border-slate-200 p-3 dark:border-slate-800"
                   >
                     <div className="mb-2 flex flex-wrap gap-2">
                       {line.chords.map((chord) => (
@@ -375,7 +418,7 @@ export function SongEditor({ songId }: { songId?: string }) {
                             }
                           />
                           <button
-                            className="px-1.5"
+                            className="min-h-9 min-w-9 px-1.5 text-lg"
                             aria-label="Delete chord"
                             onClick={() =>
                               update({
@@ -437,7 +480,7 @@ export function SongEditor({ songId }: { songId?: string }) {
                         Chord
                       </Button>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex min-w-0 gap-2">
                       <Input
                         aria-label="Lyrics"
                         className="font-mono"

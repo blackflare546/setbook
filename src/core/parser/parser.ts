@@ -8,12 +8,62 @@ import type {
 } from "@/core/songs/types";
 import { newId } from "@/core/songs/types";
 
-export type LineKind = "blank" | "section" | "chords" | "inline" | "lyrics";
+export type LineKind =
+  "blank" | "section" | "chords" | "inline" | "compact" | "lyrics";
 
-const SECTION_RE =
-  /^\s*(?:\[)?(intro|verse|pre[ -]?chorus|chorus|bridge|instrumental|solo|interlude|outro|ending)(?:\s+\d+)?(?:\])?\s*:?\s*$/i;
+const SECTION_NAME =
+  "intro|verse|pre[ -]?chorus|chorus|bridge|interlude|instrumental|solo|break|hook|refrain|outro|ending|tag";
+const BRACKETED_SECTION_RE = new RegExp(
+  `^\\s*\\[(${SECTION_NAME})(?:\\s+(\\d+))?\\]\\s*:?[\\t ]*(.*)$`,
+  "i",
+);
+const PLAIN_SECTION_RE = new RegExp(
+  `^\\s*(${SECTION_NAME})(?:\\s+(\\d+))?\\s*:?[\\t ]*$`,
+  "i",
+);
 const INLINE_RE =
-  /\[([A-G](?:#|b)?(?:maj7|min7|m7|add9|sus2|sus4|dim|aug|m6|m|6|7|5)?(?:\/[A-G](?:#|b)?)?)\]/g;
+  /\[([A-G](?:#|b)?(?:maj7|min7|m7|add9|sus2|sus4|dim|aug|m6|m|6|7|5|2)?(?:\/[A-G](?:#|b)?)?)\]/g;
+const COMPACT_RE = new RegExp(
+  `^\\s*([A-G](?:#|b)?(?:maj7|min7|m7|add9|sus2|sus4|dim|aug|m6|m|6|7|5|2)(?:\\/[A-G](?:#|b)?)?)(?=[A-Z])(.+)$`,
+);
+
+interface SectionHeading {
+  label: string;
+  content: string;
+}
+
+export function parseSectionHeading(line: string): SectionHeading | null {
+  const bracketed = line.match(BRACKETED_SECTION_RE);
+  if (bracketed) {
+    const label = `${bracketed[1]}${bracketed[2] ? ` ${bracketed[2]}` : ""}`;
+    const content = bracketed[3].trim();
+    if (
+      !content ||
+      splitTokens(content).every((token) => isChord(cleanChordToken(token)))
+    ) {
+      return { label, content };
+    }
+    return null;
+  }
+  const plain = line.match(PLAIN_SECTION_RE);
+  if (!plain) return null;
+  return {
+    label: `${plain[1]}${plain[2] ? ` ${plain[2]}` : ""}`,
+    content: "",
+  };
+}
+
+function parseCompactLine(
+  line: string,
+): { chord: string; lyrics: string } | null {
+  const match = line.match(COMPACT_RE);
+  if (!match || !isChord(match[1])) return null;
+  return { chord: match[1], lyrics: match[2] };
+}
+
+function cleanChordToken(token: string): string {
+  return token.replace(/[|,:()]/g, "");
+}
 
 function splitTokens(line: string): string[] {
   return line.trim().split(/\s+/).filter(Boolean);
@@ -21,14 +71,13 @@ function splitTokens(line: string): string[] {
 
 export function classifyLine(line: string): LineKind {
   if (!line.trim()) return "blank";
-  if (SECTION_RE.test(line)) return "section";
+  if (parseSectionHeading(line)) return "section";
   INLINE_RE.lastIndex = 0;
   if (INLINE_RE.test(line)) return "inline";
-  const tokens = splitTokens(line).map((token) =>
-    token.replace(/[|,:()]/g, ""),
-  );
+  const tokens = splitTokens(line).map(cleanChordToken);
   const chordCount = tokens.filter(isChord).length;
   if (tokens.length > 0 && chordCount === tokens.length) return "chords";
+  if (parseCompactLine(line)) return "compact";
   return "lyrics";
 }
 
@@ -55,7 +104,7 @@ export function parseChordLine(chordLine: string, lyrics: string): SongLine {
   const chords: Chord[] = [];
   const tokenRe = /\S+/g;
   for (const match of chordLine.matchAll(tokenRe)) {
-    const cleaned = match[0].replace(/[|,:()]/g, "");
+    const cleaned = cleanChordToken(match[0]);
     if (isChord(cleaned)) {
       chords.push({
         id: newId(),
@@ -71,20 +120,19 @@ function sectionInfo(title: string): { type: SectionType; title: string } {
   const clean = title.replace(/[\[\]:]/g, "").trim();
   const lower = clean.toLowerCase().replace("pre chorus", "pre-chorus");
   const base = lower.split(/\s+/)[0];
-  const type: SectionType =
-    base === "solo" || base === "interlude"
-      ? "instrumental"
-      : (([
-          "intro",
-          "verse",
-          "pre-chorus",
-          "chorus",
-          "bridge",
-          "instrumental",
-          "outro",
-        ].includes(base)
-          ? base
-          : "other") as SectionType);
+  const type: SectionType = ["solo", "interlude", "break"].includes(base)
+    ? "instrumental"
+    : (([
+        "intro",
+        "verse",
+        "pre-chorus",
+        "chorus",
+        "bridge",
+        "instrumental",
+        "outro",
+      ].includes(base)
+        ? base
+        : "other") as SectionType);
   return { type, title: clean.replace(/\b\w/g, (char) => char.toUpperCase()) };
 }
 
@@ -106,10 +154,21 @@ export function parseText(text: string): SongSection[] {
     const kind = classifyLine(line);
     if (kind === "section") {
       pushCurrent();
-      const info = sectionInfo(line);
+      const heading = parseSectionHeading(line)!;
+      const info = sectionInfo(heading.label);
       current = { id: newId(), ...info, lines: [] };
+      if (heading.content) {
+        current.lines.push(parseChordLine(heading.content, ""));
+      }
     } else if (kind === "inline") {
       current.lines.push(parseInlineLine(line));
+    } else if (kind === "compact") {
+      const compact = parseCompactLine(line)!;
+      current.lines.push({
+        id: newId(),
+        lyrics: compact.lyrics,
+        chords: [{ id: newId(), symbol: compact.chord, position: 0 }],
+      });
     } else if (
       kind === "chords" &&
       classifyLine(rows[i + 1] ?? "") === "lyrics"
@@ -139,16 +198,65 @@ export function parseSong(
   metadata: Partial<Pick<Song, "title" | "artist" | "originalKey">> = {},
 ): Song {
   const now = new Date().toISOString();
+  const normalized = text.replace(/\r\n/g, "\n");
+  const rows = normalized.split("\n");
+  const firstContent = rows.findIndex((row) => row.trim());
+  const hasLaterSection = rows
+    .slice(firstContent + 1)
+    .some((row) => parseSectionHeading(row));
+  const hasTitlePreamble =
+    firstContent >= 0 &&
+    hasLaterSection &&
+    !parseSectionHeading(rows[firstContent]) &&
+    !["chords", "inline", "compact"].includes(
+      classifyLine(rows[firstContent]),
+    ) &&
+    !rows[firstContent + 1]?.trim();
+  const inferredTitle = hasTitlePreamble
+    ? rows[firstContent].trim().replace(/[,]$/, "")
+    : "";
+  const chartText = hasTitlePreamble
+    ? rows
+        .slice(firstContent + 1)
+        .join("\n")
+        .trimStart()
+    : normalized;
   return {
     id: newId(),
-    title: metadata.title || "Untitled song",
+    title: metadata.title || inferredTitle || "Untitled song",
     artist: metadata.artist || "",
     originalKey: metadata.originalKey || "",
     tags: [],
-    sections: parseText(text),
+    sections: parseText(chartText),
     notes: "",
     links: {},
+    sourceText: text,
     createdAt: now,
     updatedAt: now,
   };
+}
+
+export function sectionsToText(sections: SongSection[]): string {
+  return sections
+    .map((section) => {
+      const lines = section.lines.flatMap((line) => {
+        if (!line.chords.length) return [line.lyrics];
+        const length = Math.max(
+          line.lyrics.length,
+          ...line.chords.map((chord) => chord.position + chord.symbol.length),
+        );
+        const row = Array.from({ length }, () => " ");
+        for (const chord of [...line.chords].sort(
+          (a, b) => a.position - b.position,
+        )) {
+          for (let index = 0; index < chord.symbol.length; index += 1) {
+            row[chord.position + index] = chord.symbol[index];
+          }
+        }
+        const chordLine = row.join("").trimEnd();
+        return line.lyrics ? [chordLine, line.lyrics] : [chordLine];
+      });
+      return [`[${section.title}]`, ...lines].join("\n");
+    })
+    .join("\n\n");
 }

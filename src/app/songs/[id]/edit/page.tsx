@@ -1,9 +1,10 @@
-import { SongViewer } from "@/components/songs/song-viewer";
+import { SongEditor } from "@/components/songs/song-editor";
+
 export default async function EditSongPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  return <SongViewer id={id} />;
+  return <SongEditor songId={id} />;
 }
