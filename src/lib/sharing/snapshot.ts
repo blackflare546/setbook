@@ -31,6 +31,7 @@ export function createPublishedSnapshot(
           title: song.title,
           artist: song.artist,
           originalKey: song.originalKey,
+          capo: song.capo,
           performanceKey: entry.performanceKey || song.originalKey,
           arrangementCue: entry.arrangementCue,
           sections: song.sections,

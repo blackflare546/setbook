@@ -40,6 +40,7 @@ export interface Song {
   title: string;
   artist: string;
   originalKey: string;
+  capo: number | null;
   tags: string[];
   sections: SongSection[];
   notes: string;
@@ -58,6 +59,7 @@ export function createEmptySong(): Song {
     title: "Untitled song",
     artist: "",
     originalKey: "",
+    capo: null,
     tags: [],
     sections: [
       {

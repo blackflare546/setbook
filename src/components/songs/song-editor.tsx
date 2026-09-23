@@ -62,26 +62,36 @@ export function SongEditor({ songId }: { songId?: string }) {
     setPaste(song?.sourceText || sectionsToText(song?.sections ?? []));
     setMode("paste");
   }
-  function smartPaste() {
-    if (!paste.trim()) return;
+  function parseDraft(): Song | null {
+    if (!song || !paste.trim()) return null;
     const parsed = parseSong(paste, {
       title: song?.title === "Untitled song" ? "" : song?.title,
       artist: song?.artist,
       originalKey: song?.originalKey,
+      capo: song?.capo,
     });
-    setSong({
+    return {
+      ...song,
       ...parsed,
       id: song?.id ?? parsed.id,
       createdAt: song?.createdAt ?? parsed.createdAt,
-    });
+      tags: song.tags,
+      notes: song.notes,
+      links: song.links,
+    };
+  }
+  function smartPaste() {
+    const parsed = parseDraft();
+    if (!parsed) return;
+    setSong(parsed);
     setMode("edit");
   }
-  async function save() {
-    if (!song || !song.title.trim()) return;
+  async function save(candidate: Song | null = song) {
+    if (!candidate || !candidate.title.trim()) return;
     setSaving(true);
     setFeedback(null);
     try {
-      const saved = await songRepository.save(song);
+      const saved = await songRepository.save(candidate);
       setSong(saved);
       setFeedback({ message: "Song saved", tone: "success" });
       window.setTimeout(() => router.push(`/songs/${saved.id}`), 700);
@@ -93,6 +103,12 @@ export function SongEditor({ songId }: { songId?: string }) {
     } finally {
       setSaving(false);
     }
+  }
+  async function saveFromPaste() {
+    const parsed = parseDraft();
+    if (!parsed) return;
+    setSong(parsed);
+    await save(parsed);
   }
   if (!song)
     return (
@@ -127,7 +143,7 @@ export function SongEditor({ songId }: { songId?: string }) {
           </p>
         </div>
         <Card className="overflow-hidden">
-          <div className="grid gap-4 border-b border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900 sm:grid-cols-3">
+          <div className="grid gap-4 border-b border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900 sm:grid-cols-2 lg:grid-cols-4">
             <label className="text-xs font-bold uppercase tracking-wide text-slate-500">
               Title
               <Input
@@ -153,6 +169,30 @@ export function SongEditor({ songId }: { songId?: string }) {
                 onChange={(e) => update({ originalKey: e.target.value })}
               />
             </label>
+            <label className="text-xs font-bold uppercase tracking-wide text-slate-500">
+              Capo
+              <select
+                aria-label="Capo"
+                className="mt-1.5 h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-base font-medium normal-case text-slate-950 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 sm:h-10 sm:text-sm"
+                value={song.capo ?? ""}
+                onChange={(event) =>
+                  update({
+                    capo: event.target.value
+                      ? Number(event.target.value)
+                      : null,
+                  })
+                }
+              >
+                <option value="">None</option>
+                {Array.from({ length: 12 }, (_, index) => index + 1).map(
+                  (value) => (
+                    <option key={value} value={value}>
+                      {value}
+                    </option>
+                  ),
+                )}
+              </select>
+            </label>
           </div>
           <div className="p-4 sm:p-6">
             <label className="mb-2 block text-sm font-semibold">
@@ -165,22 +205,33 @@ export function SongEditor({ songId }: { songId?: string }) {
               value={paste}
               onChange={(e) => setPaste(e.target.value)}
             />
-            <div className="mt-4 flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
+            <div className="mt-4 flex flex-col items-stretch justify-between gap-3 sm:flex-row sm:items-center">
               <p className="text-xs text-slate-500">
                 Your text stays in this browser. Parsing happens entirely on
                 this device.
               </p>
-              <Button
-                className="w-full sm:w-auto"
-                data-testid="parse-song"
-                size="lg"
-                disabled={!paste.trim()}
-                onClick={smartPaste}
-              >
-                <Sparkles size={18} />
-                Review chart
-                <ChevronRight size={17} />
-              </Button>
+              <div className="grid grid-cols-1 gap-2 min-[375px]:grid-cols-2 sm:flex">
+                <Button
+                  data-testid="save-song"
+                  size="lg"
+                  disabled={saving || !paste.trim() || !song.title.trim()}
+                  onClick={() => void saveFromPaste()}
+                >
+                  <Save size={18} />
+                  {saving ? "Saving…" : "Save song"}
+                </Button>
+                <Button
+                  data-testid="parse-song"
+                  variant="secondary"
+                  size="lg"
+                  disabled={!paste.trim()}
+                  onClick={smartPaste}
+                >
+                  <Sparkles size={18} />
+                  Review chart
+                  <ChevronRight size={17} />
+                </Button>
+              </div>
             </div>
           </div>
         </Card>
@@ -247,6 +298,30 @@ export function SongEditor({ songId }: { songId?: string }) {
                 value={song.originalKey}
                 onChange={(e) => update({ originalKey: e.target.value })}
               />
+            </label>
+            <label className="block text-sm font-semibold">
+              Capo
+              <select
+                aria-label="Capo"
+                className="mt-1.5 h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-base text-slate-950 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 sm:h-10 sm:text-sm"
+                value={song.capo ?? ""}
+                onChange={(event) =>
+                  update({
+                    capo: event.target.value
+                      ? Number(event.target.value)
+                      : null,
+                  })
+                }
+              >
+                <option value="">None</option>
+                {Array.from({ length: 12 }, (_, index) => index + 1).map(
+                  (value) => (
+                    <option key={value} value={value}>
+                      {value}
+                    </option>
+                  ),
+                )}
+              </select>
             </label>
             <label className="block text-sm font-semibold">
               Tags

@@ -109,7 +109,7 @@ export function parseChordLine(chordLine: string, lyrics: string): SongLine {
       chords.push({
         id: newId(),
         symbol: cleaned,
-        position: Math.min(match.index ?? 0, lyrics.length),
+        position: match.index ?? 0,
       });
     }
   }
@@ -195,7 +195,9 @@ export function parseText(text: string): SongSection[] {
 
 export function parseSong(
   text: string,
-  metadata: Partial<Pick<Song, "title" | "artist" | "originalKey">> = {},
+  metadata: Partial<
+    Pick<Song, "title" | "artist" | "originalKey" | "capo">
+  > = {},
 ): Song {
   const now = new Date().toISOString();
   const normalized = text.replace(/\r\n/g, "\n");
@@ -226,6 +228,7 @@ export function parseSong(
     title: metadata.title || inferredTitle || "Untitled song",
     artist: metadata.artist || "",
     originalKey: metadata.originalKey || "",
+    capo: metadata.capo ?? null,
     tags: [],
     sections: parseText(chartText),
     notes: "",

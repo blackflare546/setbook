@@ -45,6 +45,7 @@ export function SongViewer({ id }: { id: string }) {
         title: song.title,
         artist: song.artist,
         originalKey: song.originalKey,
+        capo: song.capo,
         performanceKey: song.originalKey,
         arrangementCue: "",
         sections: song.sections,

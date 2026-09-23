@@ -63,6 +63,27 @@ describe("positioning", () => {
     const line = parseChordLine("G       D", "Amazing grace");
     expect(line.chords.map((c) => c.position)).toEqual([0, 8]);
   });
+  it("keeps chord positions beyond the end of the lyric text", () => {
+    const line = parseChordLine("E                 B", "Short lyric");
+    expect(line.chords.map((chord) => [chord.symbol, chord.position])).toEqual([
+      ["E", 0],
+      ["B", 18],
+    ]);
+    expect(line.chords[1].position).toBeGreaterThan(line.lyrics.length);
+  });
+  it("preserves wide source coordinates without snapping to lyric words", () => {
+    const line = parseChordLine(
+      "E                 B        C#m   A   B",
+      "Lift him up and shout his name over all",
+    );
+    expect(line.chords.map((chord) => [chord.symbol, chord.position])).toEqual([
+      ["E", 0],
+      ["B", 18],
+      ["C#m", 27],
+      ["A", 33],
+      ["B", 37],
+    ]);
+  });
   it("splits a compact chord prefix without changing the lyric", () => {
     const [line] = parseText("Em7The splendor of a King")[0].lines;
     expect(line.lyrics).toBe("The splendor of a King");

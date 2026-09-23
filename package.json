@@ -9,8 +9,10 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "test:run": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "check": "pnpm lint && pnpm typecheck",
     "format": "prettier --write ."
   },
   "dependencies": {

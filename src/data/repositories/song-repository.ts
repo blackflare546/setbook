@@ -49,6 +49,7 @@ export const songRepository = new SongRepository();
 function normalizeSong(song: Song): Song {
   return {
     ...song,
+    capo: song.capo ?? null,
     sourceText: song.sourceText || sectionsToText(song.sections),
   };
 }

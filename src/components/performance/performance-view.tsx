@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import * as Dialog from "@radix-ui/react-dialog";
 import {
   ArrowLeft,
   ChevronLeft,
@@ -13,8 +14,11 @@ import {
   Music2,
   Plus,
   RotateCcw,
+  StickyNote,
+  X,
 } from "lucide-react";
 import type { PublishedSnapshot } from "@/lib/validation/schemas";
+import type { SongLine } from "@/core/songs/types";
 import {
   semitoneDistance,
   transposeChordSymbol,
@@ -22,32 +26,44 @@ import {
 import { transposeNote } from "@/core/chords/chord";
 import { Button } from "@/components/ui/button";
 
-function ChordLine({
-  chords,
-  semitones,
-}: {
-  chords: { symbol: string; position: number }[];
-  semitones: number;
-}) {
-  const parts: React.ReactNode[] = [];
-  let cursor = 0;
-  [...chords]
+function ChartLine({ line, semitones }: { line: SongLine; semitones: number }) {
+  const chords = [...line.chords]
     .sort((a, b) => a.position - b.position)
-    .forEach((chord, index) => {
-      const gap = Math.max(index ? 1 : 0, chord.position - cursor);
-      parts.push(<span key={`gap-${index}`}>{" ".repeat(gap)}</span>);
-      const symbol = transposeChordSymbol(chord.symbol, semitones);
-      parts.push(
-        <span
-          key={`${chord.position}-${chord.symbol}`}
-          className="font-extrabold text-indigo-700 dark:text-amber-300"
-        >
-          {symbol}
-        </span>,
-      );
-      cursor = chord.position + symbol.length;
-    });
-  return <>{parts}</>;
+    .map((chord) => ({
+      ...chord,
+      displaySymbol: transposeChordSymbol(chord.symbol, semitones),
+    }));
+  const columns = Math.max(
+    1,
+    line.lyrics.length,
+    ...chords.map((chord) => chord.position + chord.displaySymbol.length),
+  );
+
+  return (
+    <div className="max-w-full overflow-x-auto overscroll-x-contain pb-1">
+      <div
+        className="min-w-full"
+        data-testid="chart-line"
+        style={{ width: `${columns}ch` }}
+      >
+        <div className="relative h-5 text-sm leading-5 sm:text-base">
+          {chords.map((chord) => (
+            <span
+              key={chord.id}
+              data-chord-position={chord.position}
+              className="font-extrabold text-indigo-700 dark:text-amber-300"
+              style={{ position: "absolute", left: `${chord.position}ch` }}
+            >
+              {chord.displaySymbol}
+            </span>
+          ))}
+        </div>
+        <div className="whitespace-pre text-slate-950 dark:text-slate-100">
+          {line.lyrics || " "}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export function PerformanceView({
@@ -65,12 +81,12 @@ export function PerformanceView({
 }) {
   const [current, setCurrent] = useState(0);
   const [showOrder, setShowOrder] = useState(false);
+  const [showBandNotes, setShowBandNotes] = useState(false);
   const [transposeOffset, setTransposeOffset] = useState(0);
   const song = snapshot.songs[current];
   const selectSong = useCallback(
     (index: number) => {
       setCurrent(Math.max(0, Math.min(snapshot.songs.length - 1, index)));
-      setTransposeOffset(0);
     },
     [snapshot.songs.length],
   );
@@ -111,7 +127,13 @@ export function PerformanceView({
       <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/95 px-2 py-2 backdrop-blur dark:border-slate-800 dark:bg-slate-950/95 sm:px-4">
         <div className="mx-auto flex min-h-11 max-w-7xl items-center gap-1.5 sm:gap-2">
           {backHref && (
-            <Button asChild size="icon" variant="ghost" aria-label="Go back">
+            <Button
+              asChild
+              size="icon"
+              variant="ghost"
+              className="h-11 w-11"
+              aria-label="Go back"
+            >
               <Link href={backHref}>
                 <ArrowLeft size={19} />
               </Link>
@@ -133,7 +155,7 @@ export function PerformanceView({
             )}
           </div>
           {editHref && (
-            <Button asChild variant="secondary" size="sm">
+            <Button asChild variant="secondary" size="sm" className="h-11">
               <Link href={editHref}>
                 <Edit3 size={16} />
                 <span className="hidden min-[375px]:inline">Edit song</span>
@@ -141,18 +163,95 @@ export function PerformanceView({
             </Button>
           )}
           {!singleSong && (
-            <Button
-              size="icon"
-              variant="ghost"
-              aria-label="Show running order"
-              onClick={() => setShowOrder(!showOrder)}
-            >
-              <List size={20} />
-            </Button>
+            <Dialog.Root open={showOrder} onOpenChange={setShowOrder}>
+              <Dialog.Trigger asChild>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-11 w-11 lg:hidden"
+                  aria-label="Open performance menu"
+                >
+                  <List size={21} />
+                </Button>
+              </Dialog.Trigger>
+              <Dialog.Portal>
+                <Dialog.Overlay className="fixed inset-0 z-40 bg-slate-950/50 backdrop-blur-[1px]" />
+                <Dialog.Content className="fixed inset-y-0 right-0 z-50 w-[min(88vw,22rem)] overflow-y-auto border-l border-slate-200 bg-white p-4 shadow-2xl outline-none dark:border-slate-800 dark:bg-slate-950">
+                  <div className="mb-5 flex min-h-11 items-center justify-between gap-3">
+                    <Dialog.Title className="text-lg font-bold">
+                      Performance menu
+                    </Dialog.Title>
+                    <Dialog.Close asChild>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-11 w-11"
+                        aria-label="Close performance menu"
+                      >
+                        <X size={20} />
+                      </Button>
+                    </Dialog.Close>
+                  </div>
+
+                  <div className="mb-6 rounded-lg border border-slate-200 p-3 dark:border-slate-800">
+                    <button
+                      className="flex min-h-11 w-full items-center justify-between gap-3 text-left font-semibold"
+                      aria-pressed={showBandNotes}
+                      onClick={() => {
+                        setShowBandNotes((visible) => !visible);
+                        setShowOrder(false);
+                      }}
+                    >
+                      <span className="flex items-center gap-2">
+                        <StickyNote size={18} />
+                        Band Notes
+                      </span>
+                      <span className="text-xs text-indigo-700 dark:text-indigo-300">
+                        {showBandNotes ? "ON" : "OFF"}
+                      </span>
+                    </button>
+                    {!snapshot.notes && (
+                      <p className="mt-1 text-xs text-slate-500">
+                        No band notes have been added.
+                      </p>
+                    )}
+                  </div>
+
+                  <h2 className="mb-2 text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">
+                    Running order
+                  </h2>
+                  <div className="space-y-1">
+                    {snapshot.songs.map((item, index) => (
+                      <button
+                        key={item.entryId}
+                        onClick={() => {
+                          selectSong(index);
+                          setShowOrder(false);
+                        }}
+                        className={`flex min-h-12 w-full items-center gap-3 rounded-lg p-3 text-left ${index === current ? "bg-indigo-100 text-indigo-950 dark:bg-indigo-500/20 dark:text-white" : "text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"}`}
+                      >
+                        <span className="w-5 shrink-0 text-xs font-bold">
+                          {index + 1}
+                        </span>
+                        <span className="min-w-0">
+                          <span className="block break-words text-sm font-semibold">
+                            {item.title}
+                          </span>
+                          <span className="block text-xs">
+                            Key {item.performanceKey || "—"}
+                          </span>
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </Dialog.Content>
+              </Dialog.Portal>
+            </Dialog.Root>
           )}
           <Button
             size="icon"
             variant="ghost"
+            className="hidden h-11 w-11 sm:inline-flex"
             aria-label="Enter fullscreen"
             onClick={() => void document.documentElement.requestFullscreen?.()}
           >
@@ -183,6 +282,11 @@ export function PerformanceView({
                 >
                   {currentKey}
                 </p>
+                {song.capo && (
+                  <p className="whitespace-nowrap text-[10px] font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                    Capo {song.capo}
+                  </p>
+                )}
               </div>
               <div
                 className="flex items-center gap-1"
@@ -191,6 +295,7 @@ export function PerformanceView({
                 <Button
                   size="icon"
                   variant="secondary"
+                  className="h-11 w-11"
                   aria-label="Transpose down"
                   onClick={() => setTransposeOffset((value) => value - 1)}
                 >
@@ -207,6 +312,7 @@ export function PerformanceView({
                 <Button
                   size="icon"
                   variant="secondary"
+                  className="h-11 w-11"
                   aria-label="Transpose up"
                   onClick={() => setTransposeOffset((value) => value + 1)}
                 >
@@ -215,6 +321,7 @@ export function PerformanceView({
                 <Button
                   size="icon"
                   variant="ghost"
+                  className="h-11 w-11"
                   aria-label="Reset transposition"
                   disabled={transposeOffset === 0}
                   onClick={() => setTransposeOffset(0)}
@@ -236,6 +343,29 @@ export function PerformanceView({
             </div>
           )}
 
+          {showBandNotes && snapshot.notes && (
+            <section
+              aria-label="Band Notes"
+              className="mb-6 rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900 lg:hidden"
+            >
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <h2 className="text-xs font-bold uppercase tracking-[.16em] text-slate-600 dark:text-slate-300">
+                  Band Notes
+                </h2>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setShowBandNotes(false)}
+                >
+                  Hide
+                </Button>
+              </div>
+              <p className="whitespace-pre-wrap break-words text-sm leading-6 text-slate-700 dark:text-slate-300">
+                {snapshot.notes}
+              </p>
+            </section>
+          )}
+
           <div className="space-y-7 sm:space-y-9">
             {song.sections.map((section) => (
               <section key={section.id} className="min-w-0">
@@ -244,22 +374,11 @@ export function PerformanceView({
                 </h2>
                 <div className="space-y-3 font-mono text-base leading-7 sm:text-xl sm:leading-8">
                   {section.lines.map((line) => (
-                    <div
+                    <ChartLine
                       key={line.id}
-                      className="max-w-full overflow-x-auto overscroll-x-contain pb-1"
-                    >
-                      <div className="w-max min-w-full">
-                        <div className="min-h-5 whitespace-pre text-sm leading-5 sm:text-base">
-                          <ChordLine
-                            chords={line.chords}
-                            semitones={semitones}
-                          />
-                        </div>
-                        <div className="whitespace-pre text-slate-950 dark:text-slate-100">
-                          {line.lyrics || " "}
-                        </div>
-                      </div>
-                    </div>
+                      line={line}
+                      semitones={semitones}
+                    />
                   ))}
                 </div>
               </section>
@@ -268,9 +387,20 @@ export function PerformanceView({
         </article>
 
         {!singleSong && (
-          <aside
-            className={`${showOrder ? "block" : "hidden"} min-w-0 border-t border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900/60 lg:block lg:border-l lg:border-t-0`}
-          >
+          <aside className="hidden min-w-0 border-t border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900/60 lg:block lg:border-l lg:border-t-0">
+            <button
+              className="mb-5 flex min-h-11 w-full items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-3 text-left text-sm font-semibold dark:border-slate-700 dark:bg-slate-900"
+              aria-pressed={showBandNotes}
+              onClick={() => setShowBandNotes((visible) => !visible)}
+            >
+              <span className="flex items-center gap-2">
+                <StickyNote size={17} />
+                Band Notes
+              </span>
+              <span className="text-xs text-indigo-700 dark:text-indigo-300">
+                {showBandNotes ? "ON" : "OFF"}
+              </span>
+            </button>
             <h2 className="mb-3 text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">
               Running order
             </h2>
@@ -298,7 +428,7 @@ export function PerformanceView({
                 </button>
               ))}
             </div>
-            {snapshot.notes && (
+            {showBandNotes && snapshot.notes && (
               <div className="mt-6 border-t border-slate-200 pt-4 dark:border-slate-800">
                 <h3 className="mb-2 text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">
                   Band notes

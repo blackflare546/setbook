@@ -12,6 +12,7 @@ describe("published snapshots", () => {
       title: "Title",
       artist: "Artist",
       originalKey: "G",
+      capo: null,
       tags: ["private"],
       sections: [],
       notes: "private song note",
