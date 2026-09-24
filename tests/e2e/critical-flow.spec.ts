@@ -7,30 +7,43 @@ test("shows the welcome once and keeps help and about accessible", async ({
 }) => {
   await page.goto("/");
   await expect(
-    page.getByRole("heading", { name: "Your music. Ready for the stage." }),
+    page.getByRole("heading", {
+      name: "One place for your songs and chord charts.",
+    }),
   ).toBeVisible();
-  await expect(
-    page.getByText("Developed by Glenn Mark L. Flores"),
-  ).toBeVisible();
-  await expect(page.getByRole("link", { name: "Facebook" })).toHaveAttribute(
+  const developerLink = page.getByRole("link", {
+    name: "Glenn Mark L. Flores",
+  });
+  await expect(developerLink).toHaveAttribute(
     "href",
     "https://www.facebook.com/glennmark5466/",
   );
+  await expect(page.getByRole("link", { name: "Facebook" })).toHaveCount(0);
 
   await page.getByRole("button", { name: /Open Song Library/ }).click();
   await expect(page).toHaveURL(/\/library$/);
   await page.goto("/");
   await expect(page).toHaveURL(/\/library$/);
 
+  await page.getByLabel("Theme").selectOption("dark");
   await page.getByRole("link", { name: "Welcome", exact: true }).click();
   await expect(page).toHaveURL(/\/welcome$/);
   await expect(
-    page.getByRole("heading", { name: "Your music. Ready for the stage." }),
+    page.getByRole("heading", {
+      name: "One place for your songs and chord charts.",
+    }),
   ).toBeVisible();
+  await expect(page.getByTestId("landing-page")).toHaveCSS(
+    "background-color",
+    "rgb(255, 255, 255)",
+  );
 
   await page.goto("/about");
   await expect(page.getByRole("heading", { name: "SetBook" })).toBeVisible();
-  await expect(page.getByText("Glenn Mark L. Flores").first()).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Glenn Mark L. Flores" }),
+  ).toHaveCount(1);
+  await expect(page.getByRole("link", { name: "Facebook" })).toHaveCount(0);
   await expect(
     page.getByRole("link", { name: /View Welcome Page/ }),
   ).toBeVisible();

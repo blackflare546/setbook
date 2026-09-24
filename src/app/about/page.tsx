@@ -1,18 +1,18 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { BookOpen, ExternalLink, Music2 } from "lucide-react";
+import { BookOpen, Music2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export const metadata: Metadata = { title: "About" };
 
-const features = [
-  "Smart Paste",
-  "Song Library",
-  "Setlists",
-  "Performance View",
-  "Transpose",
-  "Setlist Sharing",
-  "Custom chart display",
+const capabilities = [
+  "Create and organize song charts",
+  "Paste existing chord sheets with Smart Paste",
+  "Edit chords and lyrics separately",
+  "Transpose songs for different keys",
+  "Build and manage setlists",
+  "Use a dedicated performance view",
+  "Share read-only setlists with other musicians",
 ];
 
 export default function AboutPage() {
@@ -28,36 +28,32 @@ export default function AboutPage() {
           </span>
           <h1 className="text-4xl font-black tracking-tight">SetBook</h1>
         </div>
-        <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-600 dark:text-slate-300">
-          A simple, local-first tool for creating, organizing, sharing, and
-          performing song charts.
-        </p>
 
-        <section className="mt-10 border-y border-slate-200 py-8 dark:border-slate-800">
-          <h2 className="text-xl font-bold">Features</h2>
-          <ul className="mt-5 grid gap-3 sm:grid-cols-2">
-            {features.map((feature) => (
-              <li key={feature} className="flex items-center gap-3 text-sm">
-                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-indigo-600" />
-                {feature}
-              </li>
-            ))}
-          </ul>
+        <section className="mt-8 border-y border-slate-200 py-8 dark:border-slate-800">
+          <h2 className="text-2xl font-bold tracking-tight">
+            A simple song chart and setlist tool for worship teams and bands.
+          </h2>
+          <p className="mt-4 leading-7 text-slate-600 dark:text-slate-300">
+            Organize songs, chord charts, and setlists in one place so musicians
+            can work from a consistent version of each song. Instead of
+            switching between different chord apps, files, and chord sheets,
+            teams can prepare and perform from the same organized charts.
+          </p>
         </section>
 
         <section className="py-8">
-          <h2 className="text-sm font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">
-            Developed by:
-          </h2>
-          <p className="mt-2 text-xl font-bold">Glenn Mark L. Flores</p>
-          <a
-            href="https://www.facebook.com/glennmark5466/"
-            target="_blank"
-            rel="noreferrer"
-            className="mt-4 inline-flex min-h-11 items-center gap-2 font-semibold text-indigo-700 hover:underline dark:text-indigo-400"
-          >
-            Facebook <ExternalLink size={16} />
-          </a>
+          <h2 className="text-xl font-bold">What you can do</h2>
+          <ul className="mt-5 grid gap-3 sm:grid-cols-2">
+            {capabilities.map((capability) => (
+              <li
+                key={capability}
+                className="flex items-start gap-3 text-sm leading-6"
+              >
+                <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-indigo-600" />
+                {capability}
+              </li>
+            ))}
+          </ul>
         </section>
 
         <Button asChild variant="secondary" className="min-h-11">
@@ -67,15 +63,15 @@ export default function AboutPage() {
         </Button>
       </main>
 
-      <footer className="mx-auto mt-12 flex max-w-3xl flex-col gap-2 border-t border-slate-200 pt-6 text-sm text-slate-500 dark:border-slate-800 dark:text-slate-400 sm:flex-row sm:justify-between">
-        <span>Developed by Glenn Mark L. Flores</span>
+      <footer className="mx-auto mt-12 max-w-3xl border-t border-slate-200 pt-6 text-sm text-slate-500 dark:border-slate-800 dark:text-slate-400">
+        Developed by:{" "}
         <a
           href="https://www.facebook.com/glennmark5466/"
           target="_blank"
           rel="noreferrer"
-          className="font-semibold hover:text-indigo-600 dark:hover:text-indigo-400"
+          className="font-semibold text-slate-700 hover:text-indigo-600 hover:underline dark:text-slate-300 dark:hover:text-indigo-400"
         >
-          Facebook
+          Glenn Mark L. Flores
         </a>
       </footer>
     </div>
