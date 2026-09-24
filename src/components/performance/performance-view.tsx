@@ -22,8 +22,10 @@ import type { SongLine } from "@/core/songs/types";
 import {
   adjustChartFontScale,
   adjustChartLineHeight,
+  CHART_LAYOUT_OPTIONS,
   DEFAULT_CHART_FONT_SETTINGS,
   type ChartFontCategory,
+  type ChartLayout,
   type ChartFontSettings,
 } from "@/core/songs/chart-font-settings";
 import { formatMusicalKey, transposeMusicalKey } from "@/core/chords/keys";
@@ -34,6 +36,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { settingsRepository } from "@/data/repositories/settings-repository";
 import { useTheme } from "@/components/theme/theme-provider";
+import { cn } from "@/lib/utils";
 
 function ChartLine({
   line,
@@ -112,12 +115,16 @@ const FONT_ROWS: Array<{ category: ChartFontCategory; label: string }> = [
 
 function ChartFontControls({
   settings,
+  layout,
   onChange,
   onLineHeightChange,
+  onLayoutChange,
 }: {
   settings: ChartFontSettings;
+  layout: ChartLayout;
   onChange: (category: ChartFontCategory, change: number) => void;
   onLineHeightChange: (change: number) => void;
+  onLayoutChange: (layout: ChartLayout) => void;
 }) {
   return (
     <Dialog.Root>
@@ -212,6 +219,30 @@ function ChartFontControls({
                 <Plus size={18} />
               </Button>
             </div>
+            <div className="border-t border-slate-200 pt-3 dark:border-slate-800">
+              <p className="mb-2 text-sm font-semibold">Layout</p>
+              <div
+                className="grid grid-cols-3 gap-1 rounded-lg bg-slate-100 p-1 dark:bg-slate-900"
+                aria-label="Chart layout"
+              >
+                {CHART_LAYOUT_OPTIONS.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    className={cn(
+                      "min-h-11 rounded-md px-2 text-xs font-bold transition-colors",
+                      layout === option.value
+                        ? "bg-white text-indigo-700 shadow-sm dark:bg-slate-800 dark:text-indigo-300"
+                        : "text-slate-600 hover:bg-white/70 dark:text-slate-400 dark:hover:bg-slate-800/70",
+                    )}
+                    aria-pressed={layout === option.value}
+                    onClick={() => onLayoutChange(option.value)}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
         </Dialog.Content>
       </Dialog.Portal>
@@ -240,6 +271,7 @@ export function PerformanceView({
   const [fontSettings, setFontSettings] = useState<ChartFontSettings>(
     DEFAULT_CHART_FONT_SETTINGS,
   );
+  const [chartLayout, setChartLayout] = useState<ChartLayout>("auto");
   const song = snapshot.songs[current];
   const selectSong = useCallback(
     (index: number) => {
@@ -251,6 +283,7 @@ export function PerformanceView({
   useEffect(() => {
     void settingsRepository.get().then((settings) => {
       setFontSettings(settings.chartFontSettings);
+      setChartLayout(settings.chartLayout);
     });
   }, []);
 
@@ -277,6 +310,11 @@ export function PerformanceView({
       void settingsRepository.saveChartFontSettings(next);
       return next;
     });
+  }
+
+  function changeChartLayout(layout: ChartLayout) {
+    setChartLayout(layout);
+    void settingsRepository.saveChartLayout(layout);
   }
 
   if (!song)
@@ -445,8 +483,10 @@ export function PerformanceView({
           )}
           <ChartFontControls
             settings={fontSettings}
+            layout={chartLayout}
             onChange={changeFontScale}
             onLineHeightChange={changeLineHeight}
+            onLayoutChange={changeChartLayout}
           />
           <Button
             size="icon"
@@ -566,9 +606,20 @@ export function PerformanceView({
             </section>
           )}
 
-          <div className="space-y-7 sm:space-y-9">
+          <div
+            data-chart-layout={chartLayout}
+            className={cn(
+              "gap-6 sm:gap-8",
+              chartLayout === "one" && "columns-1",
+              chartLayout === "two" && "columns-2",
+              chartLayout === "auto" && "columns-1 md:columns-2",
+            )}
+          >
             {song.sections.map((section) => (
-              <section key={section.id} className="min-w-0">
+              <section
+                key={section.id}
+                className="mb-7 inline-block w-full min-w-0 break-inside-avoid sm:mb-9"
+              >
                 <h2
                   className="mb-3 font-bold uppercase tracking-[.16em] text-indigo-700 dark:text-indigo-400"
                   style={{

@@ -1,4 +1,7 @@
-import type { ChartFontSettings } from "@/core/songs/chart-font-settings";
+import type {
+  ChartFontSettings,
+  ChartLayout,
+} from "@/core/songs/chart-font-settings";
 
 export interface SetlistSongEntry {
   id: string;
@@ -24,4 +27,5 @@ export interface AppSettings {
   theme: "light" | "dark" | "system";
   performanceFontSize: number;
   chartFontSettings: ChartFontSettings;
+  chartLayout: ChartLayout;
 }

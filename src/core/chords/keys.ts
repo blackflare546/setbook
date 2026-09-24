@@ -14,14 +14,17 @@ const KEY_ROOTS = [
   "C#",
   "Db",
   "D",
+  "D#",
   "Eb",
   "E",
   "F",
   "F#",
   "Gb",
   "G",
+  "G#",
   "Ab",
   "A",
+  "A#",
   "Bb",
   "B",
 ] as const;
@@ -45,6 +48,46 @@ const KEY_BY_VALUE = new Map(MUSICAL_KEYS.map((key) => [key.value, key]));
 
 export function parseMusicalKey(value: string): MusicalKeyOption | null {
   return KEY_BY_VALUE.get(value) ?? null;
+}
+
+export function searchMusicalKeys(query: string): MusicalKeyOption[] {
+  const normalized = query
+    .trim()
+    .toLowerCase()
+    .replaceAll("♯", "#")
+    .replaceAll("♭", "b");
+  if (!normalized) return MUSICAL_KEYS;
+
+  const requestedMode = normalized.includes("minor")
+    ? "minor"
+    : normalized.includes("major")
+      ? "major"
+      : null;
+  const rootQuery = normalized.replace(/\b(?:major|minor)\b/g, "").trim();
+  const modeMatches = requestedMode
+    ? MUSICAL_KEYS.filter((key) => key.mode === requestedMode)
+    : MUSICAL_KEYS;
+
+  if (!rootQuery) return modeMatches;
+  const exactRootMatches = modeMatches.filter(
+    (key) => key.root.toLowerCase() === rootQuery,
+  );
+  if (requestedMode && exactRootMatches.length > 0) return exactRootMatches;
+
+  return modeMatches
+    .filter(
+      (key) =>
+        key.root.toLowerCase().startsWith(rootQuery) ||
+        key.label.toLowerCase().includes(normalized),
+    )
+    .sort((left, right) => {
+      const modeOrder =
+        Number(left.mode === "minor") - Number(right.mode === "minor");
+      if (modeOrder) return modeOrder;
+      const rootOrder = (root: string) =>
+        root.toLowerCase() === rootQuery ? 0 : root.includes("#") ? 1 : 2;
+      return rootOrder(left.root) - rootOrder(right.root);
+    });
 }
 
 export function formatMusicalKey(value?: string): string {

@@ -21,7 +21,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input, Textarea } from "@/components/ui/input";
 import { FeedbackToast } from "@/components/ui/feedback-toast";
-import { MusicalKeySelect } from "@/components/ui/musical-key-select";
+import { KeySelector } from "@/components/ui/key-selector";
 
 const example = `[Verse 1]\nG                 D\nI found a love for me\nEm                           C\nDarling, just dive right in\n\n[Chorus]\n[G]Take me into your [D]loving arms`;
 
@@ -166,7 +166,7 @@ export function SongEditor({ songId }: { songId?: string }) {
             </label>
             <label className="text-xs font-bold uppercase tracking-wide text-slate-500">
               Key
-              <MusicalKeySelect
+              <KeySelector
                 ariaLabel="Song key"
                 className="mt-1.5 normal-case"
                 value={song.originalKey}
@@ -301,7 +301,7 @@ export function SongEditor({ songId }: { songId?: string }) {
             </label>
             <label className="block text-sm font-semibold">
               Key
-              <MusicalKeySelect
+              <KeySelector
                 ariaLabel="Song key"
                 className="mt-1.5"
                 value={song.originalKey}

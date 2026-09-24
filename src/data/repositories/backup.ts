@@ -21,6 +21,7 @@ const backupSchema = z.object({
           lineHeight: z.number().min(1).max(2.5).default(1.4),
         })
         .default(DEFAULT_CHART_FONT_SETTINGS),
+      chartLayout: z.enum(["auto", "one", "two"]).default("auto"),
     }),
   ),
 });

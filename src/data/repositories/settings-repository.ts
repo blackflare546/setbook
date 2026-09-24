@@ -1,6 +1,7 @@
 import type { AppSettings } from "@/core/setlists/types";
 import {
   DEFAULT_CHART_FONT_SETTINGS,
+  type ChartLayout,
   type ChartFontSettings,
 } from "@/core/songs/chart-font-settings";
 import { db, type SongbookDatabase } from "@/data/db/songbook-db";
@@ -10,6 +11,7 @@ const defaults: AppSettings = {
   theme: "system",
   performanceFontSize: 18,
   chartFontSettings: DEFAULT_CHART_FONT_SETTINGS,
+  chartLayout: "auto",
 };
 
 export class SettingsRepository {
@@ -34,6 +36,10 @@ export class SettingsRepository {
   ): Promise<AppSettings> {
     const current = await this.get();
     return this.save({ ...current, chartFontSettings });
+  }
+  async saveChartLayout(chartLayout: ChartLayout): Promise<AppSettings> {
+    const current = await this.get();
+    return this.save({ ...current, chartLayout });
   }
 }
 export const settingsRepository = new SettingsRepository();

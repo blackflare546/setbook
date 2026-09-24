@@ -48,6 +48,16 @@ describe("chart font settings", () => {
     });
   });
 
+  it("keeps auto as the default chart layout option", async () => {
+    const { CHART_LAYOUT_OPTIONS } =
+      await import("@/core/songs/chart-font-settings");
+    expect(CHART_LAYOUT_OPTIONS).toEqual([
+      { value: "auto", label: "Auto" },
+      { value: "one", label: "1 Column" },
+      { value: "two", label: "2 Columns" },
+    ]);
+  });
+
   it("bounds line height between 1.0 and 2.5", () => {
     expect(
       adjustChartLineHeight(

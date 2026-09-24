@@ -86,18 +86,49 @@ async function expectNoPageOverflow(page: Page) {
     .toBe(true);
 }
 
+async function selectKey(
+  page: Page,
+  label: "Song key" | "Performance key",
+  query: string,
+  option: string,
+  index = 0,
+) {
+  const input = page
+    .getByRole("combobox", { name: label, exact: true })
+    .nth(index);
+  await input.click();
+  await input.fill(query);
+  await page
+    .getByRole("listbox", { name: `${label} options`, exact: true })
+    .getByRole("option", { name: option, exact: true })
+    .click();
+}
+
 test("mobile-first song, setlist, performance, and publishing flow", async ({
   page,
 }) => {
   await page.goto("/songs/new");
   await page.getByLabel("Title").fill(title);
   await page.getByLabel("Artist").fill("Chris Tomlin");
-  await page.getByLabel("Song key").selectOption("G");
-  await expect(page.getByLabel("Song key").locator("option")).toContainText([
-    "Not set",
-    "C Major",
+  const songKey = page.getByRole("combobox", {
+    name: "Song key",
+    exact: true,
+  });
+  await songKey.click();
+  await songKey.fill("G");
+  const songKeyOptions = page
+    .getByRole("listbox", { name: "Song key options", exact: true })
+    .getByRole("option");
+  await expect(songKeyOptions).toHaveText([
+    "G Major",
+    "G# Major",
+    "Gb Major",
+    "G Minor",
+    "G# Minor",
+    "Gb Minor",
   ]);
-  await expect(page.getByLabel("Song key")).toContainText("E Minor");
+  await songKeyOptions.filter({ hasText: /^G Major$/ }).click();
+  await expect(songKey).toHaveValue("G Major");
   await page.getByLabel("Capo").selectOption("2");
   await page.getByTestId("smart-paste-input").fill(source);
   await page.getByTestId("save-song").click();
@@ -134,6 +165,15 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
   await expect(page.getByLabel("Chords font scale")).toHaveText("100%");
   await expect(page.getByLabel("Lyrics font scale")).toHaveText("100%");
   await expect(page.getByLabel("Line height value")).toHaveText("1.4");
+  await expect(page.getByRole("button", { name: "Auto" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await page.getByRole("button", { name: "2 Columns" }).click();
+  await expect(page.locator('[data-chart-layout="two"]')).toHaveCSS(
+    "column-count",
+    "2",
+  );
   await page.getByLabel("Increase section font size").click();
   await expect(page.getByLabel("Sections font scale")).toHaveText("110%");
   await expect(page.getByLabel("Chords font scale")).toHaveText("100%");
@@ -142,6 +182,10 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
   await page.getByLabel("Increase lyric font size").click();
   await page.getByLabel("Increase line height").click();
   await expect(page.getByLabel("Line height value")).toHaveText("1.5");
+  await expect(page.getByRole("button", { name: "2 Columns" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
   await expect(
     wideChartLine.locator('[data-chord-position="45"]'),
   ).toHaveAttribute("style", /left: 45ch/);
@@ -152,7 +196,32 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
   await expect(page.getByLabel("Chords font scale")).toHaveText("110%");
   await expect(page.getByLabel("Lyrics font scale")).toHaveText("110%");
   await expect(page.getByLabel("Line height value")).toHaveText("1.5");
+  await expect(page.getByRole("button", { name: "2 Columns" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await page.getByRole("button", { name: "Auto" }).click();
   await page.getByLabel("Close font size controls").click();
+  await page.setViewportSize({ width: 768, height: 900 });
+  await expect(page.locator('[data-chart-layout="auto"]')).toHaveCSS(
+    "column-count",
+    "2",
+  );
+  await page.getByLabel("Chart font sizes").click();
+  await page.getByRole("button", { name: "1 Column" }).click();
+  await page.getByLabel("Close font size controls").click();
+  await expect(page.locator('[data-chart-layout="one"]')).toHaveCSS(
+    "column-count",
+    "1",
+  );
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByLabel("Chart font sizes").click();
+  await page.getByRole("button", { name: "Auto" }).click();
+  await page.getByLabel("Close font size controls").click();
+  await expect(page.locator('[data-chart-layout="auto"]')).toHaveCSS(
+    "column-count",
+    "1",
+  );
 
   await page.getByLabel("Transpose up").click();
   await expect(page.getByLabel("Transpose offset")).toHaveText("+1");
@@ -167,7 +236,9 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
   await expect(page.getByTestId("smart-paste-input")).toHaveValue(source);
   await expect(page.getByLabel("Title")).toHaveValue(title);
   await expect(page.getByLabel("Artist")).toHaveValue("Chris Tomlin");
-  await expect(page.getByLabel("Song key")).toHaveValue("G");
+  await expect(
+    page.getByRole("combobox", { name: "Song key", exact: true }),
+  ).toHaveValue("G Major");
   await expect(page.getByLabel("Capo")).toHaveValue("2");
   await page.getByTestId("parse-song").click();
   await expect(page.getByText("Chart editor")).toBeVisible();
@@ -225,10 +296,10 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
   await page.getByRole("button", { name: new RegExp(title) }).click();
   await expect(page.getByText("2 songs")).toBeVisible();
   await expect(page.getByText("Setlist saved")).toHaveCount(0);
-  await page.getByLabel("Performance key").nth(0).selectOption("A");
-  await expect(page.getByLabel("Performance key").nth(0)).toContainText(
-    "E Minor",
-  );
+  await selectKey(page, "Performance key", "A major", "A Major");
+  await expect(
+    page.getByRole("combobox", { name: "Performance key", exact: true }).nth(0),
+  ).toHaveValue("A Major");
   await page
     .getByLabel("Arrangement cue")
     .nth(0)

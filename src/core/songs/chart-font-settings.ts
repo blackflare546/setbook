@@ -1,4 +1,14 @@
 export type ChartFontCategory = "section" | "chord" | "lyric";
+export type ChartLayout = "auto" | "one" | "two";
+
+export const CHART_LAYOUT_OPTIONS: Array<{
+  value: ChartLayout;
+  label: string;
+}> = [
+  { value: "auto", label: "Auto" },
+  { value: "one", label: "1 Column" },
+  { value: "two", label: "2 Columns" },
+];
 
 export interface ChartFontSettings {
   sectionScale: number;
