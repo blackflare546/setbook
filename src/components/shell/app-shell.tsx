@@ -2,14 +2,25 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BookOpen, ListMusic, Music2, Plus } from "lucide-react";
+import {
+  BookOpen,
+  CircleHelp,
+  Home,
+  Info,
+  ListMusic,
+  Music2,
+  Plus,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ThemeSwitcher } from "@/components/theme/theme-switcher";
 
 const nav = [
+  { href: "/welcome", label: "Welcome", icon: Home },
   { href: "/library", label: "Song library", icon: BookOpen },
   { href: "/setlists", label: "Setlists", icon: ListMusic },
+  { href: "/help", label: "Help", icon: CircleHelp },
+  { href: "/about", label: "About", icon: Info },
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -17,6 +28,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const songView =
     pathname !== "/songs/new" && /^\/songs\/[^/]+$/.test(pathname);
   const immersive =
+    pathname === "/" ||
+    pathname === "/welcome" ||
     pathname.startsWith("/performance/") ||
     pathname.startsWith("/s/") ||
     songView;
@@ -34,7 +47,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </span>
             <span className="hidden min-[360px]:inline">SetBook</span>
           </Link>
-          <nav className="hidden flex-1 items-center gap-1 md:flex">
+          <nav className="hidden flex-1 items-center gap-1 lg:flex">
             {nav.map(({ href, label, icon: Icon }) => (
               <Link
                 key={href}
@@ -63,18 +76,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       </header>
       <main>{children}</main>
-      <nav className="fixed inset-x-0 bottom-0 z-30 flex border-t border-slate-200 bg-white p-2 pb-[max(.5rem,env(safe-area-inset-bottom))] dark:border-slate-800 dark:bg-slate-950 md:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-30 flex border-t border-slate-200 bg-white p-2 pb-[max(.5rem,env(safe-area-inset-bottom))] dark:border-slate-800 dark:bg-slate-950 lg:hidden">
         {nav.map(({ href, label, icon: Icon }) => (
           <Link
             key={href}
             href={href}
             className={cn(
-              "flex flex-1 flex-col items-center gap-1 rounded-lg py-1.5 text-xs font-medium",
+              "flex min-h-12 min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-lg px-0.5 py-1 text-[10px] font-medium min-[390px]:text-xs",
               pathname.startsWith(href) ? "text-indigo-600" : "text-slate-500",
             )}
           >
             <Icon size={20} />
-            {label}
+            <span className="max-w-full truncate">
+              {label === "Song library" ? "Library" : label}
+            </span>
           </Link>
         ))}
       </nav>

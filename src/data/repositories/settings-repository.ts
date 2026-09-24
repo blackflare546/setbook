@@ -12,6 +12,7 @@ const defaults: AppSettings = {
   performanceFontSize: 18,
   chartFontSettings: DEFAULT_CHART_FONT_SETTINGS,
   chartLayout: "auto",
+  hasSeenLandingPage: false,
 };
 
 export class SettingsRepository {
@@ -40,6 +41,10 @@ export class SettingsRepository {
   async saveChartLayout(chartLayout: ChartLayout): Promise<AppSettings> {
     const current = await this.get();
     return this.save({ ...current, chartLayout });
+  }
+  async markLandingPageSeen(): Promise<AppSettings> {
+    const current = await this.get();
+    return this.save({ ...current, hasSeenLandingPage: true });
   }
 }
 export const settingsRepository = new SettingsRepository();

@@ -2,6 +2,55 @@ import { test, expect, type Page } from "@playwright/test";
 
 test.setTimeout(120_000);
 
+test("shows the welcome once and keeps help and about accessible", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await expect(
+    page.getByRole("heading", { name: "Your music. Ready for the stage." }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Developed by Glenn Mark L. Flores"),
+  ).toBeVisible();
+  await expect(page.getByRole("link", { name: "Facebook" })).toHaveAttribute(
+    "href",
+    "https://www.facebook.com/glennmark5466/",
+  );
+
+  await page.getByRole("button", { name: /Open Song Library/ }).click();
+  await expect(page).toHaveURL(/\/library$/);
+  await page.goto("/");
+  await expect(page).toHaveURL(/\/library$/);
+
+  await page.getByRole("link", { name: "Welcome", exact: true }).click();
+  await expect(page).toHaveURL(/\/welcome$/);
+  await expect(
+    page.getByRole("heading", { name: "Your music. Ready for the stage." }),
+  ).toBeVisible();
+
+  await page.goto("/about");
+  await expect(page.getByRole("heading", { name: "SetBook" })).toBeVisible();
+  await expect(page.getByText("Glenn Mark L. Flores").first()).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: /View Welcome Page/ }),
+  ).toBeVisible();
+  await page.getByRole("link", { name: "Help", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "How to use SetBook" }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Shared setlists are read-only.", { exact: false }),
+  ).toBeVisible();
+
+  for (const width of [320, 390, 768, 1024]) {
+    await page.setViewportSize({ width, height: 844 });
+    for (const route of ["/welcome", "/about", "/help"]) {
+      await page.goto(route);
+      await expectNoPageOverflow(page);
+    }
+  }
+});
+
 const title = "How Great Is Our God — Extended Live Arrangement";
 const longMobileSource = Array.from(
   { length: 30 },
@@ -399,6 +448,60 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
   await expect(page.getByLabel("Open performance menu")).toHaveCount(1);
   await expect(page.locator("aside")).toHaveCount(0);
   await expect(page.getByText("Running order", { exact: true })).toHaveCount(0);
+  await page.evaluate(() => {
+    const state = { element: null as Element | null };
+    (
+      window as unknown as {
+        __setBookFullscreenState: { element: Element | null };
+      }
+    ).__setBookFullscreenState = state;
+    Object.defineProperty(document, "fullscreenElement", {
+      configurable: true,
+      get: () => state.element,
+    });
+    Object.defineProperty(document.documentElement, "requestFullscreen", {
+      configurable: true,
+      value: async () => {
+        state.element = document.documentElement;
+        document.dispatchEvent(new Event("fullscreenchange"));
+      },
+    });
+    Object.defineProperty(document, "exitFullscreen", {
+      configurable: true,
+      value: async () => {
+        state.element = null;
+        document.dispatchEvent(new Event("fullscreenchange"));
+      },
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && state.element) {
+        state.element = null;
+        document.dispatchEvent(new Event("fullscreenchange"));
+      }
+    });
+    document.dispatchEvent(new Event("fullscreenchange"));
+  });
+  await page.getByLabel("Enter fullscreen").click();
+  await expect(page.getByLabel("Exit fullscreen")).toHaveAttribute(
+    "title",
+    "Exit Fullscreen",
+  );
+  await page.getByLabel("Exit fullscreen").click();
+  await expect(page.getByLabel("Enter fullscreen")).toHaveAttribute(
+    "title",
+    "Enter Fullscreen",
+  );
+  await page.evaluate(() => {
+    (
+      window as unknown as {
+        __setBookFullscreenState: { element: Element | null };
+      }
+    ).__setBookFullscreenState.element = document.documentElement;
+    document.dispatchEvent(new Event("fullscreenchange"));
+  });
+  await expect(page.getByLabel("Exit fullscreen")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.getByLabel("Enter fullscreen")).toBeVisible();
   await expect(page.locator("html")).toHaveClass(/dark/);
   await expect(page.getByText("Count four, quiet verse")).toBeVisible();
   await expect(page.getByText("1 of 2")).toBeVisible();

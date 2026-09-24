@@ -22,6 +22,7 @@ const backupSchema = z.object({
         })
         .default(DEFAULT_CHART_FONT_SETTINGS),
       chartLayout: z.enum(["auto", "one", "two"]).default("auto"),
+      hasSeenLandingPage: z.boolean().default(false),
     }),
   ),
 });

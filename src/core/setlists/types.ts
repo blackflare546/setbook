@@ -28,4 +28,5 @@ export interface AppSettings {
   performanceFontSize: number;
   chartFontSettings: ChartFontSettings;
   chartLayout: ChartLayout;
+  hasSeenLandingPage: boolean;
 }

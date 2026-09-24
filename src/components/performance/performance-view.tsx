@@ -10,6 +10,7 @@ import {
   Edit3,
   List,
   Maximize2,
+  Minimize2,
   Minus,
   Music2,
   Plus,
@@ -276,6 +277,8 @@ export function PerformanceView({
   const [showOrder, setShowOrder] = useState(false);
   const [showBandNotes, setShowBandNotes] = useState(false);
   const [transposeOffset, setTransposeOffset] = useState(0);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [fullscreenAvailable, setFullscreenAvailable] = useState(false);
   const [fontSettings, setFontSettings] = useState<ChartFontSettings>(
     DEFAULT_CHART_FONT_SETTINGS,
   );
@@ -293,6 +296,20 @@ export function PerformanceView({
       setFontSettings(settings.chartFontSettings);
       setChartLayout(settings.chartLayout);
     });
+  }, []);
+
+  useEffect(() => {
+    const syncFullscreenState = () => {
+      setIsFullscreen(Boolean(document.fullscreenElement));
+      setFullscreenAvailable(
+        typeof document.documentElement.requestFullscreen === "function" &&
+          typeof document.exitFullscreen === "function",
+      );
+    };
+    syncFullscreenState();
+    document.addEventListener("fullscreenchange", syncFullscreenState);
+    return () =>
+      document.removeEventListener("fullscreenchange", syncFullscreenState);
   }, []);
 
   useEffect(() => {
@@ -323,6 +340,15 @@ export function PerformanceView({
   function changeChartLayout(layout: ChartLayout) {
     setChartLayout(layout);
     void settingsRepository.saveChartLayout(layout);
+  }
+
+  async function toggleFullscreen() {
+    try {
+      if (document.fullscreenElement) await document.exitFullscreen?.();
+      else await document.documentElement.requestFullscreen?.();
+    } catch {
+      setIsFullscreen(Boolean(document.fullscreenElement));
+    }
   }
 
   if (!song)
@@ -515,10 +541,18 @@ export function PerformanceView({
             size="icon"
             variant="ghost"
             className="hidden h-11 w-11 sm:inline-flex"
-            aria-label="Enter fullscreen"
-            onClick={() => void document.documentElement.requestFullscreen?.()}
+            aria-label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+            title={
+              fullscreenAvailable
+                ? isFullscreen
+                  ? "Exit Fullscreen"
+                  : "Enter Fullscreen"
+                : "Fullscreen is not supported by this browser"
+            }
+            disabled={!fullscreenAvailable}
+            onClick={() => void toggleFullscreen()}
           >
-            <Maximize2 size={18} />
+            {isFullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
           </Button>
         </div>
       </header>
