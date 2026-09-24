@@ -6,6 +6,10 @@ import { Check, ChevronsUpDown } from "lucide-react";
 import { parseMusicalKey, searchMusicalKeys } from "@/core/chords/keys";
 import { cn } from "@/lib/utils";
 
+const LIST_GAP = 4;
+const LIST_MAX_HEIGHT = 256;
+const VIEWPORT_PADDING = 8;
+
 export function KeySelector({
   value,
   onChange,
@@ -23,7 +27,14 @@ export function KeySelector({
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
-  const [position, setPosition] = useState({ left: 0, top: 0, width: 0 });
+  const [position, setPosition] = useState({
+    left: 0,
+    top: null as number | null,
+    bottom: null as number | null,
+    width: 0,
+    maxHeight: LIST_MAX_HEIGHT,
+    side: "bottom" as "top" | "bottom",
+  });
   const selected = value ? parseMusicalKey(value) : null;
   const results = searchMusicalKeys(query);
 
@@ -31,12 +42,34 @@ export function KeySelector({
     if (!open) return;
     const updatePosition = () => {
       const rect = inputRef.current?.getBoundingClientRect();
-      if (rect)
+      if (rect) {
+        const measuredHeight = listRef.current?.scrollHeight ?? 0;
+        const desiredHeight = Math.min(
+          LIST_MAX_HEIGHT,
+          measuredHeight || LIST_MAX_HEIGHT,
+        );
+        const spaceBelow = Math.max(
+          0,
+          window.innerHeight - rect.bottom - LIST_GAP - VIEWPORT_PADDING,
+        );
+        const spaceAbove = Math.max(
+          0,
+          rect.top - LIST_GAP - VIEWPORT_PADDING,
+        );
+        const openAbove =
+          spaceBelow < desiredHeight && spaceAbove > spaceBelow;
+        const availableSpace = openAbove ? spaceAbove : spaceBelow;
         setPosition({
           left: rect.left,
-          top: rect.bottom + 4,
+          top: openAbove ? null : rect.bottom + LIST_GAP,
+          bottom: openAbove
+            ? window.innerHeight - rect.top + LIST_GAP
+            : null,
           width: rect.width,
+          maxHeight: Math.min(LIST_MAX_HEIGHT, availableSpace),
+          side: openAbove ? "top" : "bottom",
         });
+      }
     };
     const closeOnOutsidePress = (event: PointerEvent) => {
       const target = event.target as Node;
@@ -121,8 +154,15 @@ export function KeySelector({
             id={listId}
             role="listbox"
             aria-label={`${ariaLabel} options`}
-            className="fixed z-[100] max-h-64 overflow-y-auto rounded-lg border border-slate-200 bg-white p-1 shadow-xl dark:border-slate-700 dark:bg-slate-950"
-            style={position}
+            data-side={position.side}
+            className="fixed z-[100] overflow-y-auto rounded-lg border border-slate-200 bg-white p-1 shadow-xl dark:border-slate-700 dark:bg-slate-950"
+            style={{
+              left: position.left,
+              top: position.top ?? undefined,
+              bottom: position.bottom ?? undefined,
+              width: position.width,
+              maxHeight: position.maxHeight,
+            }}
           >
             {!query && (
               <button
