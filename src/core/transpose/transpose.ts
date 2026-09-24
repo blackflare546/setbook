@@ -1,5 +1,6 @@
 import type { Chord, SongSection } from "@/core/songs/types";
 import { parseChord, transposeNote } from "@/core/chords/chord";
+import { musicalKeyRoot } from "@/core/chords/keys";
 
 export function transposeChordSymbol(
   symbol: string,
@@ -47,7 +48,10 @@ export function semitoneDistance(from: string, to: string): number {
     "A#",
     "B",
   ];
-  const normalize = (note: string) => transposeNote(note, 0);
+  const normalize = (key: string) => {
+    const root = musicalKeyRoot(key);
+    return root ? transposeNote(root, 0) : key;
+  };
   const start = chromatic.indexOf(normalize(from));
   const end = chromatic.indexOf(normalize(to));
   if (start < 0 || end < 0) return 0;

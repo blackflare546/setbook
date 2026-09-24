@@ -21,17 +21,19 @@ import type { PublishedSnapshot } from "@/lib/validation/schemas";
 import type { SongLine } from "@/core/songs/types";
 import {
   adjustChartFontScale,
+  adjustChartLineHeight,
   DEFAULT_CHART_FONT_SETTINGS,
   type ChartFontCategory,
   type ChartFontSettings,
 } from "@/core/songs/chart-font-settings";
+import { formatMusicalKey, transposeMusicalKey } from "@/core/chords/keys";
 import {
   semitoneDistance,
   transposeChordSymbol,
 } from "@/core/transpose/transpose";
-import { transposeNote } from "@/core/chords/chord";
 import { Button } from "@/components/ui/button";
 import { settingsRepository } from "@/data/repositories/settings-repository";
+import { useTheme } from "@/components/theme/theme-provider";
 
 function ChartLine({
   line,
@@ -71,7 +73,9 @@ function ChartLine({
       >
         <div
           className="relative leading-none"
-          style={{ height: `${Math.max(1.35, 1.35 * chordToLyricScale)}em` }}
+          style={{
+            height: `${Math.max(fontSettings.lineHeight, 1.2 * chordToLyricScale)}em`,
+          }}
         >
           {chords.map((chord) => (
             <span
@@ -89,7 +93,10 @@ function ChartLine({
             </span>
           ))}
         </div>
-        <div className="whitespace-pre text-slate-950 dark:text-slate-100">
+        <div
+          className="whitespace-pre text-slate-950 dark:text-slate-100"
+          style={{ lineHeight: fontSettings.lineHeight }}
+        >
           {line.lyrics || " "}
         </div>
       </div>
@@ -106,9 +113,11 @@ const FONT_ROWS: Array<{ category: ChartFontCategory; label: string }> = [
 function ChartFontControls({
   settings,
   onChange,
+  onLineHeightChange,
 }: {
   settings: ChartFontSettings;
   onChange: (category: ChartFontCategory, change: number) => void;
+  onLineHeightChange: (change: number) => void;
 }) {
   return (
     <Dialog.Root>
@@ -176,6 +185,33 @@ function ChartFontControls({
                 </div>
               );
             })}
+            <div className="grid grid-cols-[1fr_44px_58px_44px] items-center gap-2 border-t border-slate-200 pt-3 dark:border-slate-800">
+              <span className="text-sm font-semibold">Line height</span>
+              <Button
+                size="icon"
+                variant="secondary"
+                className="h-11 w-11"
+                aria-label="Decrease line height"
+                onClick={() => onLineHeightChange(-0.1)}
+              >
+                <Minus size={18} />
+              </Button>
+              <span
+                className="text-center text-sm font-bold tabular-nums"
+                aria-label="Line height value"
+              >
+                {settings.lineHeight.toFixed(1)}
+              </span>
+              <Button
+                size="icon"
+                variant="secondary"
+                className="h-11 w-11"
+                aria-label="Increase line height"
+                onClick={() => onLineHeightChange(0.1)}
+              >
+                <Plus size={18} />
+              </Button>
+            </div>
           </div>
         </Dialog.Content>
       </Dialog.Portal>
@@ -196,6 +232,7 @@ export function PerformanceView({
   publicMode?: boolean;
   singleSong?: boolean;
 }) {
+  const { theme, setTheme } = useTheme();
   const [current, setCurrent] = useState(0);
   const [showOrder, setShowOrder] = useState(false);
   const [showBandNotes, setShowBandNotes] = useState(false);
@@ -234,6 +271,14 @@ export function PerformanceView({
     });
   }
 
+  function changeLineHeight(change: number) {
+    setFontSettings((currentSettings) => {
+      const next = adjustChartLineHeight(currentSettings, change);
+      void settingsRepository.saveChartFontSettings(next);
+      return next;
+    });
+  }
+
   if (!song)
     return (
       <main className="grid min-h-dvh place-items-center bg-slate-50 px-5 text-slate-950 dark:bg-slate-950 dark:text-white">
@@ -253,8 +298,8 @@ export function PerformanceView({
   const baseSemitones = semitoneDistance(song.originalKey, baseKey);
   const semitones = baseSemitones + transposeOffset;
   const currentKey = baseKey
-    ? transposeNote(baseKey, transposeOffset, baseKey.includes("b"))
-    : "—";
+    ? formatMusicalKey(transposeMusicalKey(baseKey, transposeOffset))
+    : "Not set";
 
   return (
     <main className="min-h-dvh max-w-full bg-white pb-24 text-slate-950 dark:bg-slate-950 dark:text-slate-100">
@@ -302,7 +347,7 @@ export function PerformanceView({
                 <Button
                   size="icon"
                   variant="ghost"
-                  className="h-11 w-11 lg:hidden"
+                  className="h-11 w-11"
                   aria-label="Open performance menu"
                 >
                   <List size={21} />
@@ -326,6 +371,22 @@ export function PerformanceView({
                       </Button>
                     </Dialog.Close>
                   </div>
+
+                  <label className="mb-4 block rounded-lg border border-slate-200 p-3 text-sm font-semibold dark:border-slate-800">
+                    Theme
+                    <select
+                      aria-label="Performance theme"
+                      className="mt-2 h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-base text-slate-950 outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                      value={theme}
+                      onChange={(event) =>
+                        void setTheme(event.target.value as typeof theme)
+                      }
+                    >
+                      <option value="light">Light</option>
+                      <option value="dark">Dark</option>
+                      <option value="system">System</option>
+                    </select>
+                  </label>
 
                   <div className="mb-6 rounded-lg border border-slate-200 p-3 dark:border-slate-800">
                     <button
@@ -372,7 +433,7 @@ export function PerformanceView({
                             {item.title}
                           </span>
                           <span className="block text-xs">
-                            Key {item.performanceKey || "—"}
+                            Key {formatMusicalKey(item.performanceKey)}
                           </span>
                         </span>
                       </button>
@@ -385,6 +446,7 @@ export function PerformanceView({
           <ChartFontControls
             settings={fontSettings}
             onChange={changeFontScale}
+            onLineHeightChange={changeLineHeight}
           />
           <Button
             size="icon"
@@ -566,7 +628,7 @@ export function PerformanceView({
                       {item.title}
                     </span>
                     <span className="block text-xs">
-                      Key {item.performanceKey || "—"}
+                      Key {formatMusicalKey(item.performanceKey)}
                     </span>
                   </span>
                 </button>

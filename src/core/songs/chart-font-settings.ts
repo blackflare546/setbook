@@ -4,12 +4,14 @@ export interface ChartFontSettings {
   sectionScale: number;
   chordScale: number;
   lyricScale: number;
+  lineHeight: number;
 }
 
 export const DEFAULT_CHART_FONT_SETTINGS: ChartFontSettings = {
   sectionScale: 100,
   chordScale: 100,
   lyricScale: 100,
+  lineHeight: 1.4,
 };
 
 export const CHART_FONT_BOUNDS: Record<
@@ -31,5 +33,16 @@ export function adjustChartFontScale(
   return {
     ...settings,
     [key]: Math.min(bounds.max, Math.max(bounds.min, settings[key] + change)),
+  };
+}
+
+export function adjustChartLineHeight(
+  settings: ChartFontSettings,
+  change: number,
+): ChartFontSettings {
+  const next = Math.round((settings.lineHeight + change) * 10) / 10;
+  return {
+    ...settings,
+    lineHeight: Math.min(2.5, Math.max(1, next)),
   };
 }

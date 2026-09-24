@@ -18,6 +18,7 @@ const backupSchema = z.object({
           sectionScale: z.number().min(80).max(180),
           chordScale: z.number().min(80).max(200),
           lyricScale: z.number().min(80).max(200),
+          lineHeight: z.number().min(1).max(2.5).default(1.4),
         })
         .default(DEFAULT_CHART_FONT_SETTINGS),
     }),

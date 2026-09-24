@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   adjustChartFontScale,
+  adjustChartLineHeight,
   DEFAULT_CHART_FONT_SETTINGS,
 } from "@/core/songs/chart-font-settings";
 
@@ -31,6 +32,34 @@ describe("chart font settings", () => {
   it("changes only the selected category", () => {
     expect(
       adjustChartFontScale(DEFAULT_CHART_FONT_SETTINGS, "chord", 10),
-    ).toEqual({ sectionScale: 100, chordScale: 110, lyricScale: 100 });
+    ).toEqual({
+      sectionScale: 100,
+      chordScale: 110,
+      lyricScale: 100,
+      lineHeight: 1.4,
+    });
+  });
+
+  it("defaults line height to 1.4 and changes only vertical rendering", () => {
+    expect(DEFAULT_CHART_FONT_SETTINGS.lineHeight).toBe(1.4);
+    expect(adjustChartLineHeight(DEFAULT_CHART_FONT_SETTINGS, 0.1)).toEqual({
+      ...DEFAULT_CHART_FONT_SETTINGS,
+      lineHeight: 1.5,
+    });
+  });
+
+  it("bounds line height between 1.0 and 2.5", () => {
+    expect(
+      adjustChartLineHeight(
+        { ...DEFAULT_CHART_FONT_SETTINGS, lineHeight: 1 },
+        -0.1,
+      ).lineHeight,
+    ).toBe(1);
+    expect(
+      adjustChartLineHeight(
+        { ...DEFAULT_CHART_FONT_SETTINGS, lineHeight: 2.5 },
+        0.1,
+      ).lineHeight,
+    ).toBe(2.5);
   });
 });

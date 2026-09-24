@@ -3,12 +3,14 @@
 import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useLiveQuery } from "dexie-react-hooks";
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import {
   ArrowDownAZ,
   Copy,
   Download,
   FileMusic,
   MoreHorizontal,
+  Pencil,
   Search,
   Trash2,
   Upload,
@@ -18,6 +20,85 @@ import { exportLibrary, importLibrary } from "@/data/repositories/backup";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { formatMusicalKey } from "@/core/chords/keys";
+import type { Song } from "@/core/songs/types";
+
+function SongActions({ song }: { song: Song }) {
+  const remove = () =>
+    confirm(`Delete “${song.title}”?`) && void songRepository.delete(song.id);
+
+  return (
+    <>
+      <div className="hidden gap-1 sm:flex">
+        <Button asChild variant="ghost" size="icon" aria-label="Edit song">
+          <Link href={`/songs/${song.id}/edit`}>
+            <Pencil size={17} />
+          </Link>
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label="Duplicate song"
+          onClick={() => void songRepository.duplicate(song.id)}
+        >
+          <Copy size={17} />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label="Delete song"
+          onClick={remove}
+        >
+          <Trash2 size={17} />
+        </Button>
+      </div>
+      <DropdownMenu.Root>
+        <DropdownMenu.Trigger asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-11 w-11 shrink-0 sm:hidden"
+            aria-label={`Song actions for ${song.title}`}
+          >
+            <MoreHorizontal size={20} />
+          </Button>
+        </DropdownMenu.Trigger>
+        <DropdownMenu.Portal>
+          <DropdownMenu.Content
+            align="end"
+            sideOffset={6}
+            className="z-50 min-w-44 rounded-lg border border-slate-200 bg-white p-1.5 text-slate-950 shadow-xl dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+          >
+            <DropdownMenu.Item asChild>
+              <Link
+                href={`/songs/${song.id}/edit`}
+                className="flex min-h-11 cursor-pointer items-center gap-3 rounded-md px-3 text-sm font-semibold outline-none hover:bg-slate-100 focus:bg-slate-100 dark:hover:bg-slate-800 dark:focus:bg-slate-800"
+              >
+                <Pencil size={17} />
+                Edit
+              </Link>
+            </DropdownMenu.Item>
+            <DropdownMenu.Item
+              className="flex min-h-11 cursor-pointer items-center gap-3 rounded-md px-3 text-sm font-semibold outline-none hover:bg-slate-100 focus:bg-slate-100 dark:hover:bg-slate-800 dark:focus:bg-slate-800"
+              onSelect={() => void songRepository.duplicate(song.id)}
+            >
+              <Copy size={17} />
+              Duplicate
+            </DropdownMenu.Item>
+            <DropdownMenu.Separator className="my-1 h-px bg-slate-200 dark:bg-slate-700" />
+            <DropdownMenu.Item
+              className="flex min-h-11 cursor-pointer items-center gap-3 rounded-md px-3 text-sm font-semibold text-rose-600 outline-none hover:bg-rose-50 focus:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/40 dark:focus:bg-rose-950/40"
+              onSelect={remove}
+            >
+              <Trash2 size={17} />
+              Delete
+            </DropdownMenu.Item>
+          </DropdownMenu.Content>
+        </DropdownMenu.Portal>
+      </DropdownMenu.Root>
+    </>
+  );
+}
 
 export function SongLibrary() {
   const liveSongs = useLiveQuery(() => songRepository.list(), []);
@@ -135,33 +216,12 @@ export function SongLibrary() {
                 <p className="break-words text-sm text-slate-500 dark:text-slate-400">
                   {song.artist || "Unknown artist"} ·{" "}
                   {song.originalKey
-                    ? `Key of ${song.originalKey}`
+                    ? `Key of ${formatMusicalKey(song.originalKey)}`
                     : "No key set"}{" "}
                   · {song.sections.length} sections
                 </p>
               </Link>
-              <div className="hidden gap-1 sm:flex">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  aria-label="Duplicate song"
-                  onClick={() => void songRepository.duplicate(song.id)}
-                >
-                  <Copy size={17} />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  aria-label="Delete song"
-                  onClick={() =>
-                    confirm(`Delete “${song.title}”?`) &&
-                    void songRepository.delete(song.id)
-                  }
-                >
-                  <Trash2 size={17} />
-                </Button>
-              </div>
-              <MoreHorizontal className="text-slate-400 sm:hidden" size={18} />
+              <SongActions song={song} />
             </div>
           ))}
         </div>

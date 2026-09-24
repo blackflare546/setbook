@@ -26,6 +26,8 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input, Textarea } from "@/components/ui/input";
 import { FeedbackToast } from "@/components/ui/feedback-toast";
+import { MusicalKeySelect } from "@/components/ui/musical-key-select";
+import { formatMusicalKey } from "@/core/chords/keys";
 
 type SaveState = "idle" | "dirty" | "saving" | "saved" | "error";
 
@@ -287,7 +289,7 @@ export function SetlistEditor({ id }: { id: string }) {
                         </h3>
                         <p className="break-words text-sm text-slate-500 dark:text-slate-400">
                           {song?.artist || "Unknown artist"} · Original key{" "}
-                          {song?.originalKey || "—"}
+                          {formatMusicalKey(song?.originalKey)}
                         </p>
                       </div>
                       <div className="flex self-start rounded-lg border border-slate-200 dark:border-slate-800">
@@ -341,16 +343,21 @@ export function SetlistEditor({ id }: { id: string }) {
                     <div className="mt-3 grid min-w-0 gap-3 sm:grid-cols-[140px_minmax(0,1fr)]">
                       <label className="text-xs font-bold uppercase tracking-wide text-slate-500">
                         Performance key
-                        <Input
+                        <MusicalKeySelect
+                          ariaLabel="Performance key"
                           className="mt-1 font-mono normal-case"
                           value={
                             entry.performanceKey ?? song?.originalKey ?? ""
                           }
-                          onChange={(e) =>
+                          onChange={(performanceKey) =>
                             update({
                               entries: setlist.entries.map((item) =>
                                 item.id === entry.id
-                                  ? { ...item, performanceKey: e.target.value }
+                                  ? {
+                                      ...item,
+                                      performanceKey:
+                                        performanceKey || undefined,
+                                    }
                                   : item,
                               ),
                             })

@@ -92,7 +92,12 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
   await page.goto("/songs/new");
   await page.getByLabel("Title").fill(title);
   await page.getByLabel("Artist").fill("Chris Tomlin");
-  await page.getByLabel("Original key").fill("G");
+  await page.getByLabel("Song key").selectOption("G");
+  await expect(page.getByLabel("Song key").locator("option")).toContainText([
+    "Not set",
+    "C Major",
+  ]);
+  await expect(page.getByLabel("Song key")).toContainText("E Minor");
   await page.getByLabel("Capo").selectOption("2");
   await page.getByTestId("smart-paste-input").fill(source);
   await page.getByTestId("save-song").click();
@@ -128,23 +133,30 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
   await expect(page.getByLabel("Sections font scale")).toHaveText("100%");
   await expect(page.getByLabel("Chords font scale")).toHaveText("100%");
   await expect(page.getByLabel("Lyrics font scale")).toHaveText("100%");
+  await expect(page.getByLabel("Line height value")).toHaveText("1.4");
   await page.getByLabel("Increase section font size").click();
   await expect(page.getByLabel("Sections font scale")).toHaveText("110%");
   await expect(page.getByLabel("Chords font scale")).toHaveText("100%");
   await expect(page.getByLabel("Lyrics font scale")).toHaveText("100%");
   await page.getByLabel("Increase chord font size").click();
   await page.getByLabel("Increase lyric font size").click();
+  await page.getByLabel("Increase line height").click();
+  await expect(page.getByLabel("Line height value")).toHaveText("1.5");
+  await expect(
+    wideChartLine.locator('[data-chord-position="45"]'),
+  ).toHaveAttribute("style", /left: 45ch/);
   await page.getByLabel("Close font size controls").click();
   await page.reload();
   await page.getByLabel("Chart font sizes").click();
   await expect(page.getByLabel("Sections font scale")).toHaveText("110%");
   await expect(page.getByLabel("Chords font scale")).toHaveText("110%");
   await expect(page.getByLabel("Lyrics font scale")).toHaveText("110%");
+  await expect(page.getByLabel("Line height value")).toHaveText("1.5");
   await page.getByLabel("Close font size controls").click();
 
   await page.getByLabel("Transpose up").click();
   await expect(page.getByLabel("Transpose offset")).toHaveText("+1");
-  await expect(page.getByLabel("Current key")).toHaveText("G#");
+  await expect(page.getByLabel("Current key")).toHaveText("G# Major");
   await page.getByLabel("Reset transposition").click();
   await expect(page.getByLabel("Transpose offset")).toHaveText("0");
 
@@ -155,7 +167,7 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
   await expect(page.getByTestId("smart-paste-input")).toHaveValue(source);
   await expect(page.getByLabel("Title")).toHaveValue(title);
   await expect(page.getByLabel("Artist")).toHaveValue("Chris Tomlin");
-  await expect(page.getByLabel("Original key")).toHaveValue("G");
+  await expect(page.getByLabel("Song key")).toHaveValue("G");
   await expect(page.getByLabel("Capo")).toHaveValue("2");
   await page.getByTestId("parse-song").click();
   await expect(page.getByText("Chart editor")).toBeVisible();
@@ -168,6 +180,29 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
   await expect(page.getByLabel("Theme")).toHaveValue("dark");
   await expect(page.locator("html")).toHaveClass(/dark/);
   await page.getByLabel("Theme").selectOption("light");
+  await page.setViewportSize({ width: 390, height: 844 });
+  const songActions = page.getByLabel(`Song actions for ${title}`);
+  const songActionsBox = await songActions.boundingBox();
+  expect(songActionsBox?.width).toBeGreaterThanOrEqual(44);
+  expect(songActionsBox?.height).toBeGreaterThanOrEqual(44);
+  await songActions.click();
+  await expect(page.getByRole("menu")).toBeVisible();
+  await page.mouse.click(12, 180);
+  await expect(page.getByRole("menu")).toHaveCount(0);
+
+  await songActions.click();
+  await page.getByRole("menuitem", { name: "Duplicate" }).click();
+  await expect(page.getByText("2 songs, available offline")).toBeVisible();
+  const copyActions = page.getByLabel(`Song actions for ${title} copy`);
+  await copyActions.click();
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.getByRole("menuitem", { name: "Delete" }).click();
+  await expect(page.getByText("1 song, available offline")).toBeVisible();
+
+  await songActions.click();
+  await page.getByRole("menuitem", { name: "Edit" }).click();
+  await expect(page.getByText("Edit song chart")).toBeVisible();
+  await page.goto("/library");
   await page.getByRole("link", { name: new RegExp(title) }).click();
   await expect(page).toHaveURL(songViewUrl);
   await expect(page.getByText("Song view")).toBeVisible();
@@ -190,7 +225,10 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
   await page.getByRole("button", { name: new RegExp(title) }).click();
   await expect(page.getByText("2 songs")).toBeVisible();
   await expect(page.getByText("Setlist saved")).toHaveCount(0);
-  await page.getByLabel("Performance key").nth(0).fill("A");
+  await page.getByLabel("Performance key").nth(0).selectOption("A");
+  await expect(page.getByLabel("Performance key").nth(0)).toContainText(
+    "E Minor",
+  );
   await page
     .getByLabel("Arrangement cue")
     .nth(0)
@@ -207,7 +245,7 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
   const performanceUrl = page.url();
   await page.setViewportSize({ width: 390, height: 844 });
   await page.reload();
-  await expect(page.getByLabel("Current key")).toHaveText("A");
+  await expect(page.getByLabel("Current key")).toHaveText("A Major");
   await expect(page.getByText("Capo 2")).toBeVisible();
   await expect(page.getByLabel("Enter fullscreen")).toBeHidden();
   const mobileWideLine = page
@@ -232,6 +270,8 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
 
   await page.getByLabel("Open performance menu").click();
   await expect(page.getByRole("dialog")).toBeVisible();
+  await page.getByLabel("Performance theme").selectOption("dark");
+  await expect(page.locator("html")).toHaveClass(/dark/);
   await page.getByRole("button", { name: /Band Notes/ }).click();
   await expect(page.getByRole("region", { name: "Band Notes" })).toContainText(
     "Guitar enters on Chorus",
@@ -247,13 +287,17 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
   await page.getByLabel("Transpose up").click();
   await page.getByLabel("Transpose up").click();
   await expect(page.getByLabel("Transpose offset")).toHaveText("+2");
-  await expect(page.getByLabel("Current key")).toHaveText("B");
+  await expect(page.getByLabel("Current key")).toHaveText("B Major");
   await page.getByRole("button", { name: "Next", exact: true }).click();
   await expect(page.getByLabel("Transpose offset")).toHaveText("+2");
-  await expect(page.getByLabel("Current key")).toHaveText("A");
+  await expect(page.getByLabel("Current key")).toHaveText("A Major");
+  await expect(page.locator("html")).toHaveClass(/dark/);
   await page.getByRole("button", { name: "Prev", exact: true }).click();
   await expect(page.getByLabel("Transpose offset")).toHaveText("+2");
-  await expect(page.getByLabel("Current key")).toHaveText("B");
+  await expect(page.getByLabel("Current key")).toHaveText("B Major");
+
+  await page.goto(songViewUrl);
+  await expect(page.getByLabel("Current key")).toHaveText("G Major");
 
   await page.goto(setlistEditorUrl);
   await expect(page.getByText("Setlist saved")).toHaveCount(0);
@@ -267,10 +311,23 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
   await expect(shareLink).toBeVisible();
   const firstShareUrl = await shareLink.getAttribute("href");
   expect(firstShareUrl).toMatch(/^\/s\//);
+  const publishedResponse = await page.request.get(
+    `/api/published-setlists/${firstShareUrl!.split("/").at(-1)}`,
+  );
+  const publishedSnapshot = await publishedResponse.json();
+  expect(publishedSnapshot).not.toHaveProperty("theme");
   await page.goto(firstShareUrl!);
   await expect(page.getByText("Shared setlist")).toBeVisible();
+  await expect(page.locator("html")).toHaveClass(/dark/);
   await expect(page.getByText("Count four, quiet verse")).toBeVisible();
   await expect(page.getByText("1 of 2")).toBeVisible();
+  await page.getByLabel("Open performance menu").click();
+  await page.getByLabel("Performance theme").selectOption("light");
+  await expect(page.locator("html")).not.toHaveClass(/dark/);
+  await page.getByLabel("Performance theme").selectOption("dark");
+  await page.keyboard.press("Escape");
+  await page.reload();
+  await expect(page.locator("html")).toHaveClass(/dark/);
 
   await page.goto(setlistEditorUrl);
   await page.getByRole("button", { name: "Add song" }).click();
