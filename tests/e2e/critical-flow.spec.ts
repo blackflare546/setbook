@@ -487,8 +487,11 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
       ),
     )
     .toBe(true);
-  await expect(page.getByLabel("Transpose offset")).toHaveText("+2");
-  await expect(page.getByLabel("Current key")).toHaveText("A Major");
+  await expect(page.getByLabel("Transpose offset")).toHaveText("0");
+  await expect(page.getByLabel("Current key")).toHaveText("G Major");
+  await page.getByLabel("Transpose down").click();
+  await expect(page.getByLabel("Transpose offset")).toHaveText("-1");
+  await expect(page.getByLabel("Current key")).toHaveText("F# Major");
   await expect(page.locator("html")).toHaveClass(/dark/);
   await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0);

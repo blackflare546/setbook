@@ -291,7 +291,9 @@ export function PerformanceView({
   const [current, setCurrent] = useState(0);
   const [showOrder, setShowOrder] = useState(false);
   const [showBandNotes, setShowBandNotes] = useState(false);
-  const [transposeOffset, setTransposeOffset] = useState(0);
+  const [transposeOffsets, setTransposeOffsets] = useState<
+    Record<string, number>
+  >({});
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [fullscreenAvailable, setFullscreenAvailable] = useState(false);
   const [fontSettings, setFontSettings] = useState<ChartFontSettings>(
@@ -405,6 +407,19 @@ export function PerformanceView({
       </main>
     );
 
+  const transposeOffset = transposeOffsets[song.entryId] ?? 0;
+  const changeTransposeOffset = (change: number) => {
+    setTransposeOffsets((currentOffsets) => ({
+      ...currentOffsets,
+      [song.entryId]: (currentOffsets[song.entryId] ?? 0) + change,
+    }));
+  };
+  const resetTransposeOffset = () => {
+    setTransposeOffsets((currentOffsets) => ({
+      ...currentOffsets,
+      [song.entryId]: 0,
+    }));
+  };
   const baseKey = song.performanceKey || song.originalKey;
   const baseSemitones = semitoneDistance(song.originalKey, baseKey);
   const semitones = baseSemitones + transposeOffset;
@@ -636,7 +651,7 @@ export function PerformanceView({
                   variant="secondary"
                   className="h-11 w-11"
                   aria-label="Transpose down"
-                  onClick={() => setTransposeOffset((value) => value - 1)}
+                  onClick={() => changeTransposeOffset(-1)}
                 >
                   <Minus size={18} />
                 </Button>
@@ -653,7 +668,7 @@ export function PerformanceView({
                   variant="secondary"
                   className="h-11 w-11"
                   aria-label="Transpose up"
-                  onClick={() => setTransposeOffset((value) => value + 1)}
+                  onClick={() => changeTransposeOffset(1)}
                 >
                   <Plus size={18} />
                 </Button>
@@ -663,7 +678,7 @@ export function PerformanceView({
                   className="h-11 w-11"
                   aria-label="Reset transposition"
                   disabled={transposeOffset === 0}
-                  onClick={() => setTransposeOffset(0)}
+                  onClick={resetTransposeOffset}
                 >
                   <RotateCcw size={16} />
                 </Button>
