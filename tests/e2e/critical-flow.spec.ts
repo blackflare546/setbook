@@ -26,7 +26,11 @@ test("shows the welcome once and keeps help and about accessible", async ({
   await expect(page).toHaveURL(/\/library$/);
 
   await page.getByLabel("Theme").selectOption("dark");
-  await page.getByRole("link", { name: "Welcome", exact: true }).click();
+  await expect(
+    page.getByRole("link", { name: "Welcome", exact: true }),
+  ).toHaveCount(0);
+  await page.getByRole("link", { name: "About", exact: true }).click();
+  await page.getByRole("link", { name: /View Welcome Page/ }).click();
   await expect(page).toHaveURL(/\/welcome$/);
   await expect(
     page.getByRole("heading", {

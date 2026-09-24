@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation";
 import {
   BookOpen,
   CircleHelp,
-  Home,
   Info,
   ListMusic,
   Music2,
@@ -16,7 +15,6 @@ import { Button } from "@/components/ui/button";
 import { ThemeSwitcher } from "@/components/theme/theme-switcher";
 
 const nav = [
-  { href: "/welcome", label: "Welcome", icon: Home },
   { href: "/library", label: "Song library", icon: BookOpen },
   { href: "/setlists", label: "Setlists", icon: ListMusic },
   { href: "/help", label: "Help", icon: CircleHelp },
