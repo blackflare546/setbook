@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import * as Dialog from "@radix-ui/react-dialog";
 import {
@@ -78,7 +78,10 @@ function ChartLine({
   );
 
   return (
-    <div className="max-w-full overflow-x-auto overscroll-x-contain pb-1">
+    <div
+      data-performance-scroll-container
+      className="max-w-full overflow-x-auto overscroll-x-contain pb-1"
+    >
       <div
         className="min-w-full"
         data-testid="chart-line"
@@ -295,6 +298,7 @@ export function PerformanceView({
     DEFAULT_CHART_FONT_SETTINGS,
   );
   const [chartLayout, setChartLayout] = useState<ChartLayout>("auto");
+  const performanceRootRef = useRef<HTMLElement>(null);
   const song = snapshot.songs[current];
   const selectSong = useCallback(
     (index: number) => {
@@ -309,6 +313,29 @@ export function PerformanceView({
       setChartLayout(settings.chartLayout);
     });
   }, []);
+
+  useEffect(() => {
+    if (window.scrollX !== 0 || window.scrollY !== 0) {
+      window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    }
+
+    const scrollingElement = document.scrollingElement;
+    if (scrollingElement) {
+      scrollingElement.scrollTop = 0;
+      scrollingElement.scrollLeft = 0;
+    }
+
+    if (performanceRootRef.current) {
+      performanceRootRef.current.scrollTop = 0;
+      performanceRootRef.current.scrollLeft = 0;
+    }
+    performanceRootRef.current
+      ?.querySelectorAll<HTMLElement>("[data-performance-scroll-container]")
+      .forEach((container) => {
+        container.scrollTop = 0;
+        container.scrollLeft = 0;
+      });
+  }, [current]);
 
   useEffect(() => {
     const syncFullscreenState = () => {
@@ -386,7 +413,10 @@ export function PerformanceView({
     : "Not set";
 
   return (
-    <main className="min-h-dvh max-w-full bg-white pb-24 text-slate-950 dark:bg-slate-950 dark:text-slate-100">
+    <main
+      ref={performanceRootRef}
+      className="min-h-dvh max-w-full bg-white pb-24 text-slate-950 dark:bg-slate-950 dark:text-slate-100"
+    >
       <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/95 px-2 py-2 backdrop-blur dark:border-slate-800 dark:bg-slate-950/95 sm:px-4">
         <div className="mx-auto flex min-h-11 max-w-7xl items-center gap-1.5 sm:gap-2">
           {backHref && (

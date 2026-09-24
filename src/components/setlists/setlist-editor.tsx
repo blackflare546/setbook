@@ -23,6 +23,7 @@ import { reorderEntries } from "@/core/setlists/operations";
 import { setlistRepository } from "@/data/repositories/setlist-repository";
 import { songRepository } from "@/data/repositories/song-repository";
 import { createPublishedSnapshot } from "@/lib/sharing/snapshot";
+import { deletePublishedSetlistByToken } from "@/lib/sharing/published-client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input, Textarea } from "@/components/ui/input";
@@ -67,6 +68,7 @@ export function SetlistEditor({ id }: { id: string }) {
       <div className="p-12 text-center text-slate-500">Loading setlist…</div>
     );
   const currentSetlist = setlist;
+  const savedForActions = saveState === "idle" || saveState === "saved";
   const update = (next: Partial<Setlist>) => {
     setFeedback(null);
     setSaveState("dirty");
@@ -88,6 +90,7 @@ export function SetlistEditor({ id }: { id: string }) {
     }
   }
   async function publish() {
+    if (!savedForActions) return;
     setPublishing(true);
     setFeedback(null);
     try {
@@ -139,15 +142,7 @@ export function SetlistEditor({ id }: { id: string }) {
     setDeletingPublished(true);
     setFeedback(null);
     try {
-      const response = await fetch(`/api/published-setlists/${token}`, {
-        method: "DELETE",
-      });
-      const result = await response.json().catch(() => null);
-      if (!response.ok)
-        throw new Error(
-          result?.error ??
-            `Unable to delete published setlist (server returned ${response.status}).`,
-        );
+      await deletePublishedSetlistByToken(token);
 
       const unpublishedSetlist: Setlist = { ...currentSetlist };
       delete unpublishedSetlist.publishToken;
@@ -205,13 +200,25 @@ export function SetlistEditor({ id }: { id: string }) {
             <Save size={16} />
             {saveState === "saving" ? "Saving…" : "Save"}
           </Button>
-          <Button asChild disabled={!setlist.entries.length}>
-            <Link href={`/performance/${setlist.id}`}>
+          {savedForActions && setlist.entries.length ? (
+            <Button asChild>
+              <Link href={`/performance/${setlist.id}`}>
+                <Play size={16} />
+                Perform
+              </Link>
+            </Button>
+          ) : (
+            <Button disabled title="Save the setlist before performing">
               <Play size={16} />
               Perform
-            </Link>
-          </Button>
+            </Button>
+          )}
         </div>
+        {!savedForActions && (
+          <p className="w-full text-xs font-medium text-amber-700 dark:text-amber-300 sm:text-right">
+            Save changes before performing or publishing.
+          </p>
+        )}
       </div>
       <div className="grid gap-5 lg:grid-cols-[1fr_310px]">
         <div className="space-y-4">
@@ -483,7 +490,10 @@ export function SetlistEditor({ id }: { id: string }) {
               className="w-full"
               onClick={() => void publish()}
               disabled={
-                publishing || deletingPublished || !setlist.entries.length
+                publishing ||
+                deletingPublished ||
+                !savedForActions ||
+                !setlist.entries.length
               }
             >
               {setlist.publishToken ? (

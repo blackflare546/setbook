@@ -394,8 +394,19 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
   await page
     .getByPlaceholder("Load-in, tuning, transitions…")
     .fill("Guitar enters on Chorus\nDrums build during Bridge");
+  await expect(
+    page.getByRole("button", { name: "Publish setlist" }),
+  ).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Perform" })).toBeDisabled();
+  await expect(
+    page.getByText("Save changes before performing or publishing."),
+  ).toBeVisible();
   await page.getByRole("button", { name: "Save", exact: true }).click();
   await expect(page.getByText("Setlist saved")).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Publish setlist" }),
+  ).toBeEnabled();
+  await expect(page.getByRole("link", { name: "Perform" })).toBeVisible();
   await expect(page.getByText("Setlist saved")).toBeHidden({ timeout: 4_000 });
 
   await page.getByRole("link", { name: "Perform" }).click();
@@ -452,11 +463,37 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
   await page.getByLabel("Transpose up").click();
   await expect(page.getByLabel("Transpose offset")).toHaveText("+2");
   await expect(page.getByLabel("Current key")).toHaveText("B Major");
+  await page.evaluate(() => {
+    window.scrollTo(0, document.body.scrollHeight);
+    const chartScroller = document.querySelector<HTMLElement>(
+      "[data-performance-scroll-container]",
+    );
+    if (chartScroller) chartScroller.scrollLeft = chartScroller.scrollWidth;
+  });
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
   await page.getByRole("button", { name: "Next", exact: true }).click();
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        Array.from(
+          document.querySelectorAll<HTMLElement>(
+            "[data-performance-scroll-container]",
+          ),
+        ).every(
+          (container) =>
+            container.scrollTop === 0 && container.scrollLeft === 0,
+        ),
+      ),
+    )
+    .toBe(true);
   await expect(page.getByLabel("Transpose offset")).toHaveText("+2");
   await expect(page.getByLabel("Current key")).toHaveText("A Major");
   await expect(page.locator("html")).toHaveClass(/dark/);
+  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
   await page.getByRole("button", { name: "Prev", exact: true }).click();
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
   await expect(page.getByLabel("Transpose offset")).toHaveText("+2");
   await expect(page.getByLabel("Current key")).toHaveText("B Major");
 
@@ -566,6 +603,15 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
   await page.getByLabel("Search songs").fill("Chris");
   await page.getByRole("button", { name: new RegExp(title) }).click();
   await expect(page.getByText("3 songs")).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Update published setlist" }),
+  ).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Perform" })).toBeDisabled();
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(page.getByText("Setlist saved")).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Update published setlist" }),
+  ).toBeEnabled();
   await Promise.all([
     page.waitForResponse(
       (response) =>
@@ -788,7 +834,40 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
   await page.goto(republishedUrl!);
   await expect(page.getByText("Shared setlist")).toBeVisible();
 
-  await page.request.delete(
-    `/api/published-setlists/${republishedUrl!.split("/").at(-1)}`,
-  );
+  await page.goto("/setlists");
+  const republishedDeletePattern = `**/api/published-setlists/${republishedUrl!.split("/").at(-1)}`;
+  await page.route(republishedDeletePattern, async (route) => {
+    if (route.request().method() === "DELETE") {
+      await route.fulfill({
+        status: 502,
+        contentType: "application/json",
+        body: JSON.stringify({ error: "Published setlist could not be deleted" }),
+      });
+      return;
+    }
+    await route.continue();
+  });
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.getByRole("button", { name: "Delete Friday Night" }).click();
+  await expect(
+    page.getByRole("alert").filter({
+      hasText: "Published setlist could not be deleted",
+    }),
+  ).toBeVisible();
+  await expect(page.getByText("Friday Night", { exact: true })).toBeVisible();
+  await page.unroute(republishedDeletePattern);
+
+  page.once("dialog", (dialog) => dialog.accept());
+  await Promise.all([
+    page.waitForResponse(
+      (response) =>
+        response.request().method() === "DELETE" &&
+        response.url().includes("/api/published-setlists/"),
+    ),
+    page.getByRole("button", { name: "Delete Friday Night" }).click(),
+  ]);
+  await expect(page.getByText("Setlist deleted")).toBeVisible();
+  await expect(page.getByText("No setlists yet")).toBeVisible();
+  const deletedSetlistShare = await page.request.get(republishedUrl!);
+  expect(deletedSetlistShare.status()).toBe(404);
 });

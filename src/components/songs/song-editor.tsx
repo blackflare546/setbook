@@ -53,7 +53,7 @@ function OriginalDetectedKey({
 }) {
   return (
     <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold dark:border-slate-800 dark:bg-slate-900">
-      Song Detected Key: {detectedKeyLabel(candidate)}
+      Original Detected Key: {detectedKeyLabel(candidate)}
     </div>
   );
 }

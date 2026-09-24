@@ -9,11 +9,18 @@ import type { Setlist } from "@/core/setlists/types";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { FeedbackToast } from "@/components/ui/feedback-toast";
+import { deletePublishedSetlistByToken } from "@/lib/sharing/published-client";
 
 export function SetlistList() {
   const router = useRouter();
   const setlists = useLiveQuery(() => setlistRepository.list(), []) ?? [];
   const [name, setName] = useState("");
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<{
+    message: string;
+    tone: "success" | "error";
+  } | null>(null);
   async function create() {
     if (!name.trim()) return;
     const now = new Date().toISOString();
@@ -30,8 +37,34 @@ export function SetlistList() {
     setName("");
     router.push(`/setlists/${setlist.id}`);
   }
+  async function deleteSetlist(setlist: Setlist) {
+    if (!confirm(`Delete “${setlist.name}”?`)) return;
+    setDeletingId(setlist.id);
+    setFeedback(null);
+    try {
+      if (setlist.publishToken) {
+        await deletePublishedSetlistByToken(setlist.publishToken);
+      }
+      await setlistRepository.delete(setlist.id);
+      setFeedback({ message: "Setlist deleted", tone: "success" });
+    } catch (error) {
+      setFeedback({
+        message:
+          error instanceof Error
+            ? error.message
+            : "Setlist could not be deleted. Please try again.",
+        tone: "error",
+      });
+    } finally {
+      setDeletingId(null);
+    }
+  }
   return (
     <div className="mx-auto max-w-6xl px-3 py-6 pb-24 min-[375px]:px-4 sm:px-6 sm:py-8 lg:py-10">
+      <FeedbackToast
+        message={feedback?.message ?? null}
+        tone={feedback?.tone}
+      />
       <div className="mb-7">
         <p className="mb-1 text-sm font-semibold text-indigo-600">
           Plan the show
@@ -74,10 +107,9 @@ export function SetlistList() {
                   <Button
                     size="icon"
                     variant="ghost"
-                    onClick={() =>
-                      confirm(`Delete “${setlist.name}”?`) &&
-                      void setlistRepository.delete(setlist.id)
-                    }
+                    aria-label={`Delete ${setlist.name}`}
+                    disabled={deletingId === setlist.id}
+                    onClick={() => void deleteSetlist(setlist)}
                   >
                     <Trash2 size={16} />
                   </Button>
