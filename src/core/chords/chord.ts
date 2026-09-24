@@ -147,6 +147,10 @@ export function isChord(value: string): boolean {
   return parseChord(value) !== null;
 }
 
+export function noteToPitchClass(note: string): number | null {
+  return NOTE_TO_INDEX[note] ?? null;
+}
+
 export function transposeNote(
   note: string,
   semitones: number,

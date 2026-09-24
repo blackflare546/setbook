@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowDown,
@@ -15,7 +15,12 @@ import {
 } from "lucide-react";
 import type { Song } from "@/core/songs/types";
 import { createEmptySong, newId } from "@/core/songs/types";
-import { parseSong, sectionsToText } from "@/core/parser/parser";
+import { parseSong, parseText, sectionsToText } from "@/core/parser/parser";
+import {
+  detectSongKey,
+  type DetectedKeyCandidate,
+} from "@/core/chords/key-detection";
+import { MUSICAL_KEYS } from "@/core/chords/keys";
 import { songRepository } from "@/data/repositories/song-repository";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -24,6 +29,22 @@ import { FeedbackToast } from "@/components/ui/feedback-toast";
 import { KeySelector } from "@/components/ui/key-selector";
 
 const example = `[Verse 1]\nG                 D\nI found a love for me\nEm                           C\nDarling, just dive right in\n\n[Chorus]\n[G]Take me into your [D]loving arms`;
+
+function detectedKeyValue(candidate: DetectedKeyCandidate): string {
+  return (
+    MUSICAL_KEYS.find(
+      (key) => key.root === candidate.key && key.mode === candidate.mode,
+    )?.value ?? ""
+  );
+}
+
+function detectedKeyLabel(candidate: DetectedKeyCandidate): string {
+  return (
+    MUSICAL_KEYS.find(
+      (key) => key.root === candidate.key && key.mode === candidate.mode,
+    )?.label ?? `${candidate.key} ${candidate.mode}`
+  );
+}
 
 export function SongEditor({ songId }: { songId?: string }) {
   const router = useRouter();
@@ -37,6 +58,10 @@ export function SongEditor({ songId }: { songId?: string }) {
     message: string;
     tone: "success" | "error";
   } | null>(null);
+  const keyDetection = useMemo(
+    () => (paste.trim() ? detectSongKey(parseText(paste)) : null),
+    [paste],
+  );
   useEffect(() => {
     if (songId)
       void songRepository.get(songId).then((found) => {
@@ -210,6 +235,48 @@ export function SongEditor({ songId }: { songId?: string }) {
               value={paste}
               onChange={(e) => setPaste(e.target.value)}
             />
+            {keyDetection && (
+              <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-900">
+                {keyDetection.confidence === "confident" &&
+                  keyDetection.primary && (
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <p className="text-sm font-semibold">
+                        Detected Key: {detectedKeyLabel(keyDetection.primary)}
+                      </p>
+                      {!song.originalKey && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="secondary"
+                          onClick={() =>
+                            update({
+                              originalKey: detectedKeyValue(
+                                keyDetection.primary!,
+                              ),
+                            })
+                          }
+                        >
+                          Use Detected Key
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                {keyDetection.confidence === "ambiguous" &&
+                  keyDetection.primary && (
+                    <p className="text-sm font-semibold">
+                      Possible Keys: {[keyDetection.primary]
+                        .concat(keyDetection.alternatives)
+                        .map(detectedKeyLabel)
+                        .join(" / ")}
+                    </p>
+                  )}
+                {keyDetection.confidence === "unknown" && (
+                  <p className="text-sm text-slate-600 dark:text-slate-300">
+                    Key could not be determined reliably.
+                  </p>
+                )}
+              </div>
+            )}
             <div className="mt-6 flex flex-col items-stretch justify-between gap-4 sm:mt-7 sm:flex-row sm:items-center">
               <p className="text-xs text-slate-500">
                 Your text stays in this browser. Parsing happens entirely on
