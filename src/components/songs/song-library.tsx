@@ -167,11 +167,11 @@ export function SongLibrary() {
             onClick={() => importRef.current?.click()}
           >
             <Upload size={16} />
-            Restore
+            Import
           </Button>
           <Button variant="secondary" onClick={() => void backup()}>
             <Download size={16} />
-            Backup
+            Export
           </Button>
           <Button asChild className="col-span-2 sm:col-span-1">
             <Link href="/songs/new">Add song</Link>
