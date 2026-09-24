@@ -28,7 +28,7 @@ export function SetlistList() {
     };
     await setlistRepository.save(setlist);
     setName("");
-    router.push(`/setlists/${setlist.id}?created=1`);
+    router.push(`/setlists/${setlist.id}`);
   }
   return (
     <div className="mx-auto max-w-6xl px-3 py-6 pb-24 min-[375px]:px-4 sm:px-6 sm:py-8 lg:py-10">

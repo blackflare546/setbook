@@ -20,23 +20,43 @@ import {
 import type { PublishedSnapshot } from "@/lib/validation/schemas";
 import type { SongLine } from "@/core/songs/types";
 import {
+  adjustChartFontScale,
+  DEFAULT_CHART_FONT_SETTINGS,
+  type ChartFontCategory,
+  type ChartFontSettings,
+} from "@/core/songs/chart-font-settings";
+import {
   semitoneDistance,
   transposeChordSymbol,
 } from "@/core/transpose/transpose";
 import { transposeNote } from "@/core/chords/chord";
 import { Button } from "@/components/ui/button";
+import { settingsRepository } from "@/data/repositories/settings-repository";
 
-function ChartLine({ line, semitones }: { line: SongLine; semitones: number }) {
+function ChartLine({
+  line,
+  semitones,
+  fontSettings,
+}: {
+  line: SongLine;
+  semitones: number;
+  fontSettings: ChartFontSettings;
+}) {
   const chords = [...line.chords]
     .sort((a, b) => a.position - b.position)
     .map((chord) => ({
       ...chord,
       displaySymbol: transposeChordSymbol(chord.symbol, semitones),
     }));
+  const chordToLyricScale = fontSettings.chordScale / fontSettings.lyricScale;
   const columns = Math.max(
     1,
     line.lyrics.length,
-    ...chords.map((chord) => chord.position + chord.displaySymbol.length),
+    ...chords.map(
+      (chord) =>
+        chord.position +
+        Math.ceil(chord.displaySymbol.length * chordToLyricScale),
+    ),
   );
 
   return (
@@ -44,17 +64,28 @@ function ChartLine({ line, semitones }: { line: SongLine; semitones: number }) {
       <div
         className="min-w-full"
         data-testid="chart-line"
-        style={{ width: `${columns}ch` }}
+        style={{
+          width: `${columns}ch`,
+          fontSize: `${fontSettings.lyricScale / 100}em`,
+        }}
       >
-        <div className="relative h-5 text-sm leading-5 sm:text-base">
+        <div
+          className="relative leading-none"
+          style={{ height: `${Math.max(1.35, 1.35 * chordToLyricScale)}em` }}
+        >
           {chords.map((chord) => (
             <span
               key={chord.id}
               data-chord-position={chord.position}
-              className="font-extrabold text-indigo-700 dark:text-amber-300"
-              style={{ position: "absolute", left: `${chord.position}ch` }}
+              className="absolute"
+              style={{ left: `${chord.position}ch` }}
             >
-              {chord.displaySymbol}
+              <span
+                className="font-extrabold text-indigo-700 dark:text-amber-300"
+                style={{ fontSize: `${chordToLyricScale}em` }}
+              >
+                {chord.displaySymbol}
+              </span>
             </span>
           ))}
         </div>
@@ -63,6 +94,92 @@ function ChartLine({ line, semitones }: { line: SongLine; semitones: number }) {
         </div>
       </div>
     </div>
+  );
+}
+
+const FONT_ROWS: Array<{ category: ChartFontCategory; label: string }> = [
+  { category: "section", label: "Sections" },
+  { category: "chord", label: "Chords" },
+  { category: "lyric", label: "Lyrics" },
+];
+
+function ChartFontControls({
+  settings,
+  onChange,
+}: {
+  settings: ChartFontSettings;
+  onChange: (category: ChartFontCategory, change: number) => void;
+}) {
+  return (
+    <Dialog.Root>
+      <Dialog.Trigger asChild>
+        <Button
+          size="icon"
+          variant="ghost"
+          className="h-11 w-11"
+          aria-label="Chart font sizes"
+        >
+          <span className="text-sm font-black">Aa</span>
+        </Button>
+      </Dialog.Trigger>
+      <Dialog.Portal>
+        <Dialog.Overlay className="fixed inset-0 z-40 bg-slate-950/50 backdrop-blur-[1px]" />
+        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[min(calc(100vw-2rem),24rem)] -translate-x-1/2 -translate-y-1/2 rounded-xl border border-slate-200 bg-white p-4 shadow-2xl outline-none dark:border-slate-800 dark:bg-slate-950">
+          <div className="mb-4 flex min-h-11 items-center justify-between gap-3">
+            <Dialog.Title className="text-lg font-bold">
+              Chart font sizes
+            </Dialog.Title>
+            <Dialog.Close asChild>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-11 w-11"
+                aria-label="Close font size controls"
+              >
+                <X size={20} />
+              </Button>
+            </Dialog.Close>
+          </div>
+          <div className="space-y-3">
+            {FONT_ROWS.map(({ category, label }) => {
+              const value = settings[`${category}Scale`];
+              return (
+                <div
+                  key={category}
+                  className="grid grid-cols-[1fr_44px_58px_44px] items-center gap-2"
+                >
+                  <span className="text-sm font-semibold">{label}</span>
+                  <Button
+                    size="icon"
+                    variant="secondary"
+                    className="h-11 w-11"
+                    aria-label={`Decrease ${category} font size`}
+                    onClick={() => onChange(category, -10)}
+                  >
+                    <Minus size={18} />
+                  </Button>
+                  <span
+                    className="text-center text-sm font-bold tabular-nums"
+                    aria-label={`${label} font scale`}
+                  >
+                    {value}%
+                  </span>
+                  <Button
+                    size="icon"
+                    variant="secondary"
+                    className="h-11 w-11"
+                    aria-label={`Increase ${category} font size`}
+                    onClick={() => onChange(category, 10)}
+                  >
+                    <Plus size={18} />
+                  </Button>
+                </div>
+              );
+            })}
+          </div>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
   );
 }
 
@@ -83,6 +200,9 @@ export function PerformanceView({
   const [showOrder, setShowOrder] = useState(false);
   const [showBandNotes, setShowBandNotes] = useState(false);
   const [transposeOffset, setTransposeOffset] = useState(0);
+  const [fontSettings, setFontSettings] = useState<ChartFontSettings>(
+    DEFAULT_CHART_FONT_SETTINGS,
+  );
   const song = snapshot.songs[current];
   const selectSong = useCallback(
     (index: number) => {
@@ -92,6 +212,12 @@ export function PerformanceView({
   );
 
   useEffect(() => {
+    void settingsRepository.get().then((settings) => {
+      setFontSettings(settings.chartFontSettings);
+    });
+  }, []);
+
+  useEffect(() => {
     function key(event: KeyboardEvent) {
       if (event.key === "ArrowRight") selectSong(current + 1);
       if (event.key === "ArrowLeft") selectSong(current - 1);
@@ -99,6 +225,14 @@ export function PerformanceView({
     window.addEventListener("keydown", key);
     return () => window.removeEventListener("keydown", key);
   }, [current, selectSong]);
+
+  function changeFontScale(category: ChartFontCategory, change: number) {
+    setFontSettings((currentSettings) => {
+      const next = adjustChartFontScale(currentSettings, category, change);
+      void settingsRepository.saveChartFontSettings(next);
+      return next;
+    });
+  }
 
   if (!song)
     return (
@@ -248,6 +382,10 @@ export function PerformanceView({
               </Dialog.Portal>
             </Dialog.Root>
           )}
+          <ChartFontControls
+            settings={fontSettings}
+            onChange={changeFontScale}
+          />
           <Button
             size="icon"
             variant="ghost"
@@ -369,7 +507,12 @@ export function PerformanceView({
           <div className="space-y-7 sm:space-y-9">
             {song.sections.map((section) => (
               <section key={section.id} className="min-w-0">
-                <h2 className="mb-3 text-xs font-bold uppercase tracking-[.16em] text-indigo-700 dark:text-indigo-400">
+                <h2
+                  className="mb-3 font-bold uppercase tracking-[.16em] text-indigo-700 dark:text-indigo-400"
+                  style={{
+                    fontSize: `${0.75 * (fontSettings.sectionScale / 100)}rem`,
+                  }}
+                >
                   {section.title}
                 </h2>
                 <div className="space-y-3 font-mono text-base leading-7 sm:text-xl sm:leading-8">
@@ -378,6 +521,7 @@ export function PerformanceView({
                       key={line.id}
                       line={line}
                       semitones={semitones}
+                      fontSettings={fontSettings}
                     />
                   ))}
                 </div>

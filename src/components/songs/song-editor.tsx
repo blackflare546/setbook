@@ -203,7 +203,8 @@ export function SongEditor({ songId }: { songId?: string }) {
             </label>
             <Textarea
               data-testid="smart-paste-input"
-              className="min-h-[50dvh] resize-y font-mono leading-7 sm:min-h-[360px]"
+              wrap="off"
+              className="min-h-[50dvh] resize-y overflow-auto whitespace-pre font-mono leading-7 sm:min-h-[360px]"
               placeholder={example}
               value={paste}
               onChange={(e) => setPaste(e.target.value)}

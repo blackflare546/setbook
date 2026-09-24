@@ -1,6 +1,5 @@
 "use client";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import {
@@ -28,40 +27,55 @@ import { Card } from "@/components/ui/card";
 import { Input, Textarea } from "@/components/ui/input";
 import { FeedbackToast } from "@/components/ui/feedback-toast";
 
+type SaveState = "idle" | "dirty" | "saving" | "saved" | "error";
+
 export function SetlistEditor({ id }: { id: string }) {
-  const searchParams = useSearchParams();
   const [setlist, setSetlist] = useState<Setlist | null>(null);
   const songs = useLiveQuery(() => songRepository.list(), []) ?? [];
   const [includeNotes, setIncludeNotes] = useState(false);
   const [includeLinks, setIncludeLinks] = useState(false);
   const [publishing, setPublishing] = useState(false);
+  const [saveState, setSaveState] = useState<SaveState>("idle");
   const [pickerOpen, setPickerOpen] = useState(false);
   const [songQuery, setSongQuery] = useState("");
   const [feedback, setFeedback] = useState<{
     message: string;
     tone: "success" | "error";
-  } | null>(
-    searchParams.get("created") === "1"
-      ? { message: "Setlist saved", tone: "success" }
-      : null,
-  );
+  } | null>(null);
   useEffect(() => {
-    void setlistRepository.get(id).then((value) => setSetlist(value ?? null));
+    void setlistRepository.get(id).then((value) => {
+      setSetlist(value ?? null);
+      setSaveState("idle");
+    });
   }, [id]);
+  useEffect(() => {
+    if (!feedback || feedback.tone !== "success") return;
+    const timeout = window.setTimeout(() => {
+      setFeedback(null);
+      setSaveState((current) => (current === "saved" ? "idle" : current));
+    }, 2500);
+    return () => window.clearTimeout(timeout);
+  }, [feedback]);
   const songMap = new Map(songs.map((song) => [song.id, song]));
   if (!setlist)
     return (
       <div className="p-12 text-center text-slate-500">Loading setlist…</div>
     );
   const currentSetlist = setlist;
-  const update = (next: Partial<Setlist>) =>
+  const update = (next: Partial<Setlist>) => {
+    setFeedback(null);
+    setSaveState("dirty");
     setSetlist({ ...currentSetlist, ...next });
+  };
   async function save() {
     setFeedback(null);
+    setSaveState("saving");
     try {
       setSetlist(await setlistRepository.save(currentSetlist));
+      setSaveState("saved");
       setFeedback({ message: "Setlist saved", tone: "success" });
     } catch {
+      setSaveState("error");
       setFeedback({
         message: "Setlist could not be saved. Please try again.",
         tone: "error",
@@ -94,6 +108,7 @@ export function SetlistEditor({ id }: { id: string }) {
         publishToken: result.token,
       });
       setSetlist(saved);
+      setSaveState("idle");
       setFeedback({
         message: currentSetlist.publishToken
           ? "Published setlist updated"
@@ -135,9 +150,13 @@ export function SetlistEditor({ id }: { id: string }) {
           <h1 className="break-words text-2xl font-bold">{setlist.name}</h1>
         </div>
         <div className="grid grid-cols-2 gap-2 sm:flex">
-          <Button variant="secondary" onClick={() => void save()}>
+          <Button
+            variant="secondary"
+            onClick={() => void save()}
+            disabled={saveState === "saving"}
+          >
             <Save size={16} />
-            Save
+            {saveState === "saving" ? "Saving…" : "Save"}
           </Button>
           <Button asChild disabled={!setlist.entries.length}>
             <Link href={`/performance/${setlist.id}`}>

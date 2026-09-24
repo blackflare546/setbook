@@ -1,5 +1,6 @@
 import { db } from "@/data/db/songbook-db";
 import { songSchema, setlistSchema } from "@/lib/validation/schemas";
+import { DEFAULT_CHART_FONT_SETTINGS } from "@/core/songs/chart-font-settings";
 import { z } from "zod";
 
 const backupSchema = z.object({
@@ -12,6 +13,13 @@ const backupSchema = z.object({
       id: z.literal("app"),
       theme: z.enum(["light", "dark", "system"]),
       performanceFontSize: z.number(),
+      chartFontSettings: z
+        .object({
+          sectionScale: z.number().min(80).max(180),
+          chordScale: z.number().min(80).max(200),
+          lyricScale: z.number().min(80).max(200),
+        })
+        .default(DEFAULT_CHART_FONT_SETTINGS),
     }),
   ),
 });

@@ -3,6 +3,11 @@ import { test, expect, type Page } from "@playwright/test";
 test.setTimeout(120_000);
 
 const title = "How Great Is Our God — Extended Live Arrangement";
+const longMobileSource = Array.from(
+  { length: 30 },
+  (_, index) =>
+    `${index ? "" : "        C#                         A                 B             C#m\n"}Lift him up and shout his name over all and continue with a very long lyric line`,
+).join("\n");
 const source = `[Intro] G Em7 C2 D
 
 [Verse 1]
@@ -119,6 +124,24 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
     { position: 45, left: "45ch" },
   ]);
 
+  await page.getByLabel("Chart font sizes").click();
+  await expect(page.getByLabel("Sections font scale")).toHaveText("100%");
+  await expect(page.getByLabel("Chords font scale")).toHaveText("100%");
+  await expect(page.getByLabel("Lyrics font scale")).toHaveText("100%");
+  await page.getByLabel("Increase section font size").click();
+  await expect(page.getByLabel("Sections font scale")).toHaveText("110%");
+  await expect(page.getByLabel("Chords font scale")).toHaveText("100%");
+  await expect(page.getByLabel("Lyrics font scale")).toHaveText("100%");
+  await page.getByLabel("Increase chord font size").click();
+  await page.getByLabel("Increase lyric font size").click();
+  await page.getByLabel("Close font size controls").click();
+  await page.reload();
+  await page.getByLabel("Chart font sizes").click();
+  await expect(page.getByLabel("Sections font scale")).toHaveText("110%");
+  await expect(page.getByLabel("Chords font scale")).toHaveText("110%");
+  await expect(page.getByLabel("Lyrics font scale")).toHaveText("110%");
+  await page.getByLabel("Close font size controls").click();
+
   await page.getByLabel("Transpose up").click();
   await expect(page.getByLabel("Transpose offset")).toHaveText("+1");
   await expect(page.getByLabel("Current key")).toHaveText("G#");
@@ -152,8 +175,12 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
   await page.goto("/setlists");
   await page.getByPlaceholder("New setlist name…").fill("Friday Night");
   await page.getByRole("button", { name: "Create setlist" }).click();
-  await expect(page.getByText("Setlist saved")).toBeVisible();
+  await expect(page.getByText("Setlist editor")).toBeVisible();
+  await expect(page.getByText("Setlist saved")).toHaveCount(0);
   const setlistEditorUrl = page.url();
+
+  await page.getByLabel("Venue").fill("Main room");
+  await expect(page.getByText("Setlist saved")).toHaveCount(0);
 
   await page.getByRole("button", { name: "Add song" }).click();
   await page.getByLabel("Search songs").fill("great");
@@ -162,6 +189,7 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
   await page.getByLabel("Search songs").fill("Chris");
   await page.getByRole("button", { name: new RegExp(title) }).click();
   await expect(page.getByText("2 songs")).toBeVisible();
+  await expect(page.getByText("Setlist saved")).toHaveCount(0);
   await page.getByLabel("Performance key").nth(0).fill("A");
   await page
     .getByLabel("Arrangement cue")
@@ -172,6 +200,7 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
     .fill("Guitar enters on Chorus\nDrums build during Bridge");
   await page.getByRole("button", { name: "Save", exact: true }).click();
   await expect(page.getByText("Setlist saved")).toBeVisible();
+  await expect(page.getByText("Setlist saved")).toBeHidden({ timeout: 4_000 });
 
   await page.getByRole("link", { name: "Perform" }).click();
   await expect(page.getByText("Count four, quiet verse")).toBeVisible();
@@ -181,6 +210,25 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
   await expect(page.getByLabel("Current key")).toHaveText("A");
   await expect(page.getByText("Capo 2")).toBeVisible();
   await expect(page.getByLabel("Enter fullscreen")).toBeHidden();
+  const mobileWideLine = page
+    .getByTestId("chart-line")
+    .filter({ has: page.locator('[data-chord-position="45"]') })
+    .first();
+  const mobilePositions = await mobileWideLine
+    .locator("[data-chord-position]")
+    .evaluateAll((chords) =>
+      chords.map((chord) => ({
+        position: chord.getAttribute("data-chord-position"),
+        left: (chord as HTMLElement).style.left,
+      })),
+    );
+  expect(mobilePositions).toEqual([
+    { position: "8", left: "8ch" },
+    { position: "26", left: "26ch" },
+    { position: "35", left: "35ch" },
+    { position: "41", left: "41ch" },
+    { position: "45", left: "45ch" },
+  ]);
 
   await page.getByLabel("Open performance menu").click();
   await expect(page.getByRole("dialog")).toBeVisible();
@@ -208,7 +256,13 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
   await expect(page.getByLabel("Current key")).toHaveText("B");
 
   await page.goto(setlistEditorUrl);
+  await expect(page.getByText("Setlist saved")).toHaveCount(0);
   await page.getByRole("button", { name: "Publish setlist" }).click();
+  await expect(page.getByText("Setlist published")).toBeVisible();
+  await expect(page.getByText("Setlist saved")).toHaveCount(0);
+  await expect(page.getByText("Setlist published")).toBeHidden({
+    timeout: 4_000,
+  });
   const shareLink = page.getByRole("link", { name: "Open public link" });
   await expect(shareLink).toBeVisible();
   const firstShareUrl = await shareLink.getAttribute("href");
@@ -329,6 +383,25 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
   ]) {
     await page.setViewportSize({ width, height });
     await page.goto("/songs/new");
+    const sourceEditor = page.getByTestId("smart-paste-input");
+    await sourceEditor.fill(longMobileSource);
+    const editorMetrics = await sourceEditor.evaluate((element) => {
+      const editor = element as HTMLTextAreaElement;
+      return {
+        value: editor.value,
+        wrap: editor.getAttribute("wrap"),
+        whiteSpace: getComputedStyle(editor).whiteSpace,
+        canScrollHorizontally: editor.scrollWidth > editor.clientWidth,
+        canScrollVertically: editor.scrollHeight > editor.clientHeight,
+      };
+    });
+    expect(editorMetrics).toEqual({
+      value: longMobileSource,
+      wrap: "off",
+      whiteSpace: "pre",
+      canScrollHorizontally: true,
+      canScrollVertically: true,
+    });
     const back = page.getByRole("button", { name: "Back", exact: true });
     const review = page.getByTestId("parse-song");
     const save = page.getByTestId("save-song");
