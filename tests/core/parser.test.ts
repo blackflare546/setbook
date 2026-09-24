@@ -10,22 +10,92 @@ import {
 
 describe("chord parsing", () => {
   it.each([
+    "C",
+    "C#",
+    "Db",
+    "D",
+    "D#",
+    "Eb",
+    "E",
+    "F",
+    "F#",
+    "Gb",
+    "G",
+    "G#",
+    "Ab",
+    "A",
+    "A#",
+    "Bb",
+    "B",
+  ])("accepts the common root %s", (value) =>
+    expect(parseChord(value)).not.toBeNull(),
+  );
+
+  it.each([
+    "C",
     "G",
     "F#",
     "Bb",
     "Am",
+    "Em7",
+    "D7",
+    "Cmaj7",
     "C5",
+    "CMajor",
+    "Cmin",
+    "Cminor",
+    "Cadd2",
+    "Cadd9",
+    "Cadd11",
+    "Cadd13",
+    "Csus",
+    "Csus2",
+    "Csus4",
+    "C6",
+    "Cm6",
     "Dm6",
     "E7",
     "Fmaj7",
+    "CM7",
     "Gmin7",
+    "C9",
+    "Cm9",
+    "Cmin9",
+    "Cmaj9",
+    "C11",
+    "Cm11",
+    "Cmin11",
+    "Cmaj11",
+    "C13",
+    "Cm13",
+    "Cmin13",
+    "Cmaj13",
     "Bdim",
+    "Cdim7",
+    "C°",
     "Caug",
+    "C+",
+    "Cm7b5",
+    "Cø",
     "Dsus2",
     "Esus4",
     "Fadd9",
+    "C7b5",
+    "C7#5",
+    "C7b9",
+    "C7#9",
+    "C7b13",
+    "C7#11",
+    "Cmaj7b5",
+    "Cmaj7#11",
     "C/G",
     "D/F#",
+    "Am/E",
+    "G/B",
+    "F#m7/C#",
+    "Bbmaj7/D",
+    "Cadd9/E",
+    "C6/9",
     "C2",
     "D2",
   ])("accepts %s", (value) => expect(parseChord(value)).not.toBeNull());
@@ -33,6 +103,19 @@ describe("chord parsing", () => {
     "rejects ordinary word %s",
     (value) => expect(parseChord(value)).toBeNull(),
   );
+
+  it("distinguishes slash qualities from slash bass notes", () => {
+    expect(parseChord("C6/9")).toEqual({
+      root: "C",
+      quality: "6/9",
+      bass: undefined,
+    });
+    expect(parseChord("F#m7/C#")).toEqual({
+      root: "F#",
+      quality: "m7",
+      bass: "C#",
+    });
+  });
 });
 
 describe("line classification", () => {
@@ -48,6 +131,15 @@ describe("line classification", () => {
     expect(classifyLine("[Intro] G Em7 C2 D")).toBe("section"));
   it("recognizes compact chord and lyric rows", () =>
     expect(classifyLine("Em7The splendor of a King")).toBe("compact"));
+  it.each([
+    "And we sing",
+    "As I am",
+    "Be still",
+    "Can you hear",
+    "Garden song",
+  ])("keeps ordinary lyric text as lyrics: %s", (line) =>
+    expect(classifyLine(line)).toBe("lyrics"),
+  );
 });
 
 describe("positioning", () => {
@@ -109,6 +201,35 @@ describe("positioning", () => {
     expect(line.lyrics).toBe("The splendor of a King");
     expect(line.chords.map((chord) => [chord.symbol, chord.position])).toEqual([
       ["Em7", 0],
+    ]);
+  });
+  it.each([
+    ["Em7The splendor of a King", "Em7", "The splendor of a King", 0],
+    ["C2Let all the earth rejoice", "C2", "Let all the earth rejoice", 0],
+    ["GHow great is our God", "G", "How great is our God", 0],
+    [
+      "        F#m7/C#Worthy of all praise",
+      "F#m7/C#",
+      "Worthy of all praise",
+      8,
+    ],
+  ])(
+    "uses the longest valid compact chord in %s",
+    (source, symbol, lyrics, position) => {
+      const [line] = parseText(source)[0].lines;
+      expect(line.lyrics).toBe(lyrics);
+      expect(
+        line.chords.map((chord) => [chord.symbol, chord.position]),
+      ).toEqual([[symbol, position]]);
+    },
+  );
+
+  it("uses the authoritative grammar for complex inline chords", () => {
+    const line = parseInlineLine("[Cmaj7#11]Shine [F#m7/C#]bright");
+    expect(line.lyrics).toBe("Shine bright");
+    expect(line.chords.map((chord) => chord.symbol)).toEqual([
+      "Cmaj7#11",
+      "F#m7/C#",
     ]);
   });
 });

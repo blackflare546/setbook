@@ -339,8 +339,14 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
     { position: "45", left: "45ch" },
   ]);
 
-  await page.getByLabel("Open performance menu").click();
+  const performanceMenu = page.getByLabel("Open performance menu");
+  await expect(performanceMenu).toHaveCount(1);
+  const performanceMenuBox = await performanceMenu.boundingBox();
+  expect(performanceMenuBox?.width).toBeGreaterThanOrEqual(44);
+  expect(performanceMenuBox?.height).toBeGreaterThanOrEqual(44);
+  await performanceMenu.click();
   await expect(page.getByRole("dialog")).toBeVisible();
+  await expect(page.getByText("Appearance", { exact: true })).toBeVisible();
   await page.getByLabel("Performance theme").selectOption("dark");
   await expect(page.locator("html")).toHaveClass(/dark/);
   await page.getByRole("button", { name: /Band Notes/ }).click();
@@ -389,10 +395,15 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
   expect(publishedSnapshot).not.toHaveProperty("theme");
   await page.goto(firstShareUrl!);
   await expect(page.getByText("Shared setlist")).toBeVisible();
+  await page.setViewportSize({ width: 1024, height: 900 });
+  await expect(page.getByLabel("Open performance menu")).toHaveCount(1);
+  await expect(page.locator("aside")).toHaveCount(0);
+  await expect(page.getByText("Running order", { exact: true })).toHaveCount(0);
   await expect(page.locator("html")).toHaveClass(/dark/);
   await expect(page.getByText("Count four, quiet verse")).toBeVisible();
   await expect(page.getByText("1 of 2")).toBeVisible();
   await page.getByLabel("Open performance menu").click();
+  await expect(page.getByText("Appearance", { exact: true })).toBeVisible();
   await page.getByLabel("Performance theme").selectOption("light");
   await expect(page.locator("html")).not.toHaveClass(/dark/);
   await page.getByLabel("Performance theme").selectOption("dark");

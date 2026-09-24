@@ -1,4 +1,8 @@
-import { isChord, parseChord as parseChordToken } from "@/core/chords/chord";
+import {
+  isChord,
+  parseChord as parseChordToken,
+  parseChordPrefix,
+} from "@/core/chords/chord";
 import type {
   Chord,
   SectionType,
@@ -21,11 +25,7 @@ const PLAIN_SECTION_RE = new RegExp(
   `^\\s*(${SECTION_NAME})(?:\\s+(\\d+))?\\s*:?[\\t ]*$`,
   "i",
 );
-const INLINE_RE =
-  /\[([A-G](?:#|b)?(?:maj7|min7|m7|add9|sus2|sus4|dim|aug|m6|m|6|7|5|2)?(?:\/[A-G](?:#|b)?)?)\]/g;
-const COMPACT_RE = new RegExp(
-  `^\\s*([A-G](?:#|b)?(?:maj7|min7|m7|add9|sus2|sus4|dim|aug|m6|m|6|7|5|2)(?:\\/[A-G](?:#|b)?)?)(?=[A-Z])(.+)$`,
-);
+const BRACKET_TOKEN_RE = /\[([^\]\r\n]+)\]/g;
 
 interface SectionHeading {
   label: string;
@@ -55,10 +55,19 @@ export function parseSectionHeading(line: string): SectionHeading | null {
 
 function parseCompactLine(
   line: string,
-): { chord: string; lyrics: string } | null {
-  const match = line.match(COMPACT_RE);
-  if (!match || !isChord(match[1])) return null;
-  return { chord: match[1], lyrics: match[2] };
+): { chord: string; lyrics: string; position: number } | null {
+  const position = line.search(/\S/);
+  if (position < 0) return null;
+  const match = parseChordPrefix(line.slice(position));
+  if (!match) return null;
+  return { chord: match.symbol, lyrics: match.rest, position };
+}
+
+function hasInlineChord(line: string): boolean {
+  BRACKET_TOKEN_RE.lastIndex = 0;
+  return Array.from(line.matchAll(BRACKET_TOKEN_RE)).some((match) =>
+    isChord(match[1]),
+  );
 }
 
 function cleanChordToken(token: string): string {
@@ -72,8 +81,7 @@ function splitTokens(line: string): string[] {
 export function classifyLine(line: string): LineKind {
   if (!line.trim()) return "blank";
   if (parseSectionHeading(line)) return "section";
-  INLINE_RE.lastIndex = 0;
-  if (INLINE_RE.test(line)) return "inline";
+  if (hasInlineChord(line)) return "inline";
   const tokens = splitTokens(line).map(cleanChordToken);
   const chordCount = tokens.filter(isChord).length;
   if (tokens.length > 0 && chordCount === tokens.length) return "chords";
@@ -89,8 +97,9 @@ export function parseInlineLine(source: string): SongLine {
   const chords: Chord[] = [];
   let lyrics = "";
   let cursor = 0;
-  INLINE_RE.lastIndex = 0;
-  for (const match of source.matchAll(INLINE_RE)) {
+  BRACKET_TOKEN_RE.lastIndex = 0;
+  for (const match of source.matchAll(BRACKET_TOKEN_RE)) {
+    if (!isChord(match[1])) continue;
     const before = source.slice(cursor, match.index);
     lyrics += before;
     chords.push({ id: newId(), symbol: match[1], position: lyrics.length });
@@ -167,7 +176,9 @@ export function parseText(text: string): SongSection[] {
       current.lines.push({
         id: newId(),
         lyrics: compact.lyrics,
-        chords: [{ id: newId(), symbol: compact.chord, position: 0 }],
+        chords: [
+          { id: newId(), symbol: compact.chord, position: compact.position },
+        ],
       });
     } else if (
       kind === "chords" &&

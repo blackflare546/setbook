@@ -113,19 +113,114 @@ const FONT_ROWS: Array<{ category: ChartFontCategory; label: string }> = [
   { category: "lyric", label: "Lyrics" },
 ];
 
-function ChartFontControls({
-  settings,
-  layout,
-  onChange,
-  onLineHeightChange,
-  onLayoutChange,
-}: {
+interface ChartAppearanceProps {
   settings: ChartFontSettings;
   layout: ChartLayout;
   onChange: (category: ChartFontCategory, change: number) => void;
   onLineHeightChange: (change: number) => void;
   onLayoutChange: (layout: ChartLayout) => void;
-}) {
+}
+
+function ChartAppearancePanel({
+  settings,
+  layout,
+  onChange,
+  onLineHeightChange,
+  onLayoutChange,
+}: ChartAppearanceProps) {
+  return (
+    <div className="space-y-3">
+      {FONT_ROWS.map(({ category, label }) => {
+        const value = settings[`${category}Scale`];
+        return (
+          <div
+            key={category}
+            className="grid grid-cols-[1fr_44px_58px_44px] items-center gap-2"
+          >
+            <span className="text-sm font-semibold">{label}</span>
+            <Button
+              size="icon"
+              variant="secondary"
+              className="h-11 w-11"
+              aria-label={`Decrease ${category} font size`}
+              onClick={() => onChange(category, -10)}
+            >
+              <Minus size={18} />
+            </Button>
+            <span
+              className="text-center text-sm font-bold tabular-nums"
+              aria-label={`${label} font scale`}
+            >
+              {value}%
+            </span>
+            <Button
+              size="icon"
+              variant="secondary"
+              className="h-11 w-11"
+              aria-label={`Increase ${category} font size`}
+              onClick={() => onChange(category, 10)}
+            >
+              <Plus size={18} />
+            </Button>
+          </div>
+        );
+      })}
+      <div className="grid grid-cols-[1fr_44px_58px_44px] items-center gap-2 border-t border-slate-200 pt-3 dark:border-slate-800">
+        <span className="text-sm font-semibold">Line height</span>
+        <Button
+          size="icon"
+          variant="secondary"
+          className="h-11 w-11"
+          aria-label="Decrease line height"
+          onClick={() => onLineHeightChange(-0.1)}
+        >
+          <Minus size={18} />
+        </Button>
+        <span
+          className="text-center text-sm font-bold tabular-nums"
+          aria-label="Line height value"
+        >
+          {settings.lineHeight.toFixed(1)}
+        </span>
+        <Button
+          size="icon"
+          variant="secondary"
+          className="h-11 w-11"
+          aria-label="Increase line height"
+          onClick={() => onLineHeightChange(0.1)}
+        >
+          <Plus size={18} />
+        </Button>
+      </div>
+      <div className="border-t border-slate-200 pt-3 dark:border-slate-800">
+        <p className="mb-2 text-sm font-semibold">Layout</p>
+        <div
+          className="grid grid-cols-3 gap-1 rounded-lg bg-slate-100 p-1 dark:bg-slate-900"
+          aria-label="Chart layout"
+        >
+          {CHART_LAYOUT_OPTIONS.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              className={cn(
+                "min-h-11 rounded-md px-2 text-xs font-bold transition-colors",
+                layout === option.value
+                  ? "bg-white text-indigo-700 shadow-sm dark:bg-slate-800 dark:text-indigo-300"
+                  : "text-slate-600 hover:bg-white/70 dark:text-slate-400 dark:hover:bg-slate-800/70",
+              )}
+              aria-pressed={layout === option.value}
+              onClick={() => onLayoutChange(option.value)}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ChartFontControls(props: ChartAppearanceProps) {
   return (
     <Dialog.Root>
       <Dialog.Trigger asChild>
@@ -156,94 +251,7 @@ function ChartFontControls({
               </Button>
             </Dialog.Close>
           </div>
-          <div className="space-y-3">
-            {FONT_ROWS.map(({ category, label }) => {
-              const value = settings[`${category}Scale`];
-              return (
-                <div
-                  key={category}
-                  className="grid grid-cols-[1fr_44px_58px_44px] items-center gap-2"
-                >
-                  <span className="text-sm font-semibold">{label}</span>
-                  <Button
-                    size="icon"
-                    variant="secondary"
-                    className="h-11 w-11"
-                    aria-label={`Decrease ${category} font size`}
-                    onClick={() => onChange(category, -10)}
-                  >
-                    <Minus size={18} />
-                  </Button>
-                  <span
-                    className="text-center text-sm font-bold tabular-nums"
-                    aria-label={`${label} font scale`}
-                  >
-                    {value}%
-                  </span>
-                  <Button
-                    size="icon"
-                    variant="secondary"
-                    className="h-11 w-11"
-                    aria-label={`Increase ${category} font size`}
-                    onClick={() => onChange(category, 10)}
-                  >
-                    <Plus size={18} />
-                  </Button>
-                </div>
-              );
-            })}
-            <div className="grid grid-cols-[1fr_44px_58px_44px] items-center gap-2 border-t border-slate-200 pt-3 dark:border-slate-800">
-              <span className="text-sm font-semibold">Line height</span>
-              <Button
-                size="icon"
-                variant="secondary"
-                className="h-11 w-11"
-                aria-label="Decrease line height"
-                onClick={() => onLineHeightChange(-0.1)}
-              >
-                <Minus size={18} />
-              </Button>
-              <span
-                className="text-center text-sm font-bold tabular-nums"
-                aria-label="Line height value"
-              >
-                {settings.lineHeight.toFixed(1)}
-              </span>
-              <Button
-                size="icon"
-                variant="secondary"
-                className="h-11 w-11"
-                aria-label="Increase line height"
-                onClick={() => onLineHeightChange(0.1)}
-              >
-                <Plus size={18} />
-              </Button>
-            </div>
-            <div className="border-t border-slate-200 pt-3 dark:border-slate-800">
-              <p className="mb-2 text-sm font-semibold">Layout</p>
-              <div
-                className="grid grid-cols-3 gap-1 rounded-lg bg-slate-100 p-1 dark:bg-slate-900"
-                aria-label="Chart layout"
-              >
-                {CHART_LAYOUT_OPTIONS.map((option) => (
-                  <button
-                    key={option.value}
-                    type="button"
-                    className={cn(
-                      "min-h-11 rounded-md px-2 text-xs font-bold transition-colors",
-                      layout === option.value
-                        ? "bg-white text-indigo-700 shadow-sm dark:bg-slate-800 dark:text-indigo-300"
-                        : "text-slate-600 hover:bg-white/70 dark:text-slate-400 dark:hover:bg-slate-800/70",
-                    )}
-                    aria-pressed={layout === option.value}
-                    onClick={() => onLayoutChange(option.value)}
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
+          <ChartAppearancePanel {...props} />
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>
@@ -385,7 +393,7 @@ export function PerformanceView({
                 <Button
                   size="icon"
                   variant="ghost"
-                  className="h-11 w-11"
+                  className="order-first h-11 w-11"
                   aria-label="Open performance menu"
                 >
                   <List size={21} />
@@ -425,6 +433,19 @@ export function PerformanceView({
                       <option value="system">System</option>
                     </select>
                   </label>
+
+                  <section className="mb-4 rounded-lg border border-slate-200 p-3 dark:border-slate-800">
+                    <h2 className="mb-3 text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">
+                      Appearance
+                    </h2>
+                    <ChartAppearancePanel
+                      settings={fontSettings}
+                      layout={chartLayout}
+                      onChange={changeFontScale}
+                      onLineHeightChange={changeLineHeight}
+                      onLayoutChange={changeChartLayout}
+                    />
+                  </section>
 
                   <div className="mb-6 rounded-lg border border-slate-200 p-3 dark:border-slate-800">
                     <button
@@ -481,13 +502,15 @@ export function PerformanceView({
               </Dialog.Portal>
             </Dialog.Root>
           )}
-          <ChartFontControls
-            settings={fontSettings}
-            layout={chartLayout}
-            onChange={changeFontScale}
-            onLineHeightChange={changeLineHeight}
-            onLayoutChange={changeChartLayout}
-          />
+          {singleSong && (
+            <ChartFontControls
+              settings={fontSettings}
+              layout={chartLayout}
+              onChange={changeFontScale}
+              onLineHeightChange={changeLineHeight}
+              onLayoutChange={changeChartLayout}
+            />
+          )}
           <Button
             size="icon"
             variant="ghost"
@@ -500,7 +523,7 @@ export function PerformanceView({
         </div>
       </header>
 
-      <div className="mx-auto grid max-w-7xl lg:grid-cols-[minmax(0,1fr)_280px]">
+      <div className="mx-auto max-w-7xl">
         <article className="min-w-0 px-3 py-5 min-[375px]:px-4 sm:px-8 sm:py-7 lg:px-12">
           <div className="mb-5 border-b border-slate-200 pb-4 dark:border-slate-800 sm:mb-7 sm:flex sm:items-end sm:justify-between sm:gap-4">
             <div className="min-w-0">
@@ -586,7 +609,7 @@ export function PerformanceView({
           {showBandNotes && snapshot.notes && (
             <section
               aria-label="Band Notes"
-              className="mb-6 rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900 lg:hidden"
+              className="mb-6 rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900"
             >
               <div className="mb-2 flex items-center justify-between gap-3">
                 <h2 className="text-xs font-bold uppercase tracking-[.16em] text-slate-600 dark:text-slate-300">
@@ -642,61 +665,6 @@ export function PerformanceView({
             ))}
           </div>
         </article>
-
-        {!singleSong && (
-          <aside className="hidden min-w-0 border-t border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900/60 lg:block lg:border-l lg:border-t-0">
-            <button
-              className="mb-5 flex min-h-11 w-full items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-3 text-left text-sm font-semibold dark:border-slate-700 dark:bg-slate-900"
-              aria-pressed={showBandNotes}
-              onClick={() => setShowBandNotes((visible) => !visible)}
-            >
-              <span className="flex items-center gap-2">
-                <StickyNote size={17} />
-                Band Notes
-              </span>
-              <span className="text-xs text-indigo-700 dark:text-indigo-300">
-                {showBandNotes ? "ON" : "OFF"}
-              </span>
-            </button>
-            <h2 className="mb-3 text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">
-              Running order
-            </h2>
-            <div className="space-y-1">
-              {snapshot.songs.map((item, index) => (
-                <button
-                  key={item.entryId}
-                  onClick={() => {
-                    selectSong(index);
-                    setShowOrder(false);
-                  }}
-                  className={`flex min-h-12 w-full items-center gap-3 rounded-lg p-3 text-left ${index === current ? "bg-indigo-100 text-indigo-950 dark:bg-indigo-500/20 dark:text-white" : "text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"}`}
-                >
-                  <span className="w-5 shrink-0 text-xs font-bold">
-                    {index + 1}
-                  </span>
-                  <span className="min-w-0">
-                    <span className="block break-words text-sm font-semibold">
-                      {item.title}
-                    </span>
-                    <span className="block text-xs">
-                      Key {formatMusicalKey(item.performanceKey)}
-                    </span>
-                  </span>
-                </button>
-              ))}
-            </div>
-            {showBandNotes && snapshot.notes && (
-              <div className="mt-6 border-t border-slate-200 pt-4 dark:border-slate-800">
-                <h3 className="mb-2 text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">
-                  Band notes
-                </h3>
-                <p className="whitespace-pre-wrap text-xs leading-5 text-slate-600 dark:text-slate-400">
-                  {snapshot.notes}
-                </p>
-              </div>
-            )}
-          </aside>
-        )}
       </div>
 
       {!singleSong && (

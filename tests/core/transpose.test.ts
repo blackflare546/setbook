@@ -10,6 +10,9 @@ describe("transposition", () => {
     ["C/G", 2, "D/A"],
     ["F#m7", 2, "G#m7"],
     ["Bb", 2, "C"],
+    ["F#m7/C#", 2, "G#m7/D#"],
+    ["Cmaj7#11", 2, "Dmaj7#11"],
+    ["Bm7b5", 2, "C#m7b5"],
   ])("transposes %s by %i", (input, steps, output) =>
     expect(transposeChordSymbol(input as string, steps as number)).toBe(output),
   );
