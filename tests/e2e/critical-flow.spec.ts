@@ -871,6 +871,9 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
   ]);
   await expect(page.getByText("Setlist deleted")).toBeVisible();
   await expect(page.getByText("No setlists yet")).toBeVisible();
+  await expect(page.getByText("Setlist deleted")).toBeHidden({
+    timeout: 4_000,
+  });
   const deletedSetlistShare = await page.request.get(republishedUrl!);
   expect(deletedSetlistShare.status()).toBe(404);
 });

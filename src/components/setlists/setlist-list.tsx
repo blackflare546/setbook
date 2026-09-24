@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
 import { CalendarDays, Copy, ListMusic, Plus, Trash2 } from "lucide-react";
@@ -21,6 +21,11 @@ export function SetlistList() {
     message: string;
     tone: "success" | "error";
   } | null>(null);
+  useEffect(() => {
+    if (!feedback || feedback.tone !== "success") return;
+    const timeout = window.setTimeout(() => setFeedback(null), 2500);
+    return () => window.clearTimeout(timeout);
+  }, [feedback]);
   async function create() {
     if (!name.trim()) return;
     const now = new Date().toISOString();
