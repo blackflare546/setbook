@@ -22,6 +22,8 @@ test("shows the welcome once and keeps help and about accessible", async ({
 
   await page.getByRole("button", { name: /Open Song Library/ }).click();
   await expect(page).toHaveURL(/\/library$/);
+  await expect(page.getByLabel("Theme")).toHaveValue("light");
+  await expect(page.locator("html")).not.toHaveClass(/dark/);
   await page.goto("/");
   await expect(page).toHaveURL(/\/library$/);
 

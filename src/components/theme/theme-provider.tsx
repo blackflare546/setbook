@@ -9,7 +9,7 @@ type Theme = AppSettings["theme"];
 const ThemeContext = createContext<{
   theme: Theme;
   setTheme: (theme: Theme) => Promise<void>;
-}>({ theme: "system", setTheme: async () => undefined });
+}>({ theme: "light", setTheme: async () => undefined });
 
 function applyTheme(theme: Theme) {
   const dark =
@@ -21,7 +21,7 @@ function applyTheme(theme: Theme) {
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>("system");
+  const [theme, setThemeState] = useState<Theme>("light");
 
   useEffect(() => {
     void settingsRepository.get().then((settings) => {

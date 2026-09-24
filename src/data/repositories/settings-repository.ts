@@ -8,7 +8,7 @@ import { db, type SongbookDatabase } from "@/data/db/songbook-db";
 
 const defaults: AppSettings = {
   id: "app",
-  theme: "system",
+  theme: "light",
   performanceFontSize: 18,
   chartFontSettings: DEFAULT_CHART_FONT_SETTINGS,
   chartLayout: "auto",
