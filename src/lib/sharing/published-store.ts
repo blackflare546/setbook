@@ -9,6 +9,44 @@ const blobPath = (token: string) => `published-setlists/${token}.json`;
 const localPath = (token: string) => path.join(directory, `${token}.json`);
 const shouldUseBlob = () =>
   Boolean(process.env.BLOB_READ_WRITE_TOKEN || process.env.BLOB_STORE_ID);
+const isVercelRuntime = () =>
+  process.env.VERCEL === "1" || Boolean(process.env.VERCEL_ENV);
+
+export class PublishedStoreConfigurationError extends Error {
+  constructor() {
+    super(
+      "Public sharing is not configured. Connect a Vercel Blob store to this project and redeploy.",
+    );
+    this.name = "PublishedStoreConfigurationError";
+  }
+}
+
+function usesBlobStorage(): boolean {
+  if (shouldUseBlob()) return true;
+  if (isVercelRuntime()) throw new PublishedStoreConfigurationError();
+  return false;
+}
+
+function isMissingLocalFile(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    "code" in error &&
+    (error as NodeJS.ErrnoException).code === "ENOENT"
+  );
+}
+
+export function publishedStoreErrorResponse(error: unknown): {
+  error: string;
+  status: number;
+} {
+  if (error instanceof PublishedStoreConfigurationError)
+    return { error: error.message, status: 503 };
+  return {
+    error:
+      "Published setlist storage is unavailable. Check the Vercel Blob connection and environment configuration.",
+    status: 502,
+  };
+}
 
 export function createPublicToken(length = 8): string {
   const alphabet = "23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
@@ -21,7 +59,7 @@ export async function savePublishedSnapshot(
   snapshot: PublishedSnapshot,
 ): Promise<void> {
   const body = serializeSnapshot(snapshot);
-  if (shouldUseBlob()) {
+  if (usesBlobStorage()) {
     await put(blobPath(token), body, {
       access: "public",
       addRandomSuffix: false,
@@ -38,23 +76,25 @@ export async function savePublishedSnapshot(
 export async function readPublishedSnapshot(
   token: string,
 ): Promise<PublishedSnapshot | null> {
+  if (usesBlobStorage()) {
+    const result = await get(blobPath(token), { access: "public" });
+    if (!result || result.statusCode !== 200) return null;
+    return deserializeSnapshot(await new Response(result.stream).text());
+  }
   try {
-    if (shouldUseBlob()) {
-      const result = await get(blobPath(token), { access: "public" });
-      if (!result || result.statusCode !== 200) return null;
-      return deserializeSnapshot(await new Response(result.stream).text());
-    }
     return deserializeSnapshot(await readFile(localPath(token), "utf8"));
-  } catch {
-    return null;
+  } catch (error) {
+    if (isMissingLocalFile(error)) return null;
+    throw error;
   }
 }
 
 export async function deletePublishedSnapshot(token: string): Promise<void> {
   try {
-    if (shouldUseBlob()) await del(blobPath(token));
+    if (usesBlobStorage()) await del(blobPath(token));
     else await unlink(localPath(token));
-  } catch {
-    /* idempotent */
+  } catch (error) {
+    if (isMissingLocalFile(error)) return;
+    throw error;
   }
 }

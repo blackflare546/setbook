@@ -102,9 +102,12 @@ export function SetlistEditor({ id }: { id: string }) {
           body: JSON.stringify(snapshot),
         },
       );
-      const result = await response.json();
-      if (!response.ok || !result.token)
-        throw new Error(result.error ?? "Unable to publish setlist.");
+      const result = await response.json().catch(() => null);
+      if (!response.ok || !result?.token)
+        throw new Error(
+          result?.error ??
+            `Unable to publish setlist (server returned ${response.status}).`,
+        );
       const saved = await setlistRepository.save({
         ...currentSetlist,
         publishToken: result.token,

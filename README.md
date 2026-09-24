@@ -26,7 +26,25 @@ The Vitest suite covers chord parsing, classification, inline and above-lyric po
 
 ## Public sharing
 
-In local development, published snapshots are stored as JSON blobs under `data/published-setlists/`. On Vercel, connect a Blob store and provide `BLOB_READ_WRITE_TOKEN`; the same API automatically uses Vercel Blob object storage.
+In local development, published snapshots are stored as JSON files under `data/published-setlists/`. A Vercel deployment requires a **Public Vercel Blob store** because the deployment filesystem is read-only.
+
+To configure it in the Vercel dashboard:
+
+1. Open the deployed project and select **Storage**.
+2. Select **Create Database**, choose **Blob**, and continue.
+3. Choose **Public** access, name the store, and connect it to this project.
+4. Include **Production** and any Preview environments that should support sharing.
+5. Confirm the project now has Blob credentials under **Settings → Environment Variables**. New OIDC connections provide `BLOB_STORE_ID` and Vercel-managed authentication; older connections provide `BLOB_READ_WRITE_TOKEN`.
+6. Redeploy the project. Environment-variable changes do not affect an existing deployment.
+
+For local Blob testing, link the project and pull its development environment:
+
+```bash
+vercel link
+vercel env pull .env.local
+```
+
+Do not expose either Blob credential through a `NEXT_PUBLIC_` variable. If no Blob store is connected in production, the publishing API returns a clear `503` configuration error instead of attempting to write to Vercel's filesystem.
 
 The public API is intentionally small:
 

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { publishedSnapshotSchema } from "@/lib/validation/schemas";
 import {
   deletePublishedSnapshot,
+  publishedStoreErrorResponse,
   readPublishedSnapshot,
   savePublishedSnapshot,
 } from "@/lib/sharing/published-store";
@@ -17,13 +18,22 @@ export async function GET(
   const { token } = await params;
   if (!validToken(token))
     return NextResponse.json({ error: "Invalid token" }, { status: 400 });
-  const snapshot = await readPublishedSnapshot(token);
-  return snapshot
-    ? NextResponse.json(snapshot)
-    : NextResponse.json(
-        { error: "Published setlist not found" },
-        { status: 404 },
-      );
+  try {
+    const snapshot = await readPublishedSnapshot(token);
+    return snapshot
+      ? NextResponse.json(snapshot)
+      : NextResponse.json(
+          { error: "Published setlist not found" },
+          { status: 404 },
+        );
+  } catch (error) {
+    console.error("Unable to read published setlist", error);
+    const failure = publishedStoreErrorResponse(error);
+    return NextResponse.json(
+      { error: failure.error },
+      { status: failure.status },
+    );
+  }
 }
 
 export async function PUT(
@@ -41,13 +51,22 @@ export async function PUT(
       { error: "Invalid published setlist", details: parsed.error.flatten() },
       { status: 400 },
     );
-  if (!(await readPublishedSnapshot(token)))
+  try {
+    if (!(await readPublishedSnapshot(token)))
+      return NextResponse.json(
+        { error: "Published setlist not found" },
+        { status: 404 },
+      );
+    await savePublishedSnapshot(token, parsed.data);
+    return NextResponse.json({ token, url: `/s/${token}` });
+  } catch (error) {
+    console.error("Unable to update published setlist", error);
+    const failure = publishedStoreErrorResponse(error);
     return NextResponse.json(
-      { error: "Published setlist not found" },
-      { status: 404 },
+      { error: failure.error },
+      { status: failure.status },
     );
-  await savePublishedSnapshot(token, parsed.data);
-  return NextResponse.json({ token, url: `/s/${token}` });
+  }
 }
 
 export async function DELETE(
@@ -57,6 +76,15 @@ export async function DELETE(
   const { token } = await params;
   if (!validToken(token))
     return NextResponse.json({ error: "Invalid token" }, { status: 400 });
-  await deletePublishedSnapshot(token);
-  return new NextResponse(null, { status: 204 });
+  try {
+    await deletePublishedSnapshot(token);
+    return new NextResponse(null, { status: 204 });
+  } catch (error) {
+    console.error("Unable to delete published setlist", error);
+    const failure = publishedStoreErrorResponse(error);
+    return NextResponse.json(
+      { error: failure.error },
+      { status: failure.status },
+    );
+  }
 }
