@@ -19,13 +19,13 @@ describe("chart font settings", () => {
   });
 
   it.each(["section", "chord", "lyric"] as const)(
-    "floors %s scale at 80 percent",
+    "floors %s scale at 50 percent",
     (category) => {
       let settings = DEFAULT_CHART_FONT_SETTINGS;
       for (let index = 0; index < 20; index += 1) {
         settings = adjustChartFontScale(settings, category, -10);
       }
-      expect(settings[`${category}Scale`]).toBe(80);
+      expect(settings[`${category}Scale`]).toBe(50);
     },
   );
 
@@ -33,18 +33,26 @@ describe("chart font settings", () => {
     expect(
       adjustChartFontScale(DEFAULT_CHART_FONT_SETTINGS, "chord", 10),
     ).toEqual({
-      sectionScale: 100,
-      chordScale: 110,
-      lyricScale: 100,
-      lineHeight: 1.4,
+      sectionScale: 80,
+      chordScale: 90,
+      lyricScale: 80,
+      lineHeight: 1,
     });
   });
 
-  it("defaults line height to 1.4 and changes only vertical rendering", () => {
-    expect(DEFAULT_CHART_FONT_SETTINGS.lineHeight).toBe(1.4);
+  it("defaults font scales to 80 percent", () => {
+    expect(DEFAULT_CHART_FONT_SETTINGS).toMatchObject({
+      sectionScale: 80,
+      chordScale: 80,
+      lyricScale: 80,
+    });
+  });
+
+  it("defaults line height to 1.0 and changes only vertical rendering", () => {
+    expect(DEFAULT_CHART_FONT_SETTINGS.lineHeight).toBe(1);
     expect(adjustChartLineHeight(DEFAULT_CHART_FONT_SETTINGS, 0.1)).toEqual({
       ...DEFAULT_CHART_FONT_SETTINGS,
-      lineHeight: 1.5,
+      lineHeight: 1.1,
     });
   });
 

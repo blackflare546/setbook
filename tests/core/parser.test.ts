@@ -129,6 +129,19 @@ describe("line classification", () => {
     expect(classifyLine("[G]I found a [D]love")).toBe("inline"));
   it("recognizes section headings with chords", () =>
     expect(classifyLine("[Intro] G Em7 C2 D")).toBe("section"));
+  it.each([
+    "[Verse I]",
+    "[Verse II]",
+    "[Verse III]",
+    "Verse I",
+    "Verse II",
+    "Chorus I",
+    "Chorus II",
+    "Bridge I",
+    "Verse IV",
+  ])("recognizes Roman numeral section heading: %s", (heading) =>
+    expect(classifyLine(heading)).toBe("section"),
+  );
   it("recognizes compact chord and lyric rows", () =>
     expect(classifyLine("Em7The splendor of a King")).toBe("compact"));
   it.each([
@@ -243,6 +256,17 @@ describe("song parsing", () => {
     expect(sections[0].title).toBe("Verse 1");
     expect(sections[1].type).toBe("chorus");
     expect(sections[1].lines[0].chords).toHaveLength(2);
+  });
+  it("preserves Roman numeral section titles and types", () => {
+    const sections = parseText(
+      "[Verse I]\nG\nFirst line\n\nVerse II\nD\nSecond line\n\nChorus III\nC\nThird line\n\nBridge IV\nAm\nFourth line",
+    );
+    expect(sections.map(({ title, type }) => ({ title, type }))).toEqual([
+      { title: "Verse I", type: "verse" },
+      { title: "Verse II", type: "verse" },
+      { title: "Chorus III", type: "chorus" },
+      { title: "Bridge IV", type: "bridge" },
+    ]);
   });
   it("creates a complete structured song", () => {
     const song = parseSong(source, {

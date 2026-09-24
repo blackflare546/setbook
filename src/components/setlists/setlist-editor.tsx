@@ -136,7 +136,7 @@ export function SetlistEditor({ id }: { id: string }) {
       .includes(songQuery.trim().toLocaleLowerCase()),
   );
   return (
-    <div className="mx-auto max-w-6xl px-3 py-5 pb-24 min-[375px]:px-4 sm:px-6 sm:py-7">
+    <div className="mx-auto max-w-6xl px-3 py-5 pb-24 min-[375px]:px-4 sm:px-6 sm:py-7 md:pb-32 lg:pb-24">
       <FeedbackToast
         message={feedback?.message ?? null}
         tone={feedback?.tone}

@@ -39,6 +39,18 @@ import { settingsRepository } from "@/data/repositories/settings-repository";
 import { useTheme } from "@/components/theme/theme-provider";
 import { cn } from "@/lib/utils";
 
+function withoutTrailingBlankLines(lines: SongLine[]): SongLine[] {
+  let end = lines.length;
+  while (
+    end > 0 &&
+    !lines[end - 1].lyrics &&
+    lines[end - 1].chords.length === 0
+  ) {
+    end -= 1;
+  }
+  return lines.slice(0, end);
+}
+
 function ChartLine({
   line,
   semitones,
@@ -675,7 +687,7 @@ export function PerformanceView({
             {song.sections.map((section) => (
               <section
                 key={section.id}
-                className="mb-7 inline-block w-full min-w-0 break-inside-avoid sm:mb-9"
+                className="mb-4 inline-block w-full min-w-0 break-inside-avoid sm:mb-5"
               >
                 <h2
                   className="mb-3 font-bold uppercase tracking-[.16em] text-indigo-700 dark:text-indigo-400"
@@ -686,7 +698,7 @@ export function PerformanceView({
                   {section.title}
                 </h2>
                 <div className="space-y-3 font-mono text-base leading-7 sm:text-xl sm:leading-8">
-                  {section.lines.map((line) => (
+                  {withoutTrailingBlankLines(section.lines).map((line) => (
                     <ChartLine
                       key={line.id}
                       line={line}

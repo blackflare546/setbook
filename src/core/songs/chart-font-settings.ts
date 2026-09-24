@@ -18,19 +18,19 @@ export interface ChartFontSettings {
 }
 
 export const DEFAULT_CHART_FONT_SETTINGS: ChartFontSettings = {
-  sectionScale: 100,
-  chordScale: 100,
-  lyricScale: 100,
-  lineHeight: 1.4,
+  sectionScale: 80,
+  chordScale: 80,
+  lyricScale: 80,
+  lineHeight: 1,
 };
 
 export const CHART_FONT_BOUNDS: Record<
   ChartFontCategory,
   { min: number; max: number }
 > = {
-  section: { min: 80, max: 180 },
-  chord: { min: 80, max: 200 },
-  lyric: { min: 80, max: 200 },
+  section: { min: 50, max: 180 },
+  chord: { min: 50, max: 200 },
+  lyric: { min: 50, max: 200 },
 };
 
 export function adjustChartFontScale(

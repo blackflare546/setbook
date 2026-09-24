@@ -15,10 +15,10 @@ const backupSchema = z.object({
       performanceFontSize: z.number(),
       chartFontSettings: z
         .object({
-          sectionScale: z.number().min(80).max(180),
-          chordScale: z.number().min(80).max(200),
-          lyricScale: z.number().min(80).max(200),
-          lineHeight: z.number().min(1).max(2.5).default(1.4),
+          sectionScale: z.number().min(50).max(180),
+          chordScale: z.number().min(50).max(200),
+          lyricScale: z.number().min(50).max(200),
+          lineHeight: z.number().min(1).max(2.5).default(1),
         })
         .default(DEFAULT_CHART_FONT_SETTINGS),
       chartLayout: z.enum(["auto", "one", "two"]).default("auto"),

@@ -17,12 +17,13 @@ export type LineKind =
 
 const SECTION_NAME =
   "intro|verse|pre[ -]?chorus|chorus|bridge|interlude|instrumental|solo|break|hook|refrain|outro|ending|tag";
+const SECTION_NUMBER = "\\d+|[ivxlcdm]+";
 const BRACKETED_SECTION_RE = new RegExp(
-  `^\\s*\\[(${SECTION_NAME})(?:\\s+(\\d+))?\\]\\s*:?[\\t ]*(.*)$`,
+  `^\\s*\\[(${SECTION_NAME})(?:\\s+(${SECTION_NUMBER}))?\\]\\s*:?[\\t ]*(.*)$`,
   "i",
 );
 const PLAIN_SECTION_RE = new RegExp(
-  `^\\s*(${SECTION_NAME})(?:\\s+(\\d+))?\\s*:?[\\t ]*$`,
+  `^\\s*(${SECTION_NAME})(?:\\s+(${SECTION_NUMBER}))?\\s*:?[\\t ]*$`,
   "i",
 );
 const BRACKET_TOKEN_RE = /\[([^\]\r\n]+)\]/g;
@@ -142,7 +143,10 @@ function sectionInfo(title: string): { type: SectionType; title: string } {
       ].includes(base)
         ? base
         : "other") as SectionType);
-  return { type, title: clean.replace(/\b\w/g, (char) => char.toUpperCase()) };
+  const displayTitle = clean
+    .replace(/\b\w/g, (char) => char.toUpperCase())
+    .replace(/\b[ivxlcdm]+$/i, (numeral) => numeral.toUpperCase());
+  return { type, title: displayTitle };
 }
 
 export function parseText(text: string): SongSection[] {

@@ -227,10 +227,10 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
   ]);
 
   await page.getByLabel("Chart font sizes").click();
-  await expect(page.getByLabel("Sections font scale")).toHaveText("100%");
-  await expect(page.getByLabel("Chords font scale")).toHaveText("100%");
-  await expect(page.getByLabel("Lyrics font scale")).toHaveText("100%");
-  await expect(page.getByLabel("Line height value")).toHaveText("1.4");
+  await expect(page.getByLabel("Sections font scale")).toHaveText("80%");
+  await expect(page.getByLabel("Chords font scale")).toHaveText("80%");
+  await expect(page.getByLabel("Lyrics font scale")).toHaveText("80%");
+  await expect(page.getByLabel("Line height value")).toHaveText("1.0");
   await expect(page.getByRole("button", { name: "Auto" })).toHaveAttribute(
     "aria-pressed",
     "true",
@@ -240,14 +240,17 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
     "column-count",
     "2",
   );
+  await page.getByLabel("Decrease section font size").click();
+  await expect(page.getByLabel("Sections font scale")).toHaveText("70%");
   await page.getByLabel("Increase section font size").click();
-  await expect(page.getByLabel("Sections font scale")).toHaveText("110%");
-  await expect(page.getByLabel("Chords font scale")).toHaveText("100%");
-  await expect(page.getByLabel("Lyrics font scale")).toHaveText("100%");
+  await page.getByLabel("Increase section font size").click();
+  await expect(page.getByLabel("Sections font scale")).toHaveText("90%");
+  await expect(page.getByLabel("Chords font scale")).toHaveText("80%");
+  await expect(page.getByLabel("Lyrics font scale")).toHaveText("80%");
   await page.getByLabel("Increase chord font size").click();
   await page.getByLabel("Increase lyric font size").click();
   await page.getByLabel("Increase line height").click();
-  await expect(page.getByLabel("Line height value")).toHaveText("1.5");
+  await expect(page.getByLabel("Line height value")).toHaveText("1.1");
   await expect(page.getByRole("button", { name: "2 Columns" })).toHaveAttribute(
     "aria-pressed",
     "true",
@@ -258,10 +261,10 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
   await page.getByLabel("Close font size controls").click();
   await page.reload();
   await page.getByLabel("Chart font sizes").click();
-  await expect(page.getByLabel("Sections font scale")).toHaveText("110%");
-  await expect(page.getByLabel("Chords font scale")).toHaveText("110%");
-  await expect(page.getByLabel("Lyrics font scale")).toHaveText("110%");
-  await expect(page.getByLabel("Line height value")).toHaveText("1.5");
+  await expect(page.getByLabel("Sections font scale")).toHaveText("90%");
+  await expect(page.getByLabel("Chords font scale")).toHaveText("90%");
+  await expect(page.getByLabel("Lyrics font scale")).toHaveText("90%");
+  await expect(page.getByLabel("Line height value")).toHaveText("1.1");
   await expect(page.getByRole("button", { name: "2 Columns" })).toHaveAttribute(
     "aria-pressed",
     "true",
@@ -452,6 +455,15 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
   });
   const shareLink = page.getByRole("link", { name: "Open public link" });
   await expect(shareLink).toBeVisible();
+  await page.setViewportSize({ width: 768, height: 900 });
+  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+  const tabletShareBox = await shareLink.boundingBox();
+  const tabletNavigationBox = await page.locator("nav.fixed").boundingBox();
+  expect(tabletShareBox).not.toBeNull();
+  expect(tabletNavigationBox).not.toBeNull();
+  expect(tabletShareBox!.y + tabletShareBox!.height).toBeLessThan(
+    tabletNavigationBox!.y,
+  );
   const firstShareUrl = await shareLink.getAttribute("href");
   expect(firstShareUrl).toMatch(/^\/s\//);
   const publishedResponse = await page.request.get(
