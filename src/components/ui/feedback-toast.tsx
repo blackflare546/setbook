@@ -12,7 +12,7 @@ export function FeedbackToast({
     <div
       role={tone === "error" ? "alert" : "status"}
       aria-live="polite"
-      className={`fixed bottom-20 left-1/2 z-50 flex max-w-[calc(100vw-2rem)] -translate-x-1/2 items-center gap-2 rounded-lg px-4 py-3 text-sm font-semibold text-white shadow-xl md:bottom-6 ${tone === "error" ? "bg-rose-600" : "bg-emerald-600"}`}
+      className={`pointer-events-none fixed bottom-20 left-1/2 z-50 flex max-w-[calc(100vw-2rem)] -translate-x-1/2 items-center gap-2 rounded-lg px-4 py-3 text-sm font-semibold text-white shadow-xl md:bottom-6 ${tone === "error" ? "bg-rose-600" : "bg-emerald-600"}`}
     >
       {tone === "error" ? (
         <AlertCircle size={18} />

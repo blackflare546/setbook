@@ -695,7 +695,84 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
     await expectNoPageOverflow(page);
   }
 
-  await page.request.delete(
+  await page.setViewportSize({ width: 768, height: 900 });
+  await page.goto(setlistEditorUrl);
+  await expect(page.getByText("3 songs")).toBeVisible();
+  await page.getByRole("button", { name: "Delete Published Setlist" }).click();
+  const deleteDialog = page.getByRole("dialog", {
+    name: "Delete published setlist?",
+  });
+  await expect(deleteDialog).toContainText(
+    "This will make the public link unavailable. Your local setlist will not be deleted.",
+  );
+  await deleteDialog.getByRole("button", { name: "Cancel" }).click();
+  await expect(shareLink).toHaveAttribute("href", firstShareUrl!);
+
+  const deleteApiPattern = `**/api/published-setlists/${firstShareUrl!.split("/").at(-1)}`;
+  await page.route(deleteApiPattern, async (route) => {
+    if (route.request().method() === "DELETE") {
+      await route.fulfill({
+        status: 502,
+        contentType: "application/json",
+        body: JSON.stringify({ error: "Published setlist could not be deleted" }),
+      });
+      return;
+    }
+    await route.continue();
+  });
+  await page.getByRole("button", { name: "Delete Published Setlist" }).click();
+  await deleteDialog
+    .getByRole("button", { name: "Delete Published Setlist" })
+    .click();
+  await expect(
+    page.getByRole("alert").filter({
+      hasText: "Published setlist could not be deleted",
+    }),
+  ).toBeVisible();
+  await expect(shareLink).toHaveAttribute("href", firstShareUrl!);
+  await page.unroute(deleteApiPattern);
+
+  await page.getByRole("button", { name: "Delete Published Setlist" }).click();
+  await Promise.all([
+    page.waitForResponse(
+      (response) =>
+        response.request().method() === "DELETE" &&
+        response.url().includes("/api/published-setlists/"),
+    ),
+    deleteDialog
+      .getByRole("button", { name: "Delete Published Setlist" })
+      .click(),
+  ]);
+  await expect(page.getByText("Published setlist deleted")).toBeVisible();
+  await expect(shareLink).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "Publish setlist" }),
+  ).toBeVisible();
+  await expect(page.getByText("3 songs")).toBeVisible();
+
+  const deletedResponse = await page.request.get(firstShareUrl!);
+  expect(deletedResponse.status()).toBe(404);
+  const repeatedDeleteResponse = await page.request.delete(
     `/api/published-setlists/${firstShareUrl!.split("/").at(-1)}`,
+  );
+  expect(repeatedDeleteResponse.status()).toBe(204);
+  await page.goto(firstShareUrl!);
+  await expect(
+    page.getByRole("heading", { name: "Setlist not found" }),
+  ).toBeVisible();
+
+  await page.goto(setlistEditorUrl);
+  await expect(page.getByText("3 songs")).toBeVisible();
+  await page.getByRole("button", { name: "Publish setlist" }).click();
+  await expect(page.getByText("Setlist published")).toBeVisible();
+  const republishedLink = page.getByRole("link", { name: "Open public link" });
+  await expect(republishedLink).toBeVisible();
+  const republishedUrl = await republishedLink.getAttribute("href");
+  expect(republishedUrl).toMatch(/^\/s\//);
+  await page.goto(republishedUrl!);
+  await expect(page.getByText("Shared setlist")).toBeVisible();
+
+  await page.request.delete(
+    `/api/published-setlists/${republishedUrl!.split("/").at(-1)}`,
   );
 });

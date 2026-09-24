@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
+import * as Dialog from "@radix-ui/react-dialog";
 import {
   ArrowDown,
   ArrowLeft,
@@ -37,6 +38,8 @@ export function SetlistEditor({ id }: { id: string }) {
   const [includeNotes, setIncludeNotes] = useState(false);
   const [includeLinks, setIncludeLinks] = useState(false);
   const [publishing, setPublishing] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deletingPublished, setDeletingPublished] = useState(false);
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [pickerOpen, setPickerOpen] = useState(false);
   const [songQuery, setSongQuery] = useState("");
@@ -128,6 +131,45 @@ export function SetlistEditor({ id }: { id: string }) {
       });
     } finally {
       setPublishing(false);
+    }
+  }
+  async function deletePublished() {
+    const token = currentSetlist.publishToken;
+    if (!token) return;
+    setDeletingPublished(true);
+    setFeedback(null);
+    try {
+      const response = await fetch(`/api/published-setlists/${token}`, {
+        method: "DELETE",
+      });
+      const result = await response.json().catch(() => null);
+      if (!response.ok)
+        throw new Error(
+          result?.error ??
+            `Unable to delete published setlist (server returned ${response.status}).`,
+        );
+
+      const unpublishedSetlist: Setlist = { ...currentSetlist };
+      delete unpublishedSetlist.publishToken;
+      const saved = await setlistRepository.save(unpublishedSetlist);
+      setSetlist(saved);
+      setSaveState("idle");
+      setDeleteDialogOpen(false);
+      setFeedback({
+        message: "Published setlist deleted",
+        tone: "success",
+      });
+    } catch (error) {
+      setDeleteDialogOpen(false);
+      setFeedback({
+        message:
+          error instanceof Error
+            ? error.message
+            : "Unable to delete published setlist.",
+        tone: "error",
+      });
+    } finally {
+      setDeletingPublished(false);
     }
   }
   const matchingSongs = songs.filter((song) =>
@@ -440,7 +482,9 @@ export function SetlistEditor({ id }: { id: string }) {
             <Button
               className="w-full"
               onClick={() => void publish()}
-              disabled={publishing || !setlist.entries.length}
+              disabled={
+                publishing || deletingPublished || !setlist.entries.length
+              }
             >
               {setlist.publishToken ? (
                 <Check size={16} />
@@ -454,12 +498,59 @@ export function SetlistEditor({ id }: { id: string }) {
                   : "Publish setlist"}
             </Button>
             {setlist.publishToken && (
-              <Button asChild variant="secondary" className="mt-2 w-full">
-                <Link target="_blank" href={`/s/${setlist.publishToken}`}>
-                  <ExternalLink size={16} />
-                  Open public link
-                </Link>
-              </Button>
+              <div className="mt-2 space-y-2">
+                <Button asChild variant="secondary" className="w-full">
+                  <Link target="_blank" href={`/s/${setlist.publishToken}`}>
+                    <ExternalLink size={16} />
+                    Open public link
+                  </Link>
+                </Button>
+                <Dialog.Root
+                  open={deleteDialogOpen}
+                  onOpenChange={(open) => {
+                    if (!deletingPublished) setDeleteDialogOpen(open);
+                  }}
+                >
+                  <Dialog.Trigger asChild>
+                    <Button variant="ghost" className="w-full text-rose-600">
+                      <Trash2 size={16} />
+                      Delete Published Setlist
+                    </Button>
+                  </Dialog.Trigger>
+                  <Dialog.Portal>
+                    <Dialog.Overlay className="fixed inset-0 z-40 bg-slate-950/50 backdrop-blur-[1px]" />
+                    <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[min(calc(100vw-2rem),28rem)] -translate-x-1/2 -translate-y-1/2 rounded-xl border border-slate-200 bg-white p-5 shadow-2xl outline-none dark:border-slate-800 dark:bg-slate-950">
+                      <Dialog.Title className="text-lg font-bold">
+                        Delete published setlist?
+                      </Dialog.Title>
+                      <Dialog.Description className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
+                        This will make the public link unavailable. Your local
+                        setlist will not be deleted.
+                      </Dialog.Description>
+                      <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                        <Dialog.Close asChild>
+                          <Button
+                            variant="secondary"
+                            disabled={deletingPublished}
+                          >
+                            Cancel
+                          </Button>
+                        </Dialog.Close>
+                        <Button
+                          variant="danger"
+                          disabled={deletingPublished}
+                          onClick={() => void deletePublished()}
+                        >
+                          <Trash2 size={16} />
+                          {deletingPublished
+                            ? "Deleting…"
+                            : "Delete Published Setlist"}
+                        </Button>
+                      </div>
+                    </Dialog.Content>
+                  </Dialog.Portal>
+                </Dialog.Root>
+              </div>
             )}
           </Card>
         </aside>
