@@ -84,6 +84,26 @@ describe("positioning", () => {
       ["B", 37],
     ]);
   });
+  it("preserves leading space and distant C# A B coordinates", () => {
+    const line = parseChordLine(
+      "        C#                         A        B",
+      "Lift him up and shout his name over all",
+    );
+    expect(line.chords.map((chord) => [chord.symbol, chord.position])).toEqual([
+      ["C#", 8],
+      ["A", 35],
+      ["B", 44],
+    ]);
+    expect(line.chords.at(-1)?.position).toBeGreaterThan(line.lyrics.length);
+  });
+  it("does not clamp an explicit position 42 to a shorter lyric", () => {
+    const line = parseChordLine(
+      `${" ".repeat(42)}B`,
+      "123456789012345678901234567890",
+    );
+    expect(line.lyrics).toHaveLength(30);
+    expect(line.chords[0].position).toBe(42);
+  });
   it("splits a compact chord prefix without changing the lyric", () => {
     const [line] = parseText("Em7The splendor of a King")[0].lines;
     expect(line.lyrics).toBe("The splendor of a King");
@@ -111,6 +131,15 @@ describe("song parsing", () => {
     });
     expect(song.title).toBe("Amazing Grace");
     expect(song.sections[0].lines[0].lyrics).toBe("Amazing grace");
+  });
+
+  it("keeps leading chord coordinates after an inferred title preamble", () => {
+    const song = parseSong(
+      "Turn It Up\n\n[Chorus]\n        C#                         A        B\nLift him up and shout his name over all",
+    );
+    expect(
+      song.sections[0].lines[0].chords.map((chord) => chord.position),
+    ).toEqual([8, 35, 44]);
   });
 
   it("keeps chords placed after an inline section heading", () => {

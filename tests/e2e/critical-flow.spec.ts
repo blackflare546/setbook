@@ -20,11 +20,11 @@ C           D            G
 How great, how great is our God.
 
 [Bridge]
-E                 B
+        E                 B
 Turn it up this sound of praise
-           A
+            A
 Make it louder than any other
-E                 B        C#m   A   B
+        E                 B        C#m   A   B
 Lift him up and shout his name over all
 
 [Chorus]
@@ -99,10 +99,25 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
   await expect(page.getByRole("link", { name: /Edit song/ })).toBeVisible();
   await expect(page.getByText("Chart editor")).toHaveCount(0);
   await expect(page.getByText("Capo 2")).toBeVisible();
-  await expect(page.locator('[data-chord-position="37"]')).toHaveAttribute(
-    "style",
-    /left: 37ch/,
-  );
+  const wideChartLine = page
+    .getByTestId("chart-line")
+    .filter({ has: page.locator('[data-chord-position="45"]') });
+  await expect(wideChartLine).toHaveCount(1);
+  const renderedPositions = await wideChartLine
+    .locator("[data-chord-position]")
+    .evaluateAll((chords) =>
+      chords.map((chord) => ({
+        position: Number(chord.getAttribute("data-chord-position")),
+        left: (chord as HTMLElement).style.left,
+      })),
+    );
+  expect(renderedPositions).toEqual([
+    { position: 8, left: "8ch" },
+    { position: 26, left: "26ch" },
+    { position: 35, left: "35ch" },
+    { position: 41, left: "41ch" },
+    { position: 45, left: "45ch" },
+  ]);
 
   await page.getByLabel("Transpose up").click();
   await expect(page.getByLabel("Transpose offset")).toHaveText("+1");
@@ -111,10 +126,14 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
   await expect(page.getByLabel("Transpose offset")).toHaveText("0");
 
   await page.getByRole("link", { name: /Edit song/ }).click();
-  await expect(page.getByText("Chart editor")).toBeVisible();
+  await expect(page.getByText("Smart Paste")).toBeVisible();
   const songEditorUrl = page.url();
-  await page.getByRole("button", { name: "Smart Paste" }).click();
+  await expect(page.getByText("Chart editor")).toHaveCount(0);
   await expect(page.getByTestId("smart-paste-input")).toHaveValue(source);
+  await expect(page.getByLabel("Title")).toHaveValue(title);
+  await expect(page.getByLabel("Artist")).toHaveValue("Chris Tomlin");
+  await expect(page.getByLabel("Original key")).toHaveValue("G");
+  await expect(page.getByLabel("Capo")).toHaveValue("2");
   await page.getByTestId("parse-song").click();
   await expect(page.getByText("Chart editor")).toBeVisible();
   await expect(page.getByLabel("Capo")).toHaveValue("2");
@@ -236,7 +255,8 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
     for (const route of routes) {
       await page.goto(route);
       if (route === songEditorUrl) {
-        await expect(page.getByText("Chart editor")).toBeVisible();
+        await expect(page.getByText("Smart Paste")).toBeVisible();
+        await expect(page.getByTestId("smart-paste-input")).toHaveValue(source);
       }
       if (
         route === songViewUrl ||
@@ -256,6 +276,8 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
   ]) {
     await page.setViewportSize({ width, height });
     await page.goto(songEditorUrl);
+    await expect(page.getByText("Smart Paste")).toBeVisible();
+    await page.getByTestId("parse-song").click();
     await expect(page.getByText("Chart editor")).toBeVisible();
     const scrollState = await page.evaluate(() => {
       const pageRoot = document.scrollingElement ?? document.documentElement;
@@ -298,6 +320,34 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
   await expect
     .poll(() => page.evaluate(() => window.scrollY))
     .toBeGreaterThan(0);
+
+  for (const [width, height] of [
+    [320, 667],
+    [375, 667],
+    [390, 844],
+    [430, 932],
+  ]) {
+    await page.setViewportSize({ width, height });
+    await page.goto("/songs/new");
+    const back = page.getByRole("button", { name: "Back", exact: true });
+    const review = page.getByTestId("parse-song");
+    const save = page.getByTestId("save-song");
+    const cancel = page.getByRole("button", { name: "Cancel", exact: true });
+    await review.scrollIntoViewIfNeeded();
+    await expect(review).toBeVisible();
+    await expect(save).toBeVisible();
+    await expect(cancel).toBeVisible();
+    const actionBox = await cancel.boundingBox();
+    expect(actionBox?.y).toBeGreaterThanOrEqual(0);
+    expect(
+      (actionBox?.y ?? height) + (actionBox?.height ?? 0),
+    ).toBeLessThanOrEqual(height);
+    await back.scrollIntoViewIfNeeded();
+    const backBox = await back.boundingBox();
+    expect(backBox?.x).toBeLessThan(width / 3);
+    expect(backBox?.height).toBeGreaterThanOrEqual(44);
+    await expectNoPageOverflow(page);
+  }
 
   await page.request.delete(
     `/api/published-setlists/${firstShareUrl!.split("/").at(-1)}`,

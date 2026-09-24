@@ -30,7 +30,7 @@ export function SongEditor({ songId }: { songId?: string }) {
     songId ? null : createEmptySong(),
   );
   const [paste, setPaste] = useState("");
-  const [mode, setMode] = useState<"paste" | "edit">(songId ? "edit" : "paste");
+  const [mode, setMode] = useState<"paste" | "edit">("paste");
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState<{
     message: string;
@@ -61,6 +61,9 @@ export function SongEditor({ songId }: { songId?: string }) {
   function openSmartPaste() {
     setPaste(song?.sourceText || sectionsToText(song?.sections ?? []));
     setMode("paste");
+  }
+  function leaveEditor() {
+    router.push(songId ? `/songs/${songId}` : "/library");
   }
   function parseDraft(): Song | null {
     if (!song || !paste.trim()) return null;
@@ -117,25 +120,25 @@ export function SongEditor({ songId }: { songId?: string }) {
 
   if (mode === "paste")
     return (
-      <div className="mx-auto max-w-4xl px-3 py-5 min-[375px]:px-4 sm:px-6 sm:py-8 lg:py-12">
+      <div className="mx-auto max-w-4xl px-3 py-5 pb-28 min-[375px]:px-4 sm:px-6 sm:py-8 sm:pb-12 lg:py-12">
         <FeedbackToast
           message={feedback?.message ?? null}
           tone={feedback?.tone}
         />
         <Button
           variant="ghost"
-          onClick={() => (songId ? setMode("edit") : router.back())}
-          className="mb-5 -ml-3"
+          onClick={leaveEditor}
+          className="mb-5 -ml-3 h-11 min-w-11 self-start"
         >
           <ArrowLeft size={17} />
-          {songId ? "Back to editor" : "Library"}
+          Back
         </Button>
         <div className="mb-5 sm:mb-7">
           <p className="mb-1 text-sm font-semibold text-indigo-600">
             Smart Paste
           </p>
           <h1 className="text-2xl font-bold tracking-tight min-[375px]:text-3xl">
-            Create a song chart
+            {songId ? "Edit song chart" : "Create a song chart"}
           </h1>
           <p className="mt-2 max-w-2xl text-slate-500">
             Paste the chord sheet you already have. SetBook recognizes chord
@@ -205,21 +208,12 @@ export function SongEditor({ songId }: { songId?: string }) {
               value={paste}
               onChange={(e) => setPaste(e.target.value)}
             />
-            <div className="mt-4 flex flex-col items-stretch justify-between gap-3 sm:flex-row sm:items-center">
+            <div className="mt-6 flex flex-col items-stretch justify-between gap-4 sm:mt-7 sm:flex-row sm:items-center">
               <p className="text-xs text-slate-500">
                 Your text stays in this browser. Parsing happens entirely on
                 this device.
               </p>
-              <div className="grid grid-cols-1 gap-2 min-[375px]:grid-cols-2 sm:flex">
-                <Button
-                  data-testid="save-song"
-                  size="lg"
-                  disabled={saving || !paste.trim() || !song.title.trim()}
-                  onClick={() => void saveFromPaste()}
-                >
-                  <Save size={18} />
-                  {saving ? "Saving…" : "Save song"}
-                </Button>
+              <div className="grid grid-cols-1 gap-3 sm:flex sm:flex-wrap sm:justify-end">
                 <Button
                   data-testid="parse-song"
                   variant="secondary"
@@ -230,6 +224,18 @@ export function SongEditor({ songId }: { songId?: string }) {
                   <Sparkles size={18} />
                   Review chart
                   <ChevronRight size={17} />
+                </Button>
+                <Button
+                  data-testid="save-song"
+                  size="lg"
+                  disabled={saving || !paste.trim() || !song.title.trim()}
+                  onClick={() => void saveFromPaste()}
+                >
+                  <Save size={18} />
+                  {saving ? "Saving…" : "Save song"}
+                </Button>
+                <Button variant="ghost" size="lg" onClick={leaveEditor}>
+                  Cancel
                 </Button>
               </div>
             </div>

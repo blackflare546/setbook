@@ -217,12 +217,9 @@ export function parseSong(
   const inferredTitle = hasTitlePreamble
     ? rows[firstContent].trim().replace(/[,]$/, "")
     : "";
-  const chartText = hasTitlePreamble
-    ? rows
-        .slice(firstContent + 1)
-        .join("\n")
-        .trimStart()
-    : normalized;
+  const chartRows = hasTitlePreamble ? rows.slice(firstContent + 1) : rows;
+  while (chartRows.length && !chartRows[0].trim()) chartRows.shift();
+  const chartText = chartRows.join("\n");
   return {
     id: newId(),
     title: metadata.title || inferredTitle || "Untitled song",
