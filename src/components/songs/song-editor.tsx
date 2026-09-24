@@ -46,6 +46,18 @@ function detectedKeyLabel(candidate: DetectedKeyCandidate): string {
   );
 }
 
+function OriginalDetectedKey({
+  candidate,
+}: {
+  candidate: DetectedKeyCandidate;
+}) {
+  return (
+    <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold dark:border-slate-800 dark:bg-slate-900">
+      Song Detected Key: {detectedKeyLabel(candidate)}
+    </div>
+  );
+}
+
 export function SongEditor({ songId }: { songId?: string }) {
   const router = useRouter();
   const [song, setSong] = useState<Song | null>(
@@ -53,6 +65,9 @@ export function SongEditor({ songId }: { songId?: string }) {
   );
   const [paste, setPaste] = useState("");
   const [mode, setMode] = useState<"paste" | "edit">("paste");
+  const [originalDetectedKey, setOriginalDetectedKey] =
+    useState<DetectedKeyCandidate | null>(null);
+  const [keyManuallyChanged, setKeyManuallyChanged] = useState(Boolean(songId));
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState<{
     message: string;
@@ -66,8 +81,13 @@ export function SongEditor({ songId }: { songId?: string }) {
     if (songId)
       void songRepository.get(songId).then((found) => {
         const loaded = found ?? createEmptySong();
+        const source = loaded.sourceText || sectionsToText(loaded.sections);
+        const detection = detectSongKey(parseText(source));
         setSong(loaded);
-        setPaste(loaded.sourceText || sectionsToText(loaded.sections));
+        setPaste(source);
+        if (detection.confidence === "confident" && detection.primary) {
+          setOriginalDetectedKey(detection.primary);
+        }
       });
   }, [songId]);
 
@@ -75,18 +95,33 @@ export function SongEditor({ songId }: { songId?: string }) {
     setSong((current) =>
       current
         ? {
-            ...current,
-            ...next,
-            sourceText: next.sections
-              ? sectionsToText(next.sections)
-              : current.sourceText,
-          }
+          ...current,
+          ...next,
+          sourceText: next.sections
+            ? sectionsToText(next.sections)
+            : current.sourceText,
+        }
         : current,
     );
   }
   function openSmartPaste() {
     setPaste(song?.sourceText || sectionsToText(song?.sections ?? []));
     setMode("paste");
+  }
+  function changePaste(value: string) {
+    setPaste(value);
+    if (originalDetectedKey) return;
+    const detection = detectSongKey(parseText(value));
+    if (detection.confidence !== "confident" || !detection.primary) return;
+
+    setOriginalDetectedKey(detection.primary);
+    if (!keyManuallyChanged && !song?.originalKey) {
+      update({ originalKey: detectedKeyValue(detection.primary) });
+    }
+  }
+  function changeSongKey(originalKey: string) {
+    setKeyManuallyChanged(true);
+    update({ originalKey });
   }
   function leaveEditor() {
     router.push(songId ? `/songs/${songId}` : "/library");
@@ -195,7 +230,7 @@ export function SongEditor({ songId }: { songId?: string }) {
                 ariaLabel="Song key"
                 className="mt-1.5 normal-case"
                 value={song.originalKey}
-                onChange={(originalKey) => update({ originalKey })}
+                onChange={changeSongKey}
               />
             </label>
             <label className="text-xs font-bold uppercase tracking-wide text-slate-500">
@@ -233,50 +268,33 @@ export function SongEditor({ songId }: { songId?: string }) {
               className="min-h-[50dvh] resize-y overflow-auto whitespace-pre font-mono leading-7 sm:min-h-[360px]"
               placeholder={example}
               value={paste}
-              onChange={(e) => setPaste(e.target.value)}
+              onChange={(e) => changePaste(e.target.value)}
             />
-            {keyDetection && (
-              <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-900">
-                {keyDetection.confidence === "confident" &&
-                  keyDetection.primary && (
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            {originalDetectedKey ? (
+              <div className="mt-5">
+                <OriginalDetectedKey candidate={originalDetectedKey} />
+              </div>
+            ) : (
+              keyDetection && (
+                <div className="mt-5 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-900">
+                  {keyDetection.confidence === "ambiguous" &&
+                    keyDetection.primary && (
                       <p className="text-sm font-semibold">
-                        Detected Key: {detectedKeyLabel(keyDetection.primary)}
+                        Possible Keys: {[keyDetection.primary]
+                          .concat(keyDetection.alternatives)
+                          .map(detectedKeyLabel)
+                          .join(" / ")}
                       </p>
-                      {!song.originalKey && (
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="secondary"
-                          onClick={() =>
-                            update({
-                              originalKey: detectedKeyValue(
-                                keyDetection.primary!,
-                              ),
-                            })
-                          }
-                        >
-                          Use Detected Key
-                        </Button>
-                      )}
-                    </div>
-                  )}
-                {keyDetection.confidence === "ambiguous" &&
-                  keyDetection.primary && (
-                    <p className="text-sm font-semibold">
-                      Possible Keys: {[keyDetection.primary]
-                        .concat(keyDetection.alternatives)
-                        .map(detectedKeyLabel)
-                        .join(" / ")}
+                    )}
+                  {keyDetection.confidence === "unknown" && (
+                    <p className="text-sm text-slate-600 dark:text-slate-300">
+                      Key could not be determined reliably.
                     </p>
                   )}
-                {keyDetection.confidence === "unknown" && (
-                  <p className="text-sm text-slate-600 dark:text-slate-300">
-                    Key could not be determined reliably.
-                  </p>
-                )}
-              </div>
+                </div>
+              )
             )}
+
             <div className="mt-6 flex flex-col items-stretch justify-between gap-4 sm:mt-7 sm:flex-row sm:items-center">
               <p className="text-xs text-slate-500">
                 Your text stays in this browser. Parsing happens entirely on
@@ -308,6 +326,7 @@ export function SongEditor({ songId }: { songId?: string }) {
                 </Button>
               </div>
             </div>
+
           </div>
         </Card>
       </div>
@@ -372,7 +391,7 @@ export function SongEditor({ songId }: { songId?: string }) {
                 ariaLabel="Song key"
                 className="mt-1.5"
                 value={song.originalKey}
-                onChange={(originalKey) => update({ originalKey })}
+                onChange={changeSongKey}
               />
             </label>
             <label className="block text-sm font-semibold">
@@ -511,23 +530,23 @@ export function SongEditor({ songId }: { songId?: string }) {
                                 sections: song.sections.map((s) =>
                                   s.id === section.id
                                     ? {
-                                        ...s,
-                                        lines: s.lines.map((l) =>
-                                          l.id === line.id
-                                            ? {
-                                                ...l,
-                                                chords: l.chords.map((c) =>
-                                                  c.id === chord.id
-                                                    ? {
-                                                        ...c,
-                                                        symbol: e.target.value,
-                                                      }
-                                                    : c,
-                                                ),
-                                              }
-                                            : l,
-                                        ),
-                                      }
+                                      ...s,
+                                      lines: s.lines.map((l) =>
+                                        l.id === line.id
+                                          ? {
+                                            ...l,
+                                            chords: l.chords.map((c) =>
+                                              c.id === chord.id
+                                                ? {
+                                                  ...c,
+                                                  symbol: e.target.value,
+                                                }
+                                                : c,
+                                            ),
+                                          }
+                                          : l,
+                                      ),
+                                    }
                                     : s,
                                 ),
                               })
@@ -544,25 +563,25 @@ export function SongEditor({ songId }: { songId?: string }) {
                                 sections: song.sections.map((s) =>
                                   s.id === section.id
                                     ? {
-                                        ...s,
-                                        lines: s.lines.map((l) =>
-                                          l.id === line.id
-                                            ? {
-                                                ...l,
-                                                chords: l.chords.map((c) =>
-                                                  c.id === chord.id
-                                                    ? {
-                                                        ...c,
-                                                        position: Number(
-                                                          e.target.value,
-                                                        ),
-                                                      }
-                                                    : c,
-                                                ),
-                                              }
-                                            : l,
-                                        ),
-                                      }
+                                      ...s,
+                                      lines: s.lines.map((l) =>
+                                        l.id === line.id
+                                          ? {
+                                            ...l,
+                                            chords: l.chords.map((c) =>
+                                              c.id === chord.id
+                                                ? {
+                                                  ...c,
+                                                  position: Number(
+                                                    e.target.value,
+                                                  ),
+                                                }
+                                                : c,
+                                            ),
+                                          }
+                                          : l,
+                                      ),
+                                    }
                                     : s,
                                 ),
                               })
@@ -576,18 +595,18 @@ export function SongEditor({ songId }: { songId?: string }) {
                                 sections: song.sections.map((s) =>
                                   s.id === section.id
                                     ? {
-                                        ...s,
-                                        lines: s.lines.map((l) =>
-                                          l.id === line.id
-                                            ? {
-                                                ...l,
-                                                chords: l.chords.filter(
-                                                  (c) => c.id !== chord.id,
-                                                ),
-                                              }
-                                            : l,
-                                        ),
-                                      }
+                                      ...s,
+                                      lines: s.lines.map((l) =>
+                                        l.id === line.id
+                                          ? {
+                                            ...l,
+                                            chords: l.chords.filter(
+                                              (c) => c.id !== chord.id,
+                                            ),
+                                          }
+                                          : l,
+                                      ),
+                                    }
                                     : s,
                                 ),
                               })
@@ -605,23 +624,23 @@ export function SongEditor({ songId }: { songId?: string }) {
                             sections: song.sections.map((s) =>
                               s.id === section.id
                                 ? {
-                                    ...s,
-                                    lines: s.lines.map((l) =>
-                                      l.id === line.id
-                                        ? {
-                                            ...l,
-                                            chords: [
-                                              ...l.chords,
-                                              {
-                                                id: newId(),
-                                                symbol: "G",
-                                                position: 0,
-                                              },
-                                            ],
-                                          }
-                                        : l,
-                                    ),
-                                  }
+                                  ...s,
+                                  lines: s.lines.map((l) =>
+                                    l.id === line.id
+                                      ? {
+                                        ...l,
+                                        chords: [
+                                          ...l.chords,
+                                          {
+                                            id: newId(),
+                                            symbol: "G",
+                                            position: 0,
+                                          },
+                                        ],
+                                      }
+                                      : l,
+                                  ),
+                                }
                                 : s,
                             ),
                           })
@@ -641,13 +660,13 @@ export function SongEditor({ songId }: { songId?: string }) {
                             sections: song.sections.map((s) =>
                               s.id === section.id
                                 ? {
-                                    ...s,
-                                    lines: s.lines.map((l) =>
-                                      l.id === line.id
-                                        ? { ...l, lyrics: e.target.value }
-                                        : l,
-                                    ),
-                                  }
+                                  ...s,
+                                  lines: s.lines.map((l) =>
+                                    l.id === line.id
+                                      ? { ...l, lyrics: e.target.value }
+                                      : l,
+                                  ),
+                                }
                                 : s,
                             ),
                           })
@@ -661,11 +680,11 @@ export function SongEditor({ songId }: { songId?: string }) {
                             sections: song.sections.map((s) =>
                               s.id === section.id
                                 ? {
-                                    ...s,
-                                    lines: s.lines.filter(
-                                      (l) => l.id !== line.id,
-                                    ),
-                                  }
+                                  ...s,
+                                  lines: s.lines.filter(
+                                    (l) => l.id !== line.id,
+                                  ),
+                                }
                                 : s,
                             ),
                           })
@@ -684,12 +703,12 @@ export function SongEditor({ songId }: { songId?: string }) {
                       sections: song.sections.map((s) =>
                         s.id === section.id
                           ? {
-                              ...s,
-                              lines: [
-                                ...s.lines,
-                                { id: newId(), lyrics: "", chords: [] },
-                              ],
-                            }
+                            ...s,
+                            lines: [
+                              ...s.lines,
+                              { id: newId(), lyrics: "", chords: [] },
+                            ],
+                          }
                           : s,
                       ),
                     })
@@ -720,6 +739,9 @@ export function SongEditor({ songId }: { songId?: string }) {
             <Plus size={16} />
             Add section
           </Button>
+          {originalDetectedKey && (
+            <OriginalDetectedKey candidate={originalDetectedKey} />
+          )}
         </div>
       </div>
     </div>

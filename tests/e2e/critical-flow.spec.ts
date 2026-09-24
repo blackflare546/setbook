@@ -178,13 +178,25 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
   await page.goto("/songs/new");
   await page.getByLabel("Title").fill(title);
   await page.getByLabel("Artist").fill("Chris Tomlin");
-  await page.getByTestId("smart-paste-input").fill(source);
-  await expect(page.getByText("Detected Key: G Major")).toBeVisible();
-  await page.getByRole("button", { name: "Use Detected Key" }).click();
   const songKey = page.getByRole("combobox", {
     name: "Song key",
     exact: true,
   });
+  await page.getByTestId("smart-paste-input").fill("[Verse]\nAm F C G");
+  await expect(page.getByText("Possible Keys: C Major / A Minor")).toBeVisible();
+  await expect(songKey).toHaveValue("");
+
+  await page.getByTestId("smart-paste-input").fill(source);
+  await expect(songKey).toHaveValue("G Major");
+  await expect(page.getByText("Original Detected Key: G Major")).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Use Detected Key" }),
+  ).toHaveCount(0);
+
+  await selectKey(page, "Song key", "A major", "A Major");
+  await expect(songKey).toHaveValue("A Major");
+  await expect(page.getByText("Original Detected Key: G Major")).toBeVisible();
+
   await songKey.click();
   await songKey.fill("G");
   const songKeyOptions = page
@@ -200,9 +212,7 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
   ]);
   await songKeyOptions.filter({ hasText: /^G Major$/ }).click();
   await expect(songKey).toHaveValue("G Major");
-  await expect(
-    page.getByRole("button", { name: "Use Detected Key" }),
-  ).toHaveCount(0);
+  await expect(page.getByText("Original Detected Key: G Major")).toBeVisible();
   await page.getByLabel("Capo").selectOption("2");
   await page.getByTestId("save-song").click();
   await expect(page.getByText("Song saved")).toBeVisible();
@@ -318,6 +328,7 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
   await expect(page.getByLabel("Capo")).toHaveValue("2");
   await page.getByTestId("parse-song").click();
   await expect(page.getByText("Chart editor")).toBeVisible();
+  await expect(page.getByText("Original Detected Key: G Major")).toBeVisible();
   await expect(page.getByLabel("Capo")).toHaveValue("2");
 
   await page.goto("/library");
