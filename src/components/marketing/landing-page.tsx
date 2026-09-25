@@ -9,9 +9,9 @@ import {
   ClipboardPaste,
   ListMusic,
   MonitorCog,
-  Music2,
   Users,
 } from "lucide-react";
+import { SetBookLogo } from "@/components/brand/setbook-logo";
 import { Button } from "@/components/ui/button";
 import { settingsRepository } from "@/data/repositories/settings-repository";
 
@@ -70,11 +70,8 @@ export function LandingPage() {
     >
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex min-h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6">
-          <Link href="/welcome" className="flex items-center gap-2 font-bold">
-            <span className="grid h-9 w-9 place-items-center rounded-md bg-indigo-700 text-white">
-              <Music2 size={19} />
-            </span>
-            SetBook
+          <Link href="/welcome" aria-label="SetBook home">
+            <SetBookLogo />
           </Link>
           <Button className="h-11" onClick={openApp} disabled={opening}>
             Open App

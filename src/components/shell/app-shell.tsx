@@ -7,10 +7,10 @@ import {
   CircleHelp,
   Info,
   ListMusic,
-  Music2,
   Plus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { SetBookLogo } from "@/components/brand/setbook-logo";
 import { Button } from "@/components/ui/button";
 import { ThemeSwitcher } from "@/components/theme/theme-switcher";
 
@@ -38,12 +38,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <div className="mx-auto flex min-h-16 max-w-7xl items-center gap-2 px-3 py-2 sm:gap-6 sm:px-6">
           <Link
             href="/library"
-            className="flex shrink-0 items-center gap-2 text-lg font-bold tracking-tight text-slate-950 dark:text-white"
+            className="shrink-0 text-slate-950 dark:text-white"
+            aria-label="SetBook home"
           >
-            <span className="grid h-9 w-9 place-items-center rounded-lg bg-indigo-600 text-white">
-              <Music2 size={19} />
-            </span>
-            <span className="hidden min-[360px]:inline">SetBook</span>
+            <SetBookLogo compact />
           </Link>
           <nav className="hidden flex-1 items-center gap-1 lg:flex">
             {nav.map(({ href, label, icon: Icon }) => (

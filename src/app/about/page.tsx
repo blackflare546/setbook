@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { BookOpen, Music2 } from "lucide-react";
+import { BookOpen } from "lucide-react";
+import { SetBookMark } from "@/components/brand/setbook-logo";
 import { Button } from "@/components/ui/button";
 
 export const metadata: Metadata = { title: "About" };
@@ -23,9 +24,7 @@ export default function AboutPage() {
           About
         </p>
         <div className="mt-3 flex items-center gap-3">
-          <span className="grid h-11 w-11 place-items-center rounded-lg bg-indigo-600 text-white">
-            <Music2 size={22} />
-          </span>
+          <SetBookMark className="h-11 w-11 text-slate-950 dark:text-white" />
           <h1 className="text-4xl font-black tracking-tight">SetBook</h1>
         </div>
 
