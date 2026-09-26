@@ -49,8 +49,7 @@ a {
     transform: translateY(-100%);
   }
 
-  [data-performance-setlist-view][data-controls-responsive="true"]
-    [data-auto-hide-header][data-visible="true"] {
+  [data-performance-setlist-view] [data-auto-hide-header][data-visible="true"] {
     transform: translateY(0);
   }
 
@@ -70,15 +69,15 @@ a {
   }
 
   [data-performance-setlist-view] [data-performance-chart-article] {
-    padding-top: max(1.25rem, env(safe-area-inset-top));
-    padding-bottom: max(1.25rem, env(safe-area-inset-bottom));
+    padding-top: calc(max(0.5rem, env(safe-area-inset-top)) + 3.5rem);
+    padding-bottom: calc(env(safe-area-inset-bottom) + 4.5rem);
   }
 
   [data-performance-setlist-view] [data-auto-hide-pagination] {
     transform: translateY(100%);
   }
 
-  [data-performance-setlist-view][data-controls-responsive="true"]
+  [data-performance-setlist-view]
     [data-auto-hide-pagination][data-visible="true"] {
     transform: translateY(0);
   }

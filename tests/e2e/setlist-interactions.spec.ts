@@ -220,12 +220,45 @@ test("mobile performance reveals controls for meaningful scrolls and taps", asyn
   const scroller = page.locator("[data-performance-chart-scroll]");
   const header = page.locator("[data-auto-hide-header]");
   const pagination = page.locator("[data-auto-hide-pagination]");
-  await expect(header).toHaveAttribute("data-visible", "false");
-  await expect(pagination).toHaveAttribute("data-visible", "false");
-  await expect(page.getByLabel("Open performance menu")).toHaveCount(0);
+  await expect(header).toHaveAttribute("data-visible", "true");
+  await expect(pagination).toHaveAttribute("data-visible", "true");
+  await expect(page.getByLabel("Open performance menu")).toBeVisible();
   await expect
     .poll(() => scroller.evaluate((element) => element.clientHeight))
     .toBe(844);
+  const initialHeaderBox = await header.boundingBox();
+  const initialSongTitleBox = await page
+    .getByRole("heading", { name: "Alpha Song" })
+    .boundingBox();
+  expect(initialHeaderBox).not.toBeNull();
+  expect(initialSongTitleBox).not.toBeNull();
+  expect(initialSongTitleBox!.y).toBeGreaterThanOrEqual(
+    initialHeaderBox!.y + initialHeaderBox!.height,
+  );
+
+  await expect(header).toHaveAttribute("data-visible", "false", {
+    timeout: 2_500,
+  });
+  await expect(pagination).toHaveAttribute("data-visible", "false");
+
+  await scroller.click({ position: { x: 20, y: 300 } });
+  await expect(header).toHaveAttribute("data-visible", "true");
+  await expect(pagination).toHaveAttribute("data-visible", "true");
+  await scroller.click({ position: { x: 20, y: 300 } });
+  await expect(header).toHaveAttribute("data-visible", "false");
+  await expect(pagination).toHaveAttribute("data-visible", "false");
+
+  await scroller.click({ position: { x: 20, y: 300 } });
+  await page.waitForTimeout(1_200);
+  const performanceMenu = page.getByLabel("Open performance menu");
+  await performanceMenu.click();
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(1_200);
+  await expect(header).toHaveAttribute("data-visible", "true");
+  await expect(header).toHaveAttribute("data-visible", "false", {
+    timeout: 1_500,
+  });
 
   await scroller.evaluate((element) => {
     element.scrollTop = 4;
@@ -254,60 +287,34 @@ test("mobile performance reveals controls for meaningful scrolls and taps", asyn
   });
   await expect(header).toHaveAttribute("data-visible", "true");
   await expect(pagination).toHaveAttribute("data-visible", "true");
+  await page.waitForTimeout(400);
+  await expect(header).toHaveAttribute("data-visible", "true");
 
   await scroller.evaluate((element) => {
     element.scrollTop = element.scrollHeight - element.clientHeight - 20;
   });
   await expect(header).toHaveAttribute("data-visible", "true");
   await expect(pagination).toHaveAttribute("data-visible", "true");
+  const finalChartLineBox = await page
+    .getByTestId("chart-line")
+    .last()
+    .boundingBox();
+  const paginationBox = await pagination.boundingBox();
+  expect(finalChartLineBox).not.toBeNull();
+  expect(paginationBox).not.toBeNull();
+  expect(finalChartLineBox!.y + finalChartLineBox!.height).toBeLessThanOrEqual(
+    paginationBox!.y + 1,
+  );
   await page.getByRole("button", { name: "Next", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Bravo Song" })).toBeVisible();
   await expect
     .poll(() => scroller.evaluate((element) => element.scrollTop))
     .toBe(0);
-
-  await scroller.evaluate((element) => {
-    element.scrollTop = element.scrollHeight - element.clientHeight - 20;
-  });
-  await expect(header).toHaveAttribute("data-visible", "true");
-  await expect(pagination).toHaveAttribute("data-visible", "true");
-  const bottomPosition = await scroller.evaluate((element) =>
-    Math.round(element.scrollTop),
-  );
-
-  const performanceMenu = page.getByLabel("Open performance menu");
-  await expect(performanceMenu).toBeVisible();
-  await expect
-    .poll(() => scroller.evaluate((element) => Math.round(element.scrollTop)))
-    .toBe(bottomPosition);
-  await performanceMenu.click();
-  await expect(page.getByRole("dialog")).toBeVisible();
-  await page.keyboard.press("Escape");
-  await expect(header).toHaveAttribute("data-visible", "false", {
-    timeout: 3_000,
-  });
-  await expect(pagination).toHaveAttribute("data-visible", "false");
-
-  await scroller.evaluate((element) => {
-    element.scrollTop -= 100;
-  });
   await expect(header).toHaveAttribute("data-visible", "true");
   await expect(pagination).toHaveAttribute("data-visible", "true");
   await expect(header).toHaveAttribute("data-visible", "false", {
-    timeout: 3_000,
+    timeout: 2_500,
   });
-  await expect(pagination).toHaveAttribute("data-visible", "false");
-
-  await scroller.click({ position: { x: 20, y: 300 } });
-  await expect(pagination).toHaveAttribute("data-visible", "true");
-  await page.getByRole("button", { name: "Next", exact: true }).click();
-  await expect(
-    page.getByRole("heading", { name: "Charlie Song" }),
-  ).toBeVisible();
-  await expect
-    .poll(() => scroller.evaluate((element) => element.scrollTop))
-    .toBe(0);
-  await expect(header).toHaveAttribute("data-visible", "false");
   await expect(pagination).toHaveAttribute("data-visible", "false");
 
   await page.setViewportSize({ width: 844, height: 390 });

@@ -439,7 +439,6 @@ export function PerformanceView({
     <main
       ref={performanceRootRef}
       data-performance-setlist-view={!singleSong || undefined}
-      data-controls-responsive={autoHide.responsive || undefined}
       className={cn(
         "max-w-full bg-white text-slate-950 dark:bg-slate-950 dark:text-slate-100",
         "min-h-dvh pb-24",
@@ -662,7 +661,18 @@ export function PerformanceView({
       <div
         ref={chartScrollRef}
         data-performance-chart-scroll
-        onClick={autoHide.revealTemporarily}
+        onClick={(event) => {
+          const target = event.target as HTMLElement;
+          if (
+            target.closest(
+              "button, a, input, select, textarea, [role='button']",
+            )
+          ) {
+            autoHide.revealTemporarily();
+          } else {
+            autoHide.toggleControls();
+          }
+        }}
         className="mx-auto max-w-7xl"
       >
         <article

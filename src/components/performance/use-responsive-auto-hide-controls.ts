@@ -10,7 +10,7 @@ import {
 
 const RESPONSIVE_QUERY =
   "(max-width: 767px), (max-height: 500px) and (max-width: 932px)";
-const REVEAL_DURATION = 2500;
+const REVEAL_DURATION = 2000;
 const MEANINGFUL_SCROLL_DISTANCE = 8;
 const SCROLL_GESTURE_GAP = 160;
 
@@ -51,6 +51,12 @@ export function useResponsiveAutoHideControls(
     hideTimerRef.current = setTimeout(hideControls, REVEAL_DURATION);
   }, [clearHideTimer, enabled, hideControls]);
 
+  const toggleControls = useCallback(() => {
+    if (!enabled || !responsiveRef.current) return;
+    if (controlsVisibleRef.current) hideControls();
+    else revealTemporarily();
+  }, [enabled, hideControls, revealTemporarily]);
+
   useEffect(() => {
     if (!enabled) return;
     if (typeof window.matchMedia !== "function") return;
@@ -58,9 +64,8 @@ export function useResponsiveAutoHideControls(
     const syncResponsiveState = () => {
       responsiveRef.current = mediaQuery.matches;
       setResponsive(mediaQuery.matches);
-      clearHideTimer();
-      controlsVisibleRef.current = false;
-      setControlsVisible(false);
+      if (mediaQuery.matches) revealTemporarily();
+      else hideControls();
     };
     syncResponsiveState();
     mediaQuery.addEventListener("change", syncResponsiveState);
@@ -69,7 +74,7 @@ export function useResponsiveAutoHideControls(
       responsiveRef.current = false;
       clearHideTimer();
     };
-  }, [clearHideTimer, enabled]);
+  }, [clearHideTimer, enabled, hideControls, revealTemporarily]);
 
   useEffect(() => {
     if (!enabled || !responsive) return;
@@ -121,5 +126,10 @@ export function useResponsiveAutoHideControls(
     [clearHideTimer],
   );
 
-  return { controlsVisible, responsive, revealTemporarily };
+  return {
+    controlsVisible,
+    responsive,
+    revealTemporarily,
+    toggleControls,
+  };
 }
