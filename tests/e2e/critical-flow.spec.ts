@@ -437,6 +437,9 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
     { position: "45", left: "45ch" },
   ]);
 
+  await page
+    .locator("[data-performance-chart-scroll]")
+    .click({ position: { x: 20, y: 300 } });
   const performanceMenu = page.getByLabel("Open performance menu");
   await expect(performanceMenu).toHaveCount(1);
   const performanceMenuBox = await performanceMenu.boundingBox();
@@ -451,9 +454,15 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
   await expect(page.getByRole("region", { name: "Band Notes" })).toContainText(
     "Guitar enters on Chorus",
   );
+  await page
+    .locator("[data-performance-chart-scroll]")
+    .click({ position: { x: 20, y: 300 } });
   await page.getByLabel("Open performance menu").click();
   await page.getByRole("button", { name: /Band Notes/ }).click();
   await expect(page.getByRole("region", { name: "Band Notes" })).toHaveCount(0);
+  await page
+    .locator("[data-performance-chart-scroll]")
+    .click({ position: { x: 20, y: 300 } });
   await page.getByLabel("Open performance menu").click();
   await expect(page.getByRole("dialog")).toBeVisible();
   await page.keyboard.press("Escape");
@@ -464,15 +473,34 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
   await expect(page.getByLabel("Transpose offset")).toHaveText("+2");
   await expect(page.getByLabel("Current key")).toHaveText("B Major");
   await page.evaluate(() => {
-    window.scrollTo(0, document.body.scrollHeight);
+    const performanceScroller = document.querySelector<HTMLElement>(
+      "[data-performance-chart-scroll]",
+    );
+    if (performanceScroller)
+      performanceScroller.scrollTop = performanceScroller.scrollHeight;
     const chartScroller = document.querySelector<HTMLElement>(
       "[data-performance-scroll-container]",
     );
     if (chartScroller) chartScroller.scrollLeft = chartScroller.scrollWidth;
   });
-  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
+  await expect
+    .poll(() =>
+      page
+        .locator("[data-performance-chart-scroll]")
+        .evaluate((element) => element.scrollTop),
+    )
+    .toBeGreaterThan(0);
+  await page
+    .locator("[data-performance-chart-scroll]")
+    .click({ position: { x: 20, y: 300 } });
   await page.getByRole("button", { name: "Next", exact: true }).click();
-  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
+  await expect
+    .poll(() =>
+      page
+        .locator("[data-performance-chart-scroll]")
+        .evaluate((element) => element.scrollTop),
+    )
+    .toBe(0);
   await expect
     .poll(() =>
       page.evaluate(() =>
@@ -493,10 +521,27 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
   await expect(page.getByLabel("Transpose offset")).toHaveText("-1");
   await expect(page.getByLabel("Current key")).toHaveText("F# Major");
   await expect(page.locator("html")).toHaveClass(/dark/);
-  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
+  await page.locator("[data-performance-chart-scroll]").evaluate((element) => {
+    element.scrollTop = element.scrollHeight;
+  });
+  await expect
+    .poll(() =>
+      page
+        .locator("[data-performance-chart-scroll]")
+        .evaluate((element) => element.scrollTop),
+    )
+    .toBeGreaterThan(0);
+  await page
+    .locator("[data-performance-chart-scroll]")
+    .click({ position: { x: 20, y: 300 } });
   await page.getByRole("button", { name: "Prev", exact: true }).click();
-  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
+  await expect
+    .poll(() =>
+      page
+        .locator("[data-performance-chart-scroll]")
+        .evaluate((element) => element.scrollTop),
+    )
+    .toBe(0);
   await expect(page.getByLabel("Transpose offset")).toHaveText("+2");
   await expect(page.getByLabel("Current key")).toHaveText("B Major");
 
@@ -591,6 +636,9 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
   await expect(page.getByLabel("Enter fullscreen")).toBeVisible();
   await expect(page.locator("html")).toHaveClass(/dark/);
   await expect(page.getByText("Count four, quiet verse")).toBeVisible();
+  await page
+    .locator("[data-performance-chart-scroll]")
+    .click({ position: { x: 20, y: 300 } });
   await expect(page.getByText("1 of 2")).toBeVisible();
   await page.getByLabel("Open performance menu").click();
   await expect(page.getByText("Appearance", { exact: true })).toBeVisible();

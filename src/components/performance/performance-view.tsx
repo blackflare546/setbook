@@ -38,6 +38,7 @@ import { Button } from "@/components/ui/button";
 import { settingsRepository } from "@/data/repositories/settings-repository";
 import { useTheme } from "@/components/theme/theme-provider";
 import { cn } from "@/lib/utils";
+import { useResponsiveAutoHideControls } from "./use-responsive-auto-hide-controls";
 
 function withoutTrailingBlankLines(lines: SongLine[]): SongLine[] {
   let end = lines.length;
@@ -301,6 +302,8 @@ export function PerformanceView({
   );
   const [chartLayout, setChartLayout] = useState<ChartLayout>("auto");
   const performanceRootRef = useRef<HTMLElement>(null);
+  const chartScrollRef = useRef<HTMLDivElement>(null);
+  const autoHide = useResponsiveAutoHideControls(chartScrollRef, !singleSong);
   const song = snapshot.songs[current];
   const selectSong = useCallback(
     (index: number) => {
@@ -330,6 +333,10 @@ export function PerformanceView({
     if (performanceRootRef.current) {
       performanceRootRef.current.scrollTop = 0;
       performanceRootRef.current.scrollLeft = 0;
+    }
+    if (chartScrollRef.current) {
+      chartScrollRef.current.scrollTop = 0;
+      chartScrollRef.current.scrollLeft = 0;
     }
     performanceRootRef.current
       ?.querySelectorAll<HTMLElement>("[data-performance-scroll-container]")
@@ -426,14 +433,47 @@ export function PerformanceView({
   const currentKey = baseKey
     ? formatMusicalKey(transposeMusicalKey(baseKey, transposeOffset))
     : "Not set";
+  const controlsVisible = !autoHide.responsive || autoHide.controlsVisible;
 
   return (
     <main
       ref={performanceRootRef}
-      className="min-h-dvh max-w-full bg-white pb-24 text-slate-950 dark:bg-slate-950 dark:text-slate-100"
+      data-performance-setlist-view={!singleSong || undefined}
+      data-controls-responsive={autoHide.responsive || undefined}
+      className={cn(
+        "max-w-full bg-white text-slate-950 dark:bg-slate-950 dark:text-slate-100",
+        "min-h-dvh pb-24",
+      )}
     >
-      <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/95 px-2 py-2 backdrop-blur dark:border-slate-800 dark:bg-slate-950/95 sm:px-4">
-        <div className="mx-auto flex min-h-11 max-w-7xl items-center gap-1.5 sm:gap-2">
+      {!singleSong && autoHide.responsive && autoHide.controlsVisible && (
+        <Button
+          size="icon"
+          variant="secondary"
+          className="fixed left-[max(.5rem,env(safe-area-inset-left))] top-[max(.5rem,env(safe-area-inset-top))] z-30 h-11 w-11 shadow-md"
+          aria-label="Open performance menu"
+          onClick={() => {
+            autoHide.revealTemporarily();
+            setShowOrder(true);
+          }}
+        >
+          <List size={21} />
+        </Button>
+      )}
+      <header
+        data-auto-hide-header
+        data-visible={controlsVisible}
+        onFocusCapture={autoHide.revealTemporarily}
+        onPointerDownCapture={autoHide.revealTemporarily}
+        className={cn(
+          "sticky top-0 z-20 border-b border-slate-200 bg-white/95 px-2 py-2 backdrop-blur transition-transform duration-200 motion-reduce:transition-none dark:border-slate-800 dark:bg-slate-950/95 sm:px-4",
+        )}
+      >
+        <div
+          data-performance-header-content
+          className={cn(
+            "mx-auto flex min-h-11 max-w-7xl items-center gap-1.5 sm:gap-2",
+          )}
+        >
           {backHref && (
             <Button
               asChild
@@ -476,8 +516,13 @@ export function PerformanceView({
                 <Button
                   size="icon"
                   variant="ghost"
+                  data-desktop-performance-menu-trigger
                   className="order-first h-11 w-11"
-                  aria-label="Open performance menu"
+                  aria-label={
+                    autoHide.responsive ? undefined : "Open performance menu"
+                  }
+                  aria-hidden={autoHide.responsive || undefined}
+                  tabIndex={autoHide.responsive ? -1 : undefined}
                 >
                   <List size={21} />
                 </Button>
@@ -614,8 +659,16 @@ export function PerformanceView({
         </div>
       </header>
 
-      <div className="mx-auto max-w-7xl">
-        <article className="min-w-0 px-3 py-5 min-[375px]:px-4 sm:px-8 sm:py-7 lg:px-12">
+      <div
+        ref={chartScrollRef}
+        data-performance-chart-scroll
+        onClick={autoHide.revealTemporarily}
+        className="mx-auto max-w-7xl"
+      >
+        <article
+          data-performance-chart-article
+          className="min-w-0 px-3 py-5 min-[375px]:px-4 sm:px-8 sm:py-7 lg:px-12"
+        >
           <div className="mb-5 border-b border-slate-200 pb-4 dark:border-slate-800 sm:mb-7 sm:flex sm:items-end sm:justify-between sm:gap-4">
             <div className="min-w-0">
               <h1 className="break-words text-2xl font-bold tracking-tight min-[375px]:text-3xl sm:text-4xl">
@@ -759,7 +812,13 @@ export function PerformanceView({
       </div>
 
       {!singleSong && (
-        <footer className="fixed inset-x-0 bottom-0 z-20 border-t border-slate-200 bg-white/95 p-2 pb-[max(.5rem,env(safe-area-inset-bottom))] backdrop-blur dark:border-slate-800 dark:bg-slate-950/95 sm:p-3">
+        <footer
+          data-auto-hide-pagination
+          data-visible={controlsVisible}
+          onFocusCapture={autoHide.revealTemporarily}
+          onPointerDownCapture={autoHide.revealTemporarily}
+          className="fixed inset-x-0 bottom-0 z-20 border-t border-slate-200 bg-white/95 p-2 pb-[max(.5rem,env(safe-area-inset-bottom))] backdrop-blur transition-transform duration-200 motion-reduce:transition-none dark:border-slate-800 dark:bg-slate-950/95 sm:p-3"
+        >
           <div className="mx-auto flex max-w-3xl items-center gap-1.5 sm:gap-3">
             <Button
               variant="ghost"

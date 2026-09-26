@@ -32,3 +32,54 @@ a {
   background: #c7d2fe;
   color: #1e1b4b;
 }
+
+@media (max-width: 767px), (max-height: 500px) and (max-width: 932px) {
+  [data-performance-setlist-view] {
+    height: 100dvh;
+    min-height: 100dvh;
+    overflow: hidden;
+    padding-bottom: 0;
+  }
+
+  [data-performance-setlist-view] [data-auto-hide-header] {
+    position: fixed;
+    inset-inline: 0;
+    top: 0;
+    padding-top: max(0.5rem, env(safe-area-inset-top));
+    transform: translateY(-100%);
+  }
+
+  [data-performance-setlist-view][data-controls-responsive="true"]
+    [data-auto-hide-header][data-visible="true"] {
+    transform: translateY(0);
+  }
+
+  [data-performance-setlist-view] [data-performance-header-content] {
+    padding-left: 3.5rem;
+  }
+
+  [data-performance-setlist-view] [data-desktop-performance-menu-trigger] {
+    display: none;
+  }
+
+  [data-performance-setlist-view] [data-performance-chart-scroll] {
+    height: 100%;
+    max-width: none;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+  }
+
+  [data-performance-setlist-view] [data-performance-chart-article] {
+    padding-top: max(1.25rem, env(safe-area-inset-top));
+    padding-bottom: max(1.25rem, env(safe-area-inset-bottom));
+  }
+
+  [data-performance-setlist-view] [data-auto-hide-pagination] {
+    transform: translateY(100%);
+  }
+
+  [data-performance-setlist-view][data-controls-responsive="true"]
+    [data-auto-hide-pagination][data-visible="true"] {
+    transform: translateY(0);
+  }
+}

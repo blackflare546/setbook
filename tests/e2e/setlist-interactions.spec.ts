@@ -13,7 +13,24 @@ async function restoreSetlistFixture(page: Page) {
     artist: "SetBook Test",
     capo: null,
     tags: [],
-    sections: [],
+    sections: [
+      {
+        id: `section-${song.id}`,
+        type: "verse",
+        title: "Verse",
+        lines: Array.from({ length: 70 }, (_, index) => ({
+          id: `line-${song.id}-${index}`,
+          lyrics: `Chart line ${index + 1} for ${song.title}`,
+          chords: [
+            {
+              id: `chord-${song.id}-${index}`,
+              symbol: song.originalKey,
+              position: 0,
+            },
+          ],
+        })),
+      },
+    ],
     notes: "",
     links: {},
     sourceText: "",
@@ -191,4 +208,149 @@ test("dragging reorders complete entries and persists only after Save", async ({
   await expect(page.getByText("Setlist saved")).toBeVisible();
   await page.reload();
   await expectEntryOrder(page, ["Alpha Song", "Bravo Song", "Charlie Song"]);
+});
+
+test("mobile performance reveals controls for meaningful scrolls and taps", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await restoreSetlistFixture(page);
+  await page.goto(`/performance/${setlistId}`);
+
+  const scroller = page.locator("[data-performance-chart-scroll]");
+  const header = page.locator("[data-auto-hide-header]");
+  const pagination = page.locator("[data-auto-hide-pagination]");
+  await expect(header).toHaveAttribute("data-visible", "false");
+  await expect(pagination).toHaveAttribute("data-visible", "false");
+  await expect(page.getByLabel("Open performance menu")).toHaveCount(0);
+  await expect
+    .poll(() => scroller.evaluate((element) => element.clientHeight))
+    .toBe(844);
+
+  await scroller.evaluate((element) => {
+    element.scrollTop = 4;
+  });
+  await expect(header).toHaveAttribute("data-visible", "false");
+  await expect(pagination).toHaveAttribute("data-visible", "false");
+
+  await scroller.evaluate((element) => {
+    element.scrollTop = 320;
+  });
+  await expect(header).toHaveAttribute("data-visible", "true");
+  await expect(pagination).toHaveAttribute("data-visible", "true");
+  await expect(page.getByLabel("Open performance menu")).toBeVisible();
+  const readingPosition = await scroller.evaluate((element) =>
+    Math.round(element.scrollTop),
+  );
+  await page.waitForTimeout(400);
+  await expect(header).toHaveAttribute("data-visible", "true");
+  await expect(pagination).toHaveAttribute("data-visible", "true");
+  await expect
+    .poll(() => scroller.evaluate((element) => Math.round(element.scrollTop)))
+    .toBe(readingPosition);
+
+  await scroller.evaluate((element) => {
+    element.scrollTop -= 120;
+  });
+  await expect(header).toHaveAttribute("data-visible", "true");
+  await expect(pagination).toHaveAttribute("data-visible", "true");
+
+  await scroller.evaluate((element) => {
+    element.scrollTop = element.scrollHeight - element.clientHeight - 20;
+  });
+  await expect(header).toHaveAttribute("data-visible", "true");
+  await expect(pagination).toHaveAttribute("data-visible", "true");
+  await page.getByRole("button", { name: "Next", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Bravo Song" })).toBeVisible();
+  await expect
+    .poll(() => scroller.evaluate((element) => element.scrollTop))
+    .toBe(0);
+
+  await scroller.evaluate((element) => {
+    element.scrollTop = element.scrollHeight - element.clientHeight - 20;
+  });
+  await expect(header).toHaveAttribute("data-visible", "true");
+  await expect(pagination).toHaveAttribute("data-visible", "true");
+  const bottomPosition = await scroller.evaluate((element) =>
+    Math.round(element.scrollTop),
+  );
+
+  const performanceMenu = page.getByLabel("Open performance menu");
+  await expect(performanceMenu).toBeVisible();
+  await expect
+    .poll(() => scroller.evaluate((element) => Math.round(element.scrollTop)))
+    .toBe(bottomPosition);
+  await performanceMenu.click();
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(header).toHaveAttribute("data-visible", "false", {
+    timeout: 3_000,
+  });
+  await expect(pagination).toHaveAttribute("data-visible", "false");
+
+  await scroller.evaluate((element) => {
+    element.scrollTop -= 100;
+  });
+  await expect(header).toHaveAttribute("data-visible", "true");
+  await expect(pagination).toHaveAttribute("data-visible", "true");
+  await expect(header).toHaveAttribute("data-visible", "false", {
+    timeout: 3_000,
+  });
+  await expect(pagination).toHaveAttribute("data-visible", "false");
+
+  await scroller.click({ position: { x: 20, y: 300 } });
+  await expect(pagination).toHaveAttribute("data-visible", "true");
+  await page.getByRole("button", { name: "Next", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Charlie Song" }),
+  ).toBeVisible();
+  await expect
+    .poll(() => scroller.evaluate((element) => element.scrollTop))
+    .toBe(0);
+  await expect(header).toHaveAttribute("data-visible", "false");
+  await expect(pagination).toHaveAttribute("data-visible", "false");
+
+  await page.setViewportSize({ width: 844, height: 390 });
+  await expect(header).toHaveAttribute("data-visible", "false");
+  await expect(pagination).toHaveAttribute("data-visible", "false");
+  await expect
+    .poll(() => scroller.evaluate((element) => element.clientHeight))
+    .toBe(390);
+
+  for (const viewport of [
+    { width: 768, height: 1024 },
+    { width: 1024, height: 768 },
+  ]) {
+    await page.setViewportSize(viewport);
+    await expect(header).toHaveAttribute("data-visible", "true");
+    await expect(pagination).toHaveAttribute("data-visible", "true");
+    await expect(page.getByLabel("Open performance menu")).toBeVisible();
+    await expect
+      .poll(() =>
+        scroller.evaluate((element) => getComputedStyle(element).overflowY),
+      )
+      .toBe("visible");
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () =>
+            document.documentElement.scrollWidth <=
+            document.documentElement.clientWidth + 1,
+        ),
+      )
+      .toBe(true);
+  }
+
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await expect(header).toHaveAttribute("data-visible", "true");
+  await expect(pagination).toHaveAttribute("data-visible", "true");
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          document.documentElement.scrollWidth <=
+          document.documentElement.clientWidth + 1,
+      ),
+    )
+    .toBe(true);
 });
