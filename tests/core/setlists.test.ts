@@ -15,6 +15,37 @@ describe("setlist operations", () => {
     ]);
     expect(entries[0].id).toBe("1");
   });
+  it("moves the complete setlist-song entry with all of its settings", () => {
+    const configuredEntries = [
+      {
+        id: "1",
+        songId: "a",
+        performanceKey: "A",
+        arrangementCue: "Quiet intro",
+      },
+      {
+        id: "2",
+        songId: "b",
+        performanceKey: "D",
+        arrangementCue: "Cut on four",
+      },
+      {
+        id: "3",
+        songId: "c",
+        performanceKey: "G",
+        arrangementCue: "Repeat chorus",
+      },
+    ];
+
+    const reordered = reorderEntries(configuredEntries, 2, 0);
+
+    expect(reordered).toEqual([
+      configuredEntries[2],
+      configuredEntries[0],
+      configuredEntries[1],
+    ]);
+    expect(reordered[0]).toBe(configuredEntries[2]);
+  });
   it("duplicates privately without carrying publish token", () => {
     const copy = duplicateSetlist(
       {

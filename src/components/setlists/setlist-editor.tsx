@@ -1,7 +1,27 @@
 "use client";
 import Link from "next/link";
+import type { CSSProperties } from "react";
 import { useEffect, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
+import {
+  closestCenter,
+  DndContext,
+  KeyboardSensor,
+  MouseSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type DragOverEvent,
+  type DragStartEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import * as Dialog from "@radix-ui/react-dialog";
 import {
   ArrowDown,
@@ -18,7 +38,8 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import type { Setlist } from "@/core/setlists/types";
+import type { Setlist, SetlistSongEntry } from "@/core/setlists/types";
+import type { Song } from "@/core/songs/types";
 import { reorderEntries } from "@/core/setlists/operations";
 import { setlistRepository } from "@/data/repositories/setlist-repository";
 import { songRepository } from "@/data/repositories/song-repository";
@@ -33,6 +54,163 @@ import { formatMusicalKey } from "@/core/chords/keys";
 
 type SaveState = "idle" | "dirty" | "saving" | "saved" | "error";
 
+interface SortableSetlistEntryProps {
+  entry: SetlistSongEntry;
+  entries: SetlistSongEntry[];
+  index: number;
+  song?: Song;
+  dropEdge: "before" | "after" | null;
+  onChange: (entries: SetlistSongEntry[]) => void;
+}
+
+function SortableSetlistEntry({
+  entry,
+  entries,
+  index,
+  song,
+  dropEdge,
+  onChange,
+}: SortableSetlistEntryProps) {
+  const {
+    attributes,
+    isDragging,
+    listeners,
+    setActivatorNodeRef,
+    setNodeRef,
+    transform,
+    transition,
+  } = useSortable({ id: entry.id });
+  const style: CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <Card
+      ref={setNodeRef}
+      data-testid={`setlist-entry-${entry.id}`}
+      style={style}
+      className={`relative min-w-0 p-3 min-[375px]:p-4 ${
+        isDragging ? "z-10 opacity-60 shadow-lg" : ""
+      }`}
+    >
+      {dropEdge && (
+        <div
+          aria-hidden="true"
+          className={`pointer-events-none absolute inset-x-2 z-20 h-1 rounded-full bg-indigo-500 shadow-sm ${
+            dropEdge === "before" ? "-top-0.5" : "-bottom-0.5"
+          }`}
+        />
+      )}
+      <div className="flex min-w-0 flex-col gap-3 sm:flex-row">
+        <div className="flex items-center gap-1 text-slate-400 sm:flex-col">
+          <Button
+            ref={setActivatorNodeRef}
+            type="button"
+            size="icon"
+            variant="ghost"
+            className="touch-none cursor-grab select-none active:cursor-grabbing"
+            aria-label={`Drag song ${index + 1}: ${song?.title ?? "Missing song"}`}
+            {...attributes}
+            {...listeners}
+          >
+            <GripVertical size={18} />
+          </Button>
+          <span className="whitespace-nowrap text-xs font-bold">
+            Song {index + 1}
+          </span>
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-start">
+            <div className="min-w-0 flex-1">
+              <h3 className="break-words text-base font-bold">
+                {song?.title ?? "Missing song"}
+              </h3>
+              <p className="break-words text-sm text-slate-500 dark:text-slate-400">
+                {song?.artist || "Unknown artist"} · Original key{" "}
+                {formatMusicalKey(song?.originalKey)}
+              </p>
+            </div>
+            <div className="flex self-start rounded-lg border border-slate-200 dark:border-slate-800">
+              <Button
+                size="icon"
+                variant="ghost"
+                aria-label={`Move ${song?.title ?? "song"} up`}
+                disabled={!index}
+                onClick={() =>
+                  onChange(reorderEntries(entries, index, index - 1))
+                }
+              >
+                <ArrowUp size={15} />
+              </Button>
+              <Button
+                size="icon"
+                variant="ghost"
+                aria-label={`Move ${song?.title ?? "song"} down`}
+                disabled={index === entries.length - 1}
+                onClick={() =>
+                  onChange(reorderEntries(entries, index, index + 1))
+                }
+              >
+                <ArrowDown size={15} />
+              </Button>
+              <Button
+                size="icon"
+                variant="ghost"
+                aria-label={`Remove ${song?.title ?? "song"}`}
+                onClick={() =>
+                  onChange(entries.filter((item) => item.id !== entry.id))
+                }
+              >
+                <Trash2 size={15} />
+              </Button>
+            </div>
+          </div>
+          <div className="mt-3 grid min-w-0 gap-3 sm:grid-cols-[140px_minmax(0,1fr)]">
+            <label className="text-xs font-bold uppercase tracking-wide text-slate-500">
+              Performance key
+              <KeySelector
+                ariaLabel="Performance key"
+                className="mt-1 font-mono normal-case"
+                value={entry.performanceKey ?? song?.originalKey ?? ""}
+                onChange={(performanceKey) =>
+                  onChange(
+                    entries.map((item) =>
+                      item.id === entry.id
+                        ? {
+                            ...item,
+                            performanceKey: performanceKey || undefined,
+                          }
+                        : item,
+                    ),
+                  )
+                }
+              />
+            </label>
+            <label className="text-xs font-bold uppercase tracking-wide text-slate-500">
+              Arrangement cue
+              <Input
+                className="mt-1 normal-case"
+                placeholder="Count-in, cut after bridge…"
+                value={entry.arrangementCue}
+                onChange={(event) =>
+                  onChange(
+                    entries.map((item) =>
+                      item.id === entry.id
+                        ? { ...item, arrangementCue: event.target.value }
+                        : item,
+                    ),
+                  )
+                }
+              />
+            </label>
+          </div>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
 export function SetlistEditor({ id }: { id: string }) {
   const [setlist, setSetlist] = useState<Setlist | null>(null);
   const songs = useLiveQuery(() => songRepository.list(), []) ?? [];
@@ -44,6 +222,17 @@ export function SetlistEditor({ id }: { id: string }) {
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [pickerOpen, setPickerOpen] = useState(false);
   const [songQuery, setSongQuery] = useState("");
+  const [draggedEntryId, setDraggedEntryId] = useState<string | null>(null);
+  const [dropTargetId, setDropTargetId] = useState<string | null>(null);
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, {
+      activationConstraint: { delay: 250, tolerance: 5 },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
+  );
   const [feedback, setFeedback] = useState<{
     message: string;
     tone: "success" | "error";
@@ -172,6 +361,30 @@ export function SetlistEditor({ id }: { id: string }) {
       .toLocaleLowerCase()
       .includes(songQuery.trim().toLocaleLowerCase()),
   );
+  function handleDragStart(event: DragStartEvent) {
+    const entryId = String(event.active.id);
+    setDraggedEntryId(entryId);
+    setDropTargetId(entryId);
+  }
+  function handleDragOver(event: DragOverEvent) {
+    setDropTargetId(event.over ? String(event.over.id) : null);
+  }
+  function resetDragState() {
+    setDraggedEntryId(null);
+    setDropTargetId(null);
+  }
+  function handleDragEnd(event: DragEndEvent) {
+    resetDragState();
+    if (!event.over || event.active.id === event.over.id) return;
+    const from = currentSetlist.entries.findIndex(
+      (entry) => entry.id === event.active.id,
+    );
+    const to = currentSetlist.entries.findIndex(
+      (entry) => entry.id === event.over?.id,
+    );
+    if (from < 0 || to < 0) return;
+    update({ entries: reorderEntries(currentSetlist.entries, from, to) });
+  }
   return (
     <div className="mx-auto max-w-6xl px-3 py-5 pb-24 min-[375px]:px-4 sm:px-6 sm:py-7 md:pb-32 lg:pb-24">
       <FeedbackToast
@@ -324,121 +537,44 @@ export function SetlistEditor({ id }: { id: string }) {
               </div>
             </Card>
           )}
-          {setlist.entries.map((entry, index) => {
-            const song = songMap.get(entry.songId);
-            return (
-              <Card key={entry.id} className="min-w-0 p-3 min-[375px]:p-4">
-                <div className="flex min-w-0 flex-col gap-3 sm:flex-row">
-                  <div className="flex items-center gap-2 text-slate-400 sm:flex-col sm:gap-1">
-                    <GripVertical size={18} />
-                    <span className="text-xs font-bold">Song {index + 1}</span>
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-start">
-                      <div className="min-w-0 flex-1">
-                        <h3 className="break-words text-base font-bold">
-                          {song?.title ?? "Missing song"}
-                        </h3>
-                        <p className="break-words text-sm text-slate-500 dark:text-slate-400">
-                          {song?.artist || "Unknown artist"} · Original key{" "}
-                          {formatMusicalKey(song?.originalKey)}
-                        </p>
-                      </div>
-                      <div className="flex self-start rounded-lg border border-slate-200 dark:border-slate-800">
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          disabled={!index}
-                          onClick={() =>
-                            update({
-                              entries: reorderEntries(
-                                setlist.entries,
-                                index,
-                                index - 1,
-                              ),
-                            })
-                          }
-                        >
-                          <ArrowUp size={15} />
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          disabled={index === setlist.entries.length - 1}
-                          onClick={() =>
-                            update({
-                              entries: reorderEntries(
-                                setlist.entries,
-                                index,
-                                index + 1,
-                              ),
-                            })
-                          }
-                        >
-                          <ArrowDown size={15} />
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() =>
-                            update({
-                              entries: setlist.entries.filter(
-                                (item) => item.id !== entry.id,
-                              ),
-                            })
-                          }
-                        >
-                          <Trash2 size={15} />
-                        </Button>
-                      </div>
-                    </div>
-                    <div className="mt-3 grid min-w-0 gap-3 sm:grid-cols-[140px_minmax(0,1fr)]">
-                      <label className="text-xs font-bold uppercase tracking-wide text-slate-500">
-                        Performance key
-                        <KeySelector
-                          ariaLabel="Performance key"
-                          className="mt-1 font-mono normal-case"
-                          value={
-                            entry.performanceKey ?? song?.originalKey ?? ""
-                          }
-                          onChange={(performanceKey) =>
-                            update({
-                              entries: setlist.entries.map((item) =>
-                                item.id === entry.id
-                                  ? {
-                                      ...item,
-                                      performanceKey:
-                                        performanceKey || undefined,
-                                    }
-                                  : item,
-                              ),
-                            })
-                          }
-                        />
-                      </label>
-                      <label className="text-xs font-bold uppercase tracking-wide text-slate-500">
-                        Arrangement cue
-                        <Input
-                          className="mt-1 normal-case"
-                          placeholder="Count-in, cut after bridge…"
-                          value={entry.arrangementCue}
-                          onChange={(e) =>
-                            update({
-                              entries: setlist.entries.map((item) =>
-                                item.id === entry.id
-                                  ? { ...item, arrangementCue: e.target.value }
-                                  : item,
-                              ),
-                            })
-                          }
-                        />
-                      </label>
-                    </div>
-                  </div>
-                </div>
-              </Card>
-            );
-          })}
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragStart={handleDragStart}
+            onDragOver={handleDragOver}
+            onDragCancel={resetDragState}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext
+              items={setlist.entries.map((entry) => entry.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              <div className="space-y-4">
+                {setlist.entries.map((entry, index) => {
+                  const draggedIndex = setlist.entries.findIndex(
+                    (item) => item.id === draggedEntryId,
+                  );
+                  const dropEdge =
+                    dropTargetId === entry.id && draggedIndex !== index
+                      ? draggedIndex < index
+                        ? "after"
+                        : "before"
+                      : null;
+                  return (
+                    <SortableSetlistEntry
+                      key={entry.id}
+                      entry={entry}
+                      entries={setlist.entries}
+                      index={index}
+                      song={songMap.get(entry.songId)}
+                      dropEdge={dropEdge}
+                      onChange={(entries) => update({ entries })}
+                    />
+                  );
+                })}
+              </div>
+            </SortableContext>
+          </DndContext>
           {!setlist.entries.length && (
             <Card className="grid min-h-48 place-items-center p-6 text-center">
               <div>

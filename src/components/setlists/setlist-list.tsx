@@ -96,15 +96,31 @@ export function SetlistList() {
       {setlists.length ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {setlists.map((setlist) => (
-            <Card key={setlist.id} className="group p-5">
-              <div className="mb-5 flex items-start justify-between">
+            <Card
+              key={setlist.id}
+              data-testid={`setlist-card-${setlist.id}`}
+              className="group relative p-5"
+            >
+              <Link
+                href={`/setlists/${setlist.id}`}
+                aria-label={`Open ${setlist.name}`}
+                className="absolute inset-0 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-500"
+                onKeyDown={(event) => {
+                  if (event.key === " ") {
+                    event.preventDefault();
+                    event.currentTarget.click();
+                  }
+                }}
+              />
+              <div className="pointer-events-none relative mb-5 flex items-start justify-between">
                 <span className="grid h-11 w-11 place-items-center rounded-lg bg-indigo-50 text-indigo-600">
                   <ListMusic size={21} />
                 </span>
-                <div className="flex opacity-100 sm:opacity-0 sm:group-hover:opacity-100">
+                <div className="pointer-events-auto relative z-10 flex opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
                   <Button
                     size="icon"
                     variant="ghost"
+                    aria-label={`Duplicate ${setlist.name}`}
                     onClick={() => void setlistRepository.duplicate(setlist.id)}
                   >
                     <Copy size={16} />
@@ -120,7 +136,7 @@ export function SetlistList() {
                   </Button>
                 </div>
               </div>
-              <Link href={`/setlists/${setlist.id}`}>
+              <div className="pointer-events-none relative">
                 <h2 className="break-words text-lg font-bold group-hover:text-indigo-700 dark:group-hover:text-indigo-300">
                   {setlist.name}
                 </h2>
@@ -135,7 +151,7 @@ export function SetlistList() {
                     {new Date(`${setlist.date}T00:00:00`).toLocaleDateString()}
                   </p>
                 )}
-              </Link>
+              </div>
             </Card>
           ))}
         </div>
