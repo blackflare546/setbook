@@ -226,6 +226,23 @@ test("mobile performance reveals controls for meaningful scrolls and taps", asyn
   await expect
     .poll(() => scroller.evaluate((element) => element.clientHeight))
     .toBe(844);
+  await expect
+    .poll(() =>
+      scroller.evaluate((element) => getComputedStyle(element).overflowY),
+    )
+    .toBe("auto");
+  await expect
+    .poll(() =>
+      scroller
+        .locator("[data-performance-scroll-container]")
+        .evaluateAll((elements) =>
+          elements.every((element) => {
+            const style = getComputedStyle(element);
+            return style.overflowX === "auto" && style.overflowY === "hidden";
+          }),
+        ),
+    )
+    .toBe(true);
   const initialHeaderBox = await header.boundingBox();
   const initialSongTitleBox = await page
     .getByRole("heading", { name: "Alpha Song" })
