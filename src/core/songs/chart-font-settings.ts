@@ -18,9 +18,9 @@ export interface ChartFontSettings {
 }
 
 export const DEFAULT_CHART_FONT_SETTINGS: ChartFontSettings = {
-  sectionScale: 80,
-  chordScale: 80,
-  lyricScale: 80,
+  sectionScale: 100,
+  chordScale: 100,
+  lyricScale: 100,
   lineHeight: 1,
 };
 

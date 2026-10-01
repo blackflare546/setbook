@@ -33,18 +33,18 @@ describe("chart font settings", () => {
     expect(
       adjustChartFontScale(DEFAULT_CHART_FONT_SETTINGS, "chord", 10),
     ).toEqual({
-      sectionScale: 80,
-      chordScale: 90,
-      lyricScale: 80,
+      sectionScale: 100,
+      chordScale: 110,
+      lyricScale: 100,
       lineHeight: 1,
     });
   });
 
-  it("defaults font scales to 80 percent", () => {
+  it("defaults font scales to 100 percent", () => {
     expect(DEFAULT_CHART_FONT_SETTINGS).toMatchObject({
-      sectionScale: 80,
-      chordScale: 80,
-      lyricScale: 80,
+      sectionScale: 100,
+      chordScale: 100,
+      lyricScale: 100,
     });
   });
 

@@ -81,7 +81,7 @@ function ChartLine({
   return (
     <div
       data-performance-scroll-container
-      className="max-w-full overflow-x-auto overscroll-x-contain pb-1"
+      className="max-w-full overflow-x-auto overscroll-x-contain"
     >
       <div
         className="min-w-full"
@@ -795,17 +795,17 @@ export function PerformanceView({
             {song.sections.map((section) => (
               <section
                 key={section.id}
-                className="mb-4 inline-block w-full min-w-0 break-inside-avoid sm:mb-5"
+                className="mb-0 inline-block w-full min-w-0 break-inside-avoid"
               >
                 <h2
-                  className="mb-3 font-bold uppercase tracking-[.16em] text-indigo-700 dark:text-indigo-400"
+                  className="mb-0 font-bold uppercase tracking-[.16em] text-indigo-700 dark:text-indigo-400"
                   style={{
                     fontSize: `${0.75 * (fontSettings.sectionScale / 100)}rem`,
                   }}
                 >
                   {section.title}
                 </h2>
-                <div className="space-y-3 font-mono text-base leading-7 sm:text-xl sm:leading-8">
+                <div className="space-y-0 font-mono text-base leading-7 sm:text-xl sm:leading-8">
                   {withoutTrailingBlankLines(section.lines).map((line) => (
                     <ChartLine
                       key={line.id}

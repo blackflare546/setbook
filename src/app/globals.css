@@ -34,6 +34,10 @@ a {
 }
 
 @media (max-width: 767px), (max-height: 500px) and (max-width: 932px) {
+  [data-performance-chart-scroll] [data-performance-scroll-container] {
+    overflow-y: hidden;
+  }
+
   [data-performance-setlist-view] {
     height: 100dvh;
     min-height: 100dvh;
