@@ -798,7 +798,7 @@ export function PerformanceView({
                 className="mb-0 inline-block w-full min-w-0 break-inside-avoid"
               >
                 <h2
-                  className="mb-0 font-bold uppercase tracking-[.16em] text-indigo-700 dark:text-indigo-400"
+                  className="mb-0 font-bold uppercase tracking-[.16em] text-black dark:text-white"
                   style={{
                     fontSize: `${0.75 * (fontSettings.sectionScale / 100)}rem`,
                   }}
