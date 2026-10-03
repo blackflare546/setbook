@@ -4,7 +4,7 @@ import {
   type ParsedChord,
 } from "@/core/chords/chord";
 import { MUSICAL_KEYS, type KeyMode } from "@/core/chords/keys";
-import type { SongSection } from "@/core/songs/types";
+import type { SectionType, SongSection } from "@/core/songs/types";
 
 // Candidates within three points are intentionally presented as ambiguous.
 export const AMBIGUOUS_SCORE_DIFFERENCE = 3;
@@ -25,8 +25,18 @@ type HarmonicQuality = "major" | "minor" | "diminished" | "other";
 interface ChordObservation {
   chord: ParsedChord;
   pitch: number;
+  sectionIndex: number;
+  sectionType: SectionType;
+  sectionOpening: boolean;
+  phraseEnding: boolean;
   sectionEnding: boolean;
   songEnding: boolean;
+}
+
+interface AnalyzedObservation extends ChordObservation {
+  degree: number;
+  quality: HarmonicQuality;
+  familyMatch: boolean;
 }
 
 interface ScoredKey extends DetectedKeyCandidate {
@@ -56,8 +66,7 @@ const MINOR_FAMILY: Array<[number, HarmonicQuality]> = [
 ];
 
 function harmonicQuality(quality: string): HarmonicQuality {
-  if (["dim", "dim7", "°", "m7b5", "ø"].includes(quality))
-    return "diminished";
+  if (["dim", "dim7", "°", "m7b5", "ø"].includes(quality)) return "diminished";
   if (/^(?:m(?!aj)|min|minor)/.test(quality)) return "minor";
   if (["aug", "+"].includes(quality)) return "other";
   return "major";
@@ -65,11 +74,13 @@ function harmonicQuality(quality: string): HarmonicQuality {
 
 function collectObservations(sections: SongSection[]): ChordObservation[] {
   const observations: ChordObservation[] = [];
-  const sectionEndingIndexes = new Set<number>();
 
-  for (const section of sections) {
-    let finalIndex = -1;
+  sections.forEach((section, sectionIndex) => {
+    const sectionStart = observations.length;
+    const phraseEndingIndexes: number[] = [];
+
     for (const line of section.lines) {
+      let finalChordIndex = -1;
       for (const chord of [...line.chords].sort(
         (left, right) => left.position - right.position,
       )) {
@@ -79,18 +90,26 @@ function collectObservations(sections: SongSection[]): ChordObservation[] {
         observations.push({
           chord: parsed,
           pitch,
+          sectionIndex,
+          sectionType: section.type,
+          sectionOpening: observations.length === sectionStart,
+          phraseEnding: false,
           sectionEnding: false,
           songEnding: false,
         });
-        finalIndex = observations.length - 1;
+        finalChordIndex = observations.length - 1;
       }
+      if (finalChordIndex >= 0) phraseEndingIndexes.push(finalChordIndex);
     }
-    if (finalIndex >= 0) sectionEndingIndexes.add(finalIndex);
-  }
 
-  for (const index of sectionEndingIndexes) {
-    observations[index].sectionEnding = true;
-  }
+    for (const index of phraseEndingIndexes) {
+      observations[index].phraseEnding = true;
+    }
+    if (observations.length > sectionStart) {
+      observations.at(-1)!.sectionEnding = true;
+    }
+  });
+
   if (observations.length) observations.at(-1)!.songEnding = true;
   return observations;
 }
@@ -113,7 +132,22 @@ function matchesFamily(
   quality: HarmonicQuality,
 ): boolean {
   if (familyQuality(mode, degree) === quality) return true;
+  // Harmonic minor commonly raises scale degree seven to make a major V.
   return mode === "minor" && degree === 7 && quality === "major";
+}
+
+function sectionEndingWeight(type: SectionType): number {
+  if (type === "chorus") return 6;
+  if (type === "verse" || type === "pre-chorus") return 4;
+  if (type === "outro") return 6;
+  return 3;
+}
+
+function isAdjacent(
+  previous: AnalyzedObservation,
+  current: AnalyzedObservation,
+): boolean {
+  return previous.sectionIndex === current.sectionIndex;
 }
 
 function scoreKey(
@@ -123,36 +157,90 @@ function scoreKey(
 ): ScoredKey {
   const tonic = noteToPitchClass(key.root)!;
   let score = 0;
-  const degrees: number[] = [];
-
-  for (const observation of observations) {
+  const analyzed: AnalyzedObservation[] = observations.map((observation) => {
     const degree = scaleDegree(observation.pitch, tonic);
     const quality = harmonicQuality(observation.chord.quality);
-    degrees.push(degree);
-    if (!matchesFamily(key.mode, degree, quality)) {
-      score -= 1;
+    return {
+      ...observation,
+      degree,
+      quality,
+      familyMatch: matchesFamily(key.mode, degree, quality),
+    };
+  });
+
+  for (const observation of analyzed) {
+    if (!observation.familyMatch) {
+      score -= 5;
       continue;
     }
 
-    score += 3;
-    if (degree === 0) {
-      score += 4;
+    // Family membership is useful, but deliberately weaker than structural
+    // evidence such as cadences and endings.
+    score += 1.5;
+    if (observation.degree === 0) {
+      score += 2;
       if (observation.chord.root === key.root) score += 0.25;
-      if (observation.sectionEnding) score += 1;
+      if (observation.sectionOpening) score += 1;
+      if (observation.phraseEnding) score += 2;
+      if (observation.sectionEnding) {
+        score += sectionEndingWeight(observation.sectionType);
+      }
       if (observation.songEnding) score += 1;
     }
-    if (degree === 7 && quality === "major") score += 1;
   }
 
-  for (let index = 1; index < degrees.length; index += 1) {
-    const previous = degrees[index - 1];
-    const current = degrees[index];
-    if (previous === 7 && current === 0) score += 4;
-    if (previous === 0 && current === 5) score += 2;
-    if (previous === 5 && current === 7) score += 2;
-    if (previous === 0 && current === 7) score += 2;
-    if (key.mode === "major" && previous === 7 && current === 9) score += 2;
-    if (key.mode === "minor" && previous === 10 && current === 0) score += 1;
+  if (analyzed.every((observation) => observation.familyMatch)) score += 5;
+
+  for (let index = 1; index < analyzed.length; index += 1) {
+    const previous = analyzed[index - 1];
+    const current = analyzed[index];
+    if (!isAdjacent(previous, current)) continue;
+
+    const resolvesToTonic = current.degree === 0;
+    const dominantToTonic = previous.degree === 7 && resolvesToTonic;
+    const predominantToTonic = previous.degree === 5 && resolvesToTonic;
+
+    if (dominantToTonic && previous.quality === "major") {
+      score += 7;
+      if (current.phraseEnding) score += 7;
+      if (current.sectionEnding) score += 4;
+    } else if (
+      dominantToTonic &&
+      key.mode === "minor" &&
+      previous.quality === "minor"
+    ) {
+      score += 8;
+      if (current.phraseEnding) score += 2;
+      if (current.sectionEnding) score += 2;
+    }
+
+    if (predominantToTonic && previous.quality === "major") {
+      score += current.phraseEnding ? 6 : 3;
+    }
+
+    // ii - V is meaningful preparation, but is weaker than the resolution.
+    if (previous.degree === 2 && current.degree === 7) score += 3;
+
+    const beforePrevious = analyzed[index - 2];
+    if (
+      beforePrevious &&
+      isAdjacent(beforePrevious, previous) &&
+      beforePrevious.degree === 2 &&
+      previous.degree === 7 &&
+      resolvesToTonic &&
+      previous.quality === "major"
+    ) {
+      score += 8;
+    }
+
+    // Common functional motion helps break otherwise equal family matches.
+    if (previous.degree === 5 && current.degree === 7) score += 2;
+    if (previous.degree === 0 && current.degree === 5) score += 1;
+    if (previous.degree === 0 && current.degree === 7) score += 1;
+    if (key.mode === "major" && previous.degree === 7 && current.degree === 9)
+      score += 9;
+    if (key.mode === "minor" && previous.degree === 10 && current.degree === 0)
+      score += 2;
   }
 
   return { key: key.root, mode: key.mode, score, pitch: tonic, order };

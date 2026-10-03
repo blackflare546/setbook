@@ -6,6 +6,10 @@ function detect(chords: string) {
   return detectSongKey(parseText(`[Verse]\n${chords}`));
 }
 
+function detectChart(chart: string) {
+  return detectSongKey(parseText(chart));
+}
+
 describe("deterministic song key detection", () => {
   it.each([
     ["G C D Em", { key: "G", mode: "major" }],
@@ -34,9 +38,120 @@ describe("deterministic song key detection", () => {
     );
   });
 
+  it("uses repeated structural resolutions to distinguish B major from E major", () => {
+    const result = detectChart(`[Verse 1]
+E E E E C#m E
+G#m E F# B
+
+[Pre-Chorus]
+E E E E G#m E
+C#m E F# B
+
+[Chorus 1]
+E E E E B E
+C#m G#m E F# B
+
+[Verse 2]
+E E E E C#m E
+G#m E F# B
+
+[Chorus 2]
+E E E E B E
+C#m G#m E F# B`);
+
+    expect(result).toMatchObject({
+      primary: { key: "B", mode: "major" },
+      confidence: "confident",
+    });
+  });
+
+  it.each([
+    ["G C G C", { key: "C", mode: "major" }],
+    ["A D A D", { key: "D", mode: "major" }],
+    ["C F C F", { key: "F", mode: "major" }],
+  ])("recognizes repeated V to I resolutions in %s", (chords, expected) => {
+    expect(detect(chords)).toMatchObject({
+      primary: expected,
+      confidence: "confident",
+    });
+  });
+
+  it.each([
+    ["Am F C Am F C", "C"],
+    ["Em C G Em C G", "G"],
+  ])("recognizes IV to I resolutions in %s", (chords, key) => {
+    expect(detect(chords)).toMatchObject({
+      primary: { key, mode: "major" },
+      confidence: "confident",
+    });
+  });
+
+  it.each([
+    ["Dm G C Dm G C", "C"],
+    ["Em A D Em A D", "D"],
+  ])("recognizes ii to V to I progressions in %s", (chords, key) => {
+    expect(detect(chords)).toMatchObject({
+      primary: { key, mode: "major" },
+      confidence: "confident",
+    });
+  });
+
+  it("does not require the opening chord to be the tonic", () => {
+    expect(detect("F G C Am F G C")).toMatchObject({
+      primary: { key: "C", mode: "major" },
+      confidence: "confident",
+    });
+    expect(detect("G Am F G C")).toMatchObject({
+      primary: { key: "C", mode: "major" },
+      confidence: "confident",
+    });
+  });
+
+  it("lets repeated choruses establish the tonic", () => {
+    expect(
+      detectChart(`[Verse]
+Am F C G
+
+[Chorus 1]
+F G C
+
+[Chorus 2]
+F G C`),
+    ).toMatchObject({
+      primary: { key: "C", mode: "major" },
+      confidence: "confident",
+    });
+  });
+
+  it("does not let a short interlude outweigh repeated harmonic structure", () => {
+    expect(
+      detectChart(`[Verse]
+Dm G C
+
+[Chorus 1]
+F G C
+
+[Interlude]
+D D D D
+
+[Chorus 2]
+F G C`),
+    ).toMatchObject({
+      primary: { key: "C", mode: "major" },
+      confidence: "confident",
+    });
+  });
+
   it("reduces extended chords to their basic harmonic qualities", () => {
     expect(detect("Gmaj7 Cadd9 D7 Em9 G6")).toMatchObject({
       primary: { key: "G", mode: "major" },
+      confidence: "confident",
+    });
+  });
+
+  it("handles extensions while preserving structural resolution", () => {
+    expect(detect("Eadd9 F# B2 G#m7 Eadd9 F# B2")).toMatchObject({
+      primary: { key: "B", mode: "major" },
       confidence: "confident",
     });
   });
@@ -77,9 +192,19 @@ describe("deterministic song key detection", () => {
     });
   });
 
+  it("does not mutate song sections while detecting a key", () => {
+    const sections = parseText(`[Verse]\nF G C\nWords here`);
+    const before = structuredClone(sections);
+
+    detectSongKey(sections);
+
+    expect(sections).toEqual(before);
+  });
+
   it.each([
     ["F# B C# D#m F#", "F#"],
     ["Bb Eb F Gm Bb", "Bb"],
+    ["Db Gb Ab Bbm Db", "Db"],
   ])("preserves the likely accidental spelling for %s", (chords, key) => {
     expect(detect(chords)).toMatchObject({
       primary: { key, mode: "major" },
