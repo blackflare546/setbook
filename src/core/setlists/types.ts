@@ -1,4 +1,5 @@
 import type {
+  ChartColors,
   ChartFontSettings,
   ChartLayout,
 } from "@/core/songs/chart-font-settings";
@@ -27,6 +28,7 @@ export interface AppSettings {
   theme: "light" | "dark" | "system";
   performanceFontSize: number;
   chartFontSettings: ChartFontSettings;
+  chartColors: ChartColors;
   chartLayout: ChartLayout;
   hasSeenLandingPage: boolean;
 }

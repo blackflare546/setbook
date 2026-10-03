@@ -1,6 +1,9 @@
 import { db } from "@/data/db/songbook-db";
 import { songSchema, setlistSchema } from "@/lib/validation/schemas";
-import { DEFAULT_CHART_FONT_SETTINGS } from "@/core/songs/chart-font-settings";
+import {
+  DEFAULT_CHART_COLORS,
+  DEFAULT_CHART_FONT_SETTINGS,
+} from "@/core/songs/chart-font-settings";
 import { z } from "zod";
 
 const backupSchema = z.object({
@@ -21,6 +24,13 @@ const backupSchema = z.object({
           lineHeight: z.number().min(1).max(2.5).default(1),
         })
         .default(DEFAULT_CHART_FONT_SETTINGS),
+      chartColors: z
+        .object({
+          section: z.string().regex(/^#[0-9A-Fa-f]{6}$/),
+          chord: z.string().regex(/^#[0-9A-Fa-f]{6}$/),
+          lyric: z.string().regex(/^#[0-9A-Fa-f]{6}$/),
+        })
+        .default(DEFAULT_CHART_COLORS),
       chartLayout: z.enum(["auto", "one", "two"]).default("auto"),
       hasSeenLandingPage: z.boolean().default(false),
     }),

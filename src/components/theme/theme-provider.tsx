@@ -38,8 +38,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, [theme]);
 
   async function setTheme(nextTheme: Theme) {
-    const current = await settingsRepository.get();
-    await settingsRepository.save({ ...current, theme: nextTheme });
+    await settingsRepository.saveTheme(nextTheme);
     setThemeState(nextTheme);
     applyTheme(nextTheme);
   }

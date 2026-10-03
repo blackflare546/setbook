@@ -24,7 +24,10 @@ import {
   adjustChartFontScale,
   adjustChartLineHeight,
   CHART_LAYOUT_OPTIONS,
+  DEFAULT_CHART_COLORS,
   DEFAULT_CHART_FONT_SETTINGS,
+  type ChartColorCategory,
+  type ChartColors,
   type ChartFontCategory,
   type ChartLayout,
   type ChartFontSettings,
@@ -56,10 +59,12 @@ function ChartLine({
   line,
   semitones,
   fontSettings,
+  colors,
 }: {
   line: SongLine;
   semitones: number;
   fontSettings: ChartFontSettings;
+  colors: ChartColors;
 }) {
   const chords = [...line.chords]
     .sort((a, b) => a.position - b.position)
@@ -105,8 +110,11 @@ function ChartLine({
               style={{ left: `${chord.position}ch` }}
             >
               <span
-                className="font-extrabold text-indigo-700 dark:text-amber-300"
-                style={{ fontSize: `${chordToLyricScale}em` }}
+                className="font-extrabold"
+                style={{
+                  color: colors.chord,
+                  fontSize: `${chordToLyricScale}em`,
+                }}
               >
                 {chord.displaySymbol}
               </span>
@@ -114,8 +122,8 @@ function ChartLine({
           ))}
         </div>
         <div
-          className="whitespace-pre text-slate-950 dark:text-slate-100"
-          style={{ lineHeight: fontSettings.lineHeight }}
+          className="whitespace-pre"
+          style={{ color: colors.lyric, lineHeight: fontSettings.lineHeight }}
         >
           {line.lyrics || " "}
         </div>
@@ -130,18 +138,30 @@ const FONT_ROWS: Array<{ category: ChartFontCategory; label: string }> = [
   { category: "lyric", label: "Lyrics" },
 ];
 
+const COLOR_ROWS: Array<{ category: ChartColorCategory; label: string }> = [
+  { category: "chord", label: "Chords" },
+  { category: "section", label: "Sections" },
+  { category: "lyric", label: "Lyrics" },
+];
+
 interface ChartAppearanceProps {
   settings: ChartFontSettings;
+  colors: ChartColors;
   layout: ChartLayout;
   onChange: (category: ChartFontCategory, change: number) => void;
+  onColorChange: (category: ChartColorCategory, color: string) => void;
+  onResetColors: () => void;
   onLineHeightChange: (change: number) => void;
   onLayoutChange: (layout: ChartLayout) => void;
 }
 
 function ChartAppearancePanel({
   settings,
+  colors,
   layout,
   onChange,
+  onColorChange,
+  onResetColors,
   onLineHeightChange,
   onLayoutChange,
 }: ChartAppearanceProps) {
@@ -233,6 +253,43 @@ function ChartAppearancePanel({
           ))}
         </div>
       </div>
+      <div className="border-t border-slate-200 pt-3 dark:border-slate-800">
+        <p className="mb-2 text-sm font-semibold">Colors</p>
+        <div className="space-y-1 rounded-lg border border-slate-200 bg-slate-50 p-2 dark:border-slate-800 dark:bg-slate-900">
+          {COLOR_ROWS.map(({ category, label }) => (
+            <label
+              key={category}
+              className="flex min-h-10 items-center justify-between gap-3 rounded-md px-2 text-sm font-semibold"
+            >
+              <span>{label}</span>
+              <span className="flex items-center gap-2">
+                <input
+                  type="color"
+                  aria-label={`${label} color`}
+                  className="h-8 w-8 cursor-pointer rounded border border-slate-300 bg-white p-0.5 dark:border-slate-600 dark:bg-slate-800"
+                  value={colors[category]}
+                  onChange={(event) =>
+                    onColorChange(category, event.target.value.toUpperCase())
+                  }
+                />
+                <span className="w-[4.75rem] font-mono text-xs font-medium uppercase tabular-nums text-slate-600 dark:text-slate-300">
+                  {colors[category]}
+                </span>
+              </span>
+            </label>
+          ))}
+          <div className="pt-1 text-center">
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
+              onClick={onResetColors}
+            >
+              Reset Colors
+            </Button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -252,10 +309,10 @@ function ChartFontControls(props: ChartAppearanceProps) {
       </Dialog.Trigger>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-40 bg-slate-950/50 backdrop-blur-[1px]" />
-        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[min(calc(100vw-2rem),24rem)] -translate-x-1/2 -translate-y-1/2 rounded-xl border border-slate-200 bg-white p-4 shadow-2xl outline-none dark:border-slate-800 dark:bg-slate-950">
+        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 max-h-[calc(100dvh-2rem)] w-[min(calc(100vw-2rem),24rem)] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-xl border border-slate-200 bg-white p-4 shadow-2xl outline-none dark:border-slate-800 dark:bg-slate-950">
           <div className="mb-4 flex min-h-11 items-center justify-between gap-3">
             <Dialog.Title className="text-lg font-bold">
-              Chart font sizes
+              Font &amp; Typography
             </Dialog.Title>
             <Dialog.Close asChild>
               <Button
@@ -300,6 +357,8 @@ export function PerformanceView({
   const [fontSettings, setFontSettings] = useState<ChartFontSettings>(
     DEFAULT_CHART_FONT_SETTINGS,
   );
+  const [chartColors, setChartColors] =
+    useState<ChartColors>(DEFAULT_CHART_COLORS);
   const [chartLayout, setChartLayout] = useState<ChartLayout>("auto");
   const performanceRootRef = useRef<HTMLElement>(null);
   const chartScrollRef = useRef<HTMLDivElement>(null);
@@ -315,6 +374,7 @@ export function PerformanceView({
   useEffect(() => {
     void settingsRepository.get().then((settings) => {
       setFontSettings(settings.chartFontSettings);
+      setChartColors(settings.chartColors);
       setChartLayout(settings.chartLayout);
     });
   }, []);
@@ -383,6 +443,20 @@ export function PerformanceView({
       void settingsRepository.saveChartFontSettings(next);
       return next;
     });
+  }
+
+  function changeChartColor(category: ChartColorCategory, color: string) {
+    setChartColors((currentColors) => {
+      const next = { ...currentColors, [category]: color };
+      void settingsRepository.saveChartColors(next);
+      return next;
+    });
+  }
+
+  function resetChartColors() {
+    const next = { ...DEFAULT_CHART_COLORS };
+    setChartColors(next);
+    void settingsRepository.saveChartColors(next);
   }
 
   function changeChartLayout(layout: ChartLayout) {
@@ -563,12 +637,15 @@ export function PerformanceView({
 
                   <section className="mb-4 rounded-lg border border-slate-200 p-3 dark:border-slate-800">
                     <h2 className="mb-3 text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">
-                      Appearance
+                      Font &amp; Typography
                     </h2>
                     <ChartAppearancePanel
                       settings={fontSettings}
+                      colors={chartColors}
                       layout={chartLayout}
                       onChange={changeFontScale}
+                      onColorChange={changeChartColor}
+                      onResetColors={resetChartColors}
                       onLineHeightChange={changeLineHeight}
                       onLayoutChange={changeChartLayout}
                     />
@@ -632,8 +709,11 @@ export function PerformanceView({
           {singleSong && (
             <ChartFontControls
               settings={fontSettings}
+              colors={chartColors}
               layout={chartLayout}
               onChange={changeFontScale}
+              onColorChange={changeChartColor}
+              onResetColors={resetChartColors}
               onLineHeightChange={changeLineHeight}
               onLayoutChange={changeChartLayout}
             />
@@ -798,8 +878,9 @@ export function PerformanceView({
                 className="mb-0 inline-block w-full min-w-0 break-inside-avoid"
               >
                 <h2
-                  className="mb-0 font-bold uppercase tracking-[.16em] text-black dark:text-white"
+                  className="mb-0 font-bold uppercase tracking-[.16em]"
                   style={{
+                    color: chartColors.section,
                     fontSize: `${0.75 * (fontSettings.sectionScale / 100)}rem`,
                   }}
                 >
@@ -812,6 +893,7 @@ export function PerformanceView({
                       line={line}
                       semitones={semitones}
                       fontSettings={fontSettings}
+                      colors={chartColors}
                     />
                   ))}
                 </div>
