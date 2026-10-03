@@ -41,6 +41,7 @@ import { Button } from "@/components/ui/button";
 import { settingsRepository } from "@/data/repositories/settings-repository";
 import { useTheme } from "@/components/theme/theme-provider";
 import { cn } from "@/lib/utils";
+import { PublicSetlistShare } from "./public-setlist-share";
 import { useResponsiveAutoHideControls } from "./use-responsive-auto-hide-controls";
 
 function withoutTrailingBlankLines(lines: SongLine[]): SongLine[] {
@@ -479,6 +480,11 @@ export function PerformanceView({
         <div className="text-center">
           <Music2 className="mx-auto mb-3 text-indigo-500" />
           <h1 className="text-xl font-bold">This setlist is empty</h1>
+          {publicMode && (
+            <div className="mt-4 flex justify-center">
+              <PublicSetlistShare title={snapshot.name} />
+            </div>
+          )}
           {backHref && (
             <Button asChild variant="secondary" className="mt-4">
               <Link href={backHref}>Go back</Link>
@@ -570,6 +576,7 @@ export function PerformanceView({
             </p>
             {!singleSong && (
               <p className="truncate text-xs text-slate-500 dark:text-slate-400 sm:text-sm">
+                {publicMode ? `${snapshot.name} · ` : ""}
                 {current + 1} of {snapshot.songs.length}
                 {snapshot.venue ? ` · ${snapshot.venue}` : ""}
               </p>
@@ -583,6 +590,7 @@ export function PerformanceView({
               </Link>
             </Button>
           )}
+          {publicMode && <PublicSetlistShare title={snapshot.name} />}
           {!singleSong && (
             <Dialog.Root open={showOrder} onOpenChange={setShowOrder}>
               <Dialog.Trigger asChild>
