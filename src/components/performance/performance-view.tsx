@@ -86,7 +86,7 @@ function ChartLine({
   return (
     <div
       data-performance-scroll-container
-      className="max-w-full overflow-x-auto overscroll-x-contain"
+      className="max-w-full overflow-x-auto overflow-y-hidden overscroll-x-contain"
     >
       <div
         className="min-w-full"
