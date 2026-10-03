@@ -244,7 +244,7 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
   ]);
 
   await page.getByLabel("Chart font sizes").click();
-  await expect(page.getByLabel("Sections font scale")).toHaveText("100%");
+  await expect(page.getByLabel("Sections font scale")).toHaveText("130%");
   await expect(page.getByLabel("Chords font scale")).toHaveText("100%");
   await expect(page.getByLabel("Lyrics font scale")).toHaveText("100%");
   await expect(page.getByLabel("Line height value")).toHaveText("1.0");
@@ -258,10 +258,10 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
     "2",
   );
   await page.getByLabel("Decrease section font size").click();
-  await expect(page.getByLabel("Sections font scale")).toHaveText("90%");
+  await expect(page.getByLabel("Sections font scale")).toHaveText("120%");
   await page.getByLabel("Increase section font size").click();
   await page.getByLabel("Increase section font size").click();
-  await expect(page.getByLabel("Sections font scale")).toHaveText("110%");
+  await expect(page.getByLabel("Sections font scale")).toHaveText("140%");
   await expect(page.getByLabel("Chords font scale")).toHaveText("100%");
   await expect(page.getByLabel("Lyrics font scale")).toHaveText("100%");
   await page.getByLabel("Increase chord font size").click();
@@ -278,7 +278,7 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
   await page.getByLabel("Close font size controls").click();
   await page.reload();
   await page.getByLabel("Chart font sizes").click();
-  await expect(page.getByLabel("Sections font scale")).toHaveText("110%");
+  await expect(page.getByLabel("Sections font scale")).toHaveText("140%");
   await expect(page.getByLabel("Chords font scale")).toHaveText("110%");
   await expect(page.getByLabel("Lyrics font scale")).toHaveText("110%");
   await expect(page.getByLabel("Line height value")).toHaveText("1.1");
@@ -447,7 +447,9 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
   expect(performanceMenuBox?.height).toBeGreaterThanOrEqual(44);
   await performanceMenu.click();
   await expect(page.getByRole("dialog")).toBeVisible();
-  await expect(page.getByText("Appearance", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText("Font & Typography", { exact: true }),
+  ).toBeVisible();
   await page.getByLabel("Performance theme").selectOption("dark");
   await expect(page.locator("html")).toHaveClass(/dark/);
   await page.getByRole("button", { name: /Band Notes/ }).click();
@@ -641,7 +643,9 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
     .click({ position: { x: 20, y: 300 } });
   await expect(page.getByText("1 of 2")).toBeVisible();
   await page.getByLabel("Open performance menu").click();
-  await expect(page.getByText("Appearance", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText("Font & Typography", { exact: true }),
+  ).toBeVisible();
   await page.getByLabel("Performance theme").selectOption("light");
   await expect(page.locator("html")).not.toHaveClass(/dark/);
   await page.getByLabel("Performance theme").selectOption("dark");

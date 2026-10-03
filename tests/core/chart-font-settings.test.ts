@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   adjustChartFontScale,
   adjustChartLineHeight,
+  DEFAULT_CHART_COLORS,
   DEFAULT_CHART_FONT_SETTINGS,
 } from "@/core/songs/chart-font-settings";
 
@@ -33,18 +34,26 @@ describe("chart font settings", () => {
     expect(
       adjustChartFontScale(DEFAULT_CHART_FONT_SETTINGS, "chord", 10),
     ).toEqual({
-      sectionScale: 100,
+      sectionScale: 130,
       chordScale: 110,
       lyricScale: 100,
       lineHeight: 1,
     });
   });
 
-  it("defaults font scales to 100 percent", () => {
+  it("defaults sections to 130 percent without changing chord or lyric sizes", () => {
     expect(DEFAULT_CHART_FONT_SETTINGS).toMatchObject({
-      sectionScale: 100,
+      sectionScale: 130,
       chordScale: 100,
       lyricScale: 100,
+    });
+  });
+
+  it("uses the current chart palette as its default colors", () => {
+    expect(DEFAULT_CHART_COLORS).toEqual({
+      section: "#000000",
+      chord: "#4338CA",
+      lyric: "#020617",
     });
   });
 

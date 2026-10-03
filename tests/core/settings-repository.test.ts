@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { SongbookDatabase } from "@/data/db/songbook-db";
 import { SettingsRepository } from "@/data/repositories/settings-repository";
+import { DEFAULT_CHART_COLORS } from "@/core/songs/chart-font-settings";
 
 describe("settings theme defaults", () => {
   let database: SongbookDatabase;
@@ -27,4 +28,19 @@ describe("settings theme defaults", () => {
       await expect(repository.get()).resolves.toMatchObject({ theme });
     },
   );
+
+  it("defaults and persists chart colors independently of typography", async () => {
+    const settings = await repository.get();
+    expect(settings.chartColors).toEqual(DEFAULT_CHART_COLORS);
+    expect(settings.chartFontSettings.sectionScale).toBe(130);
+
+    const chartColors = { ...settings.chartColors, chord: "#123456" };
+    await repository.saveChartColors(chartColors);
+
+    await expect(repository.get()).resolves.toMatchObject({
+      chartColors,
+      chartFontSettings: settings.chartFontSettings,
+      chartLayout: settings.chartLayout,
+    });
+  });
 });

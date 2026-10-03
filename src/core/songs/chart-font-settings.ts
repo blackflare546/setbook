@@ -1,4 +1,5 @@
 export type ChartFontCategory = "section" | "chord" | "lyric";
+export type ChartColorCategory = ChartFontCategory;
 export type ChartLayout = "auto" | "one" | "two";
 
 export const CHART_LAYOUT_OPTIONS: Array<{
@@ -17,11 +18,23 @@ export interface ChartFontSettings {
   lineHeight: number;
 }
 
+export interface ChartColors {
+  section: string;
+  chord: string;
+  lyric: string;
+}
+
 export const DEFAULT_CHART_FONT_SETTINGS: ChartFontSettings = {
-  sectionScale: 100,
+  sectionScale: 130,
   chordScale: 100,
   lyricScale: 100,
   lineHeight: 1,
+};
+
+export const DEFAULT_CHART_COLORS: ChartColors = {
+  section: "#000000",
+  chord: "#4338CA",
+  lyric: "#020617",
 };
 
 export const CHART_FONT_BOUNDS: Record<
