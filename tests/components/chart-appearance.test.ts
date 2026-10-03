@@ -8,7 +8,9 @@ import {
   waitFor,
 } from "@testing-library/react";
 import { PerformanceView } from "@/components/performance/performance-view";
+import { DEFAULT_CHART_FONT_SETTINGS } from "@/core/songs/chart-font-settings";
 import { db } from "@/data/db/songbook-db";
+import { settingsRepository } from "@/data/repositories/settings-repository";
 import type { PublishedSnapshot } from "@/lib/validation/schemas";
 
 const snapshot: PublishedSnapshot = {
@@ -54,6 +56,30 @@ afterEach(async () => {
 });
 
 describe("chart appearance settings", () => {
+  it.each([1, 0.9, 0.8, 0.7])(
+    "keeps vertical chart overflow disabled at %s line height",
+    async (lineHeight) => {
+      await settingsRepository.saveChartFontSettings({
+        ...DEFAULT_CHART_FONT_SETTINGS,
+        lineHeight,
+      });
+      render(
+        React.createElement(PerformanceView, { snapshot, singleSong: true }),
+      );
+
+      const lyrics = await screen.findByText("Test lyrics");
+      await waitFor(() =>
+        expect(lyrics).toHaveStyle({ lineHeight: String(lineHeight) }),
+      );
+      const scrollContainer = lyrics.closest(
+        "[data-performance-scroll-container]",
+      );
+      expect(scrollContainer).toHaveClass("overflow-x-auto");
+      expect(scrollContainer).toHaveClass("overflow-y-hidden");
+      expect(scrollContainer).not.toHaveClass("overflow-y-auto");
+    },
+  );
+
   it("customizes, resets, and persists colors without resetting typography", async () => {
     const view = render(
       React.createElement(PerformanceView, { snapshot, singleSong: true }),
