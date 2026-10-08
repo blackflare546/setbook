@@ -242,7 +242,7 @@ export function SetlistList() {
                       <ListMusic size={20} />
                     </span>
                     <div
-                      className="pointer-events-auto relative z-10 flex opacity-100 transition-opacity [@media(hover:hover)_and_(pointer:fine)]:opacity-0 [@media(hover:hover)_and_(pointer:fine)]:group-focus-within:opacity-100 [@media(hover:hover)_and_(pointer:fine)]:group-hover:opacity-100"
+                      className="pointer-events-auto relative z-10 flex"
                       data-testid={`setlist-actions-${setlist.id}`}
                     >
                       <Button

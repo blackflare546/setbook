@@ -132,7 +132,7 @@ async function expectEntryOrder(page: Page, titles: string[]) {
   ).toHaveText(titles);
 }
 
-test("setlist cards open from the full surface without hijacking actions", async ({
+test("setlist cards show actions and open without hijacking them", async ({
   page,
 }) => {
   await restoreSetlistFixture(page);
@@ -143,13 +143,15 @@ test("setlist cards open from the full surface without hijacking actions", async
   const deleteButton = card.getByRole("button", {
     name: "Delete Sortable Setlist",
   });
-  await expect(actions).toHaveCSS("opacity", "0");
+  await expect(actions).toHaveCSS("opacity", "1");
   const cardBox = await card.boundingBox();
   expect(cardBox).not.toBeNull();
   expect(cardBox!.height).toBeLessThan(150);
 
-  await card.hover();
-  await expect(actions).toHaveCSS("opacity", "1");
+  await expect(
+    card.getByRole("button", { name: "Duplicate Sortable Setlist" }),
+  ).toBeVisible();
+  await expect(deleteButton).toBeVisible();
   await expect(deleteButton).toHaveClass(/text-rose-600/);
   await deleteButton.click();
   const deleteDialog = page.getByRole("dialog", {
