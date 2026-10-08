@@ -19,8 +19,25 @@ export interface Setlist {
   notes: string;
   entries: SetlistSongEntry[];
   publishToken?: string;
+  shareBinding?: {
+    publicToken: string;
+    ownerCapability: string;
+    revision: number;
+    etag: string;
+    sharedBy?: string;
+  };
   createdAt: string;
   updatedAt: string;
+}
+
+export interface FollowedSharedSetlist {
+  publicToken: string;
+  snapshot: import("@/lib/validation/schemas").PublishedSnapshot;
+  revision: number;
+  etag: string;
+  status: "current" | "update-available" | "offline" | "unavailable";
+  followedAt: string;
+  lastCheckedAt: string;
 }
 
 export interface AppSettings {

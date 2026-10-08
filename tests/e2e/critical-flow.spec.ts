@@ -183,19 +183,21 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
     exact: true,
   });
   await page.getByTestId("smart-paste-input").fill("[Verse]\nAm F C G");
-  await expect(page.getByText("Possible Keys: C Major / A Minor")).toBeVisible();
+  await expect(
+    page.getByText("Possible Keys: C Major / G Major / A Minor"),
+  ).toBeVisible();
   await expect(songKey).toHaveValue("");
 
   await page.getByTestId("smart-paste-input").fill(source);
   await expect(songKey).toHaveValue("G Major");
-  await expect(page.getByText("Original Detected Key: G Major")).toBeVisible();
+  await expect(page.getByText("Detected Key: G Major")).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Use Detected Key" }),
   ).toHaveCount(0);
 
   await selectKey(page, "Song key", "A major", "A Major");
   await expect(songKey).toHaveValue("A Major");
-  await expect(page.getByText("Original Detected Key: G Major")).toBeVisible();
+  await expect(page.getByText("Detected Key: G Major")).toBeVisible();
 
   await songKey.click();
   await songKey.fill("G");
@@ -212,7 +214,7 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
   ]);
   await songKeyOptions.filter({ hasText: /^G Major$/ }).click();
   await expect(songKey).toHaveValue("G Major");
-  await expect(page.getByText("Original Detected Key: G Major")).toBeVisible();
+  await expect(page.getByText("Detected Key: G Major")).toBeVisible();
   await page.getByLabel("Capo").selectOption("2");
   await page.getByTestId("save-song").click();
   await expect(page.getByText("Song saved")).toBeVisible();
@@ -328,7 +330,7 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
   await expect(page.getByLabel("Capo")).toHaveValue("2");
   await page.getByTestId("parse-song").click();
   await expect(page.getByText("Chart editor")).toBeVisible();
-  await expect(page.getByText("Original Detected Key: G Major")).toBeVisible();
+  await expect(page.getByText("Detected Key: G Major")).toBeVisible();
   await expect(page.getByLabel("Capo")).toHaveValue("2");
 
   await page.goto("/library");
@@ -353,8 +355,11 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
   await expect(page.getByText("2 songs, available offline")).toBeVisible();
   const copyActions = page.getByLabel(`Song actions for ${title} copy`);
   await copyActions.click();
-  page.once("dialog", (dialog) => dialog.accept());
   await page.getByRole("menuitem", { name: "Delete" }).click();
+  await page
+    .getByRole("dialog", { name: "Delete Song?" })
+    .getByRole("button", { name: "Delete", exact: true })
+    .click();
   await expect(page.getByText("1 song, available offline")).toBeVisible();
 
   await songActions.click();
@@ -377,10 +382,14 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
 
   await page.getByRole("button", { name: "Add song" }).click();
   await page.getByLabel("Search songs").fill("great");
-  await page.getByRole("button", { name: new RegExp(title) }).click();
+  await page
+    .getByRole("button", { name: `${title} Chris Tomlin`, exact: true })
+    .click();
   await page.getByRole("button", { name: "Add song" }).click();
   await page.getByLabel("Search songs").fill("Chris");
-  await page.getByRole("button", { name: new RegExp(title) }).click();
+  await page
+    .getByRole("button", { name: `${title} Chris Tomlin`, exact: true })
+    .click();
   await expect(page.getByText("2 songs")).toBeVisible();
   await expect(page.getByText("Setlist saved")).toHaveCount(0);
   await selectKey(page, "Performance key", "A major", "A Major");
@@ -440,6 +449,9 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
   await page
     .locator("[data-performance-chart-scroll]")
     .click({ position: { x: 20, y: 300 } });
+  await page
+    .locator("[data-performance-chart-scroll]")
+    .click({ position: { x: 20, y: 300 } });
   const performanceMenu = page.getByLabel("Open performance menu");
   await expect(performanceMenu).toHaveCount(1);
   const performanceMenuBox = await performanceMenu.boundingBox();
@@ -459,12 +471,20 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
   await page
     .locator("[data-performance-chart-scroll]")
     .click({ position: { x: 20, y: 300 } });
+  if ((await page.getByLabel("Open performance menu").count()) === 0)
+    await page
+      .locator("[data-performance-chart-scroll]")
+      .click({ position: { x: 20, y: 300 } });
   await page.getByLabel("Open performance menu").click();
   await page.getByRole("button", { name: /Band Notes/ }).click();
   await expect(page.getByRole("region", { name: "Band Notes" })).toHaveCount(0);
   await page
     .locator("[data-performance-chart-scroll]")
     .click({ position: { x: 20, y: 300 } });
+  if ((await page.getByLabel("Open performance menu").count()) === 0)
+    await page
+      .locator("[data-performance-chart-scroll]")
+      .click({ position: { x: 20, y: 300 } });
   await page.getByLabel("Open performance menu").click();
   await expect(page.getByRole("dialog")).toBeVisible();
   await page.keyboard.press("Escape");
@@ -495,7 +515,9 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
   await page
     .locator("[data-performance-chart-scroll]")
     .click({ position: { x: 20, y: 300 } });
-  await page.getByRole("button", { name: "Next", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Next", exact: true })
+    .evaluate((button: HTMLButtonElement) => button.click());
   await expect
     .poll(() =>
       page
@@ -536,7 +558,9 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
   await page
     .locator("[data-performance-chart-scroll]")
     .click({ position: { x: 20, y: 300 } });
-  await page.getByRole("button", { name: "Prev", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Prev", exact: true })
+    .evaluate((button: HTMLButtonElement) => button.click());
   await expect
     .poll(() =>
       page
@@ -552,14 +576,28 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
 
   await page.goto(setlistEditorUrl);
   await expect(page.getByText("Setlist saved")).toHaveCount(0);
+  await expect(page.getByText("Include setlist and band notes")).toHaveCount(0);
+  await expect(page.getByText("Include song links")).toHaveCount(0);
   await page.getByRole("button", { name: "Publish setlist" }).click();
-  await expect(page.getByText("Setlist published")).toBeVisible();
+  await expect(page.getByText("Setlist shared")).toBeVisible();
   await expect(page.getByText("Setlist saved")).toHaveCount(0);
-  await expect(page.getByText("Setlist published")).toBeHidden({
+  await expect(page.getByText("Setlist shared")).toBeHidden({
     timeout: 4_000,
   });
   const shareLink = page.getByRole("link", { name: "Open public link" });
   await expect(shareLink).toBeVisible();
+  await page.getByRole("button", { name: "QR code" }).click();
+  const qrDialog = page.getByRole("dialog", {
+    name: "Public setlist QR code",
+  });
+  await expect(qrDialog).toContainText(
+    "This QR contains only the read-only public link.",
+  );
+  await expect(qrDialog.getByAltText("Public setlist QR code")).toHaveAttribute(
+    "src",
+    /^data:image\/png/,
+  );
+  await qrDialog.getByRole("button", { name: "Done" }).click();
   await page.setViewportSize({ width: 768, height: 900 });
   await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
   const tabletShareBox = await shareLink.boundingBox();
@@ -576,8 +614,20 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
   );
   const publishedSnapshot = await publishedResponse.json();
   expect(publishedSnapshot).not.toHaveProperty("theme");
+  expect(publishedSnapshot.notes).toBe(
+    "Guitar enters on Chorus\nDrums build during Bridge",
+  );
+  expect(
+    publishedSnapshot.songs.every((song: { links?: unknown }) => !song.links),
+  ).toBe(true);
   await page.goto(firstShareUrl!);
   await expect(page.getByText("Shared setlist")).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Open in SetBook" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Import all songs" }),
+  ).toHaveCount(0);
   await page.setViewportSize({ width: 1024, height: 900 });
   await expect(page.getByLabel("Open performance menu")).toHaveCount(1);
   await expect(page.locator("aside")).toHaveCount(0);
@@ -656,7 +706,9 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
   await page.goto(setlistEditorUrl);
   await page.getByRole("button", { name: "Add song" }).click();
   await page.getByLabel("Search songs").fill("Chris");
-  await page.getByRole("button", { name: new RegExp(title) }).click();
+  await page
+    .getByRole("button", { name: `${title} Chris Tomlin`, exact: true })
+    .click();
   await expect(page.getByText("3 songs")).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Update published setlist" }),
@@ -670,7 +722,7 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
   await Promise.all([
     page.waitForResponse(
       (response) =>
-        response.request().method() === "PUT" &&
+        response.request().method() === "PATCH" &&
         response.url().includes("/api/published-setlists/"),
     ),
     page.getByRole("button", { name: "Update published setlist" }).click(),
@@ -754,15 +806,15 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
   await page.setViewportSize({ width: 320, height: 320 });
   await page.goto(performanceUrl);
   await expect(page.getByLabel("Current key")).toBeVisible();
-  const scrollable = await page.evaluate(() => {
-    const pageRoot = document.scrollingElement ?? document.documentElement;
-    const canScroll = pageRoot.scrollHeight > pageRoot.clientHeight;
-    pageRoot.scrollTo(0, pageRoot.scrollHeight);
+  const performanceScroller = page.locator("[data-performance-chart-scroll]");
+  const scrollable = await performanceScroller.evaluate((element) => {
+    const canScroll = element.scrollHeight > element.clientHeight;
+    element.scrollTo(0, element.scrollHeight);
     return canScroll;
   });
   expect(scrollable).toBe(true);
   await expect
-    .poll(() => page.evaluate(() => window.scrollY))
+    .poll(() => performanceScroller.evaluate((element) => element.scrollTop))
     .toBeGreaterThan(0);
 
   for (const [width, height] of [
@@ -815,12 +867,12 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
   await page.setViewportSize({ width: 768, height: 900 });
   await page.goto(setlistEditorUrl);
   await expect(page.getByText("3 songs")).toBeVisible();
-  await page.getByRole("button", { name: "Delete Published Setlist" }).click();
+  await page.getByRole("button", { name: "Stop Sharing" }).click();
   const deleteDialog = page.getByRole("dialog", {
-    name: "Delete published setlist?",
+    name: "Stop sharing this setlist?",
   });
   await expect(deleteDialog).toContainText(
-    "This will make the public link unavailable. Your local setlist will not be deleted.",
+    "This removes the public link. Your local setlist and everyone’s imported songs remain available.",
   );
   await deleteDialog.getByRole("button", { name: "Cancel" }).click();
   await expect(shareLink).toHaveAttribute("href", firstShareUrl!);
@@ -831,16 +883,16 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
       await route.fulfill({
         status: 502,
         contentType: "application/json",
-        body: JSON.stringify({ error: "Published setlist could not be deleted" }),
+        body: JSON.stringify({
+          error: "Published setlist could not be deleted",
+        }),
       });
       return;
     }
     await route.continue();
   });
-  await page.getByRole("button", { name: "Delete Published Setlist" }).click();
-  await deleteDialog
-    .getByRole("button", { name: "Delete Published Setlist" })
-    .click();
+  await page.getByRole("button", { name: "Stop Sharing" }).click();
+  await deleteDialog.getByRole("button", { name: "Stop Sharing" }).click();
   await expect(
     page.getByRole("alert").filter({
       hasText: "Published setlist could not be deleted",
@@ -849,18 +901,16 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
   await expect(shareLink).toHaveAttribute("href", firstShareUrl!);
   await page.unroute(deleteApiPattern);
 
-  await page.getByRole("button", { name: "Delete Published Setlist" }).click();
+  await page.getByRole("button", { name: "Stop Sharing" }).click();
   await Promise.all([
     page.waitForResponse(
       (response) =>
         response.request().method() === "DELETE" &&
         response.url().includes("/api/published-setlists/"),
     ),
-    deleteDialog
-      .getByRole("button", { name: "Delete Published Setlist" })
-      .click(),
+    deleteDialog.getByRole("button", { name: "Stop Sharing" }).click(),
   ]);
-  await expect(page.getByText("Published setlist deleted")).toBeVisible();
+  await expect(page.getByText("Sharing stopped")).toBeVisible();
   await expect(shareLink).toHaveCount(0);
   await expect(
     page.getByRole("button", { name: "Publish setlist" }),
@@ -872,7 +922,7 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
   const repeatedDeleteResponse = await page.request.delete(
     `/api/published-setlists/${firstShareUrl!.split("/").at(-1)}`,
   );
-  expect(repeatedDeleteResponse.status()).toBe(204);
+  expect(repeatedDeleteResponse.status()).toBe(409);
   await page.goto(firstShareUrl!);
   await expect(
     page.getByRole("heading", { name: "Setlist not found" }),
@@ -881,7 +931,7 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
   await page.goto(setlistEditorUrl);
   await expect(page.getByText("3 songs")).toBeVisible();
   await page.getByRole("button", { name: "Publish setlist" }).click();
-  await expect(page.getByText("Setlist published")).toBeVisible();
+  await expect(page.getByText("Setlist shared")).toBeVisible();
   const republishedLink = page.getByRole("link", { name: "Open public link" });
   await expect(republishedLink).toBeVisible();
   const republishedUrl = await republishedLink.getAttribute("href");
@@ -896,14 +946,24 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
       await route.fulfill({
         status: 502,
         contentType: "application/json",
-        body: JSON.stringify({ error: "Published setlist could not be deleted" }),
+        body: JSON.stringify({
+          error: "Published setlist could not be deleted",
+        }),
       });
       return;
     }
     await route.continue();
   });
-  page.once("dialog", (dialog) => dialog.accept());
   await page.getByRole("button", { name: "Delete Friday Night" }).click();
+  const setlistDeleteDialog = page.getByRole("dialog", {
+    name: "Delete Friday Night?",
+  });
+  await expect(setlistDeleteDialog).toContainText(
+    "Its public share will be deleted first. If that fails, the local setlist will be kept so you can try again.",
+  );
+  await setlistDeleteDialog
+    .getByRole("button", { name: "Delete setlist" })
+    .click();
   await expect(
     page.getByRole("alert").filter({
       hasText: "Published setlist could not be deleted",
@@ -912,14 +972,14 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
   await expect(page.getByText("Friday Night", { exact: true })).toBeVisible();
   await page.unroute(republishedDeletePattern);
 
-  page.once("dialog", (dialog) => dialog.accept());
+  await page.getByRole("button", { name: "Delete Friday Night" }).click();
   await Promise.all([
     page.waitForResponse(
       (response) =>
         response.request().method() === "DELETE" &&
         response.url().includes("/api/published-setlists/"),
     ),
-    page.getByRole("button", { name: "Delete Friday Night" }).click(),
+    setlistDeleteDialog.getByRole("button", { name: "Delete setlist" }).click(),
   ]);
   await expect(page.getByText("Setlist deleted")).toBeVisible();
   await expect(page.getByText("No setlists yet")).toBeVisible();

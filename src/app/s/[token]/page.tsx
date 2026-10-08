@@ -10,5 +10,5 @@ export default async function SharedSetlistPage({
   const { token } = await params;
   const snapshot = await readPublishedSnapshot(token);
   if (!snapshot) notFound();
-  return <PerformanceView snapshot={snapshot} publicMode />;
+  return <PerformanceView snapshot={snapshot} publicMode publicToken={token} />;
 }

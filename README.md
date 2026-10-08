@@ -1,6 +1,6 @@
 # SetBook
 
-SetBook is a local-first song chart and setlist app for working musicians. Songs, setlists, settings, and drafts stay in the browser through Dexie/IndexedDB. Only an explicitly published, read-only setlist snapshot leaves the device.
+SetBook is a local-first song chart and setlist app for working musicians. Songs, private setlists, settings, and drafts stay in the browser through Dexie/IndexedDB. Explicitly shared setlists can be followed, imported, or collaboratively edited through separate capability links.
 
 ## Run locally
 
@@ -37,6 +37,11 @@ To configure it in the Vercel dashboard:
 5. Confirm the project now has Blob credentials under **Settings → Environment Variables**. New OIDC connections provide `BLOB_STORE_ID` and Vercel-managed authentication; older connections provide `BLOB_READ_WRITE_TOKEN`.
 6. Redeploy the project. Environment-variable changes do not affect an existing deployment.
 
+Also set `SHARE_CAPABILITY_SECRET` to a long random server-only value. It is
+used to derive opaque Blob paths and capability verifiers. Never expose this
+value through a `NEXT_PUBLIC_` variable or rotate it without a migration,
+because existing v2 shares depend on it.
+
 For local Blob testing, link the project and pull its development environment:
 
 ```bash
@@ -46,14 +51,21 @@ vercel env pull .env.local
 
 Do not expose either Blob credential through a `NEXT_PUBLIC_` variable. If no Blob store is connected in production, the publishing API returns a clear `503` configuration error instead of attempting to write to Vercel's filesystem.
 
-The public API is intentionally small:
+The sharing API is intentionally small:
 
 - `POST /api/published-setlists`
 - `GET /api/published-setlists/:token`
-- `PUT /api/published-setlists/:token`
+- `PATCH /api/published-setlists/:token`
+- `PUT /api/published-setlists/:token` (deprecated authenticated alias)
 - `DELETE /api/published-setlists/:token`
+- `POST /api/published-setlists/:token/access`
 
-Republishing overwrites the snapshot at the same token, so the share URL stays stable. The MVP has no authentication, as requested; anyone able to call the update/delete endpoint with a token can modify that snapshot. The storage adapter and route boundary are isolated so ownership checks can be added later without changing song parsing or the local library.
+Public reads remain account-free and read-only. Updates require an active owner
+or editor capability; access changes and deletion require the owner capability.
+Capabilities are carried in authorization headers, while revision numbers and
+Blob ETags provide optimistic concurrency protection. Existing v1 URLs remain
+readable but are frozen; their owners create a replacement secure share on the
+next publish.
 
 ## Structure
 

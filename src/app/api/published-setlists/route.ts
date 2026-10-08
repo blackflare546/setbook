@@ -1,19 +1,25 @@
 import { NextResponse } from "next/server";
-import { publishedSnapshotSchema } from "@/lib/validation/schemas";
+import { z } from "zod";
+import { publishedSnapshotV2Schema } from "@/lib/validation/schemas";
 import {
+  capabilityVerifier,
+  createCapability,
   createPublicToken,
+  createSharedRecord,
   publishedStoreErrorResponse,
   readPublishedSnapshot,
-  savePublishedSnapshot,
 } from "@/lib/sharing/published-store";
 
+const createSchema = z.object({ snapshot: publishedSnapshotV2Schema });
+
 export async function POST(request: Request) {
-  const parsed = publishedSnapshotSchema.safeParse(
-    await request.json().catch(() => null),
+  const body = await request.json().catch(() => null);
+  const parsed = createSchema.safeParse(
+    body?.snapshot ? body : { snapshot: body },
   );
   if (!parsed.success)
     return NextResponse.json(
-      { error: "Invalid published setlist", details: parsed.error.flatten() },
+      { error: "Invalid shared setlist", details: parsed.error.flatten() },
       { status: 400 },
     );
   try {
@@ -24,10 +30,30 @@ export async function POST(request: Request) {
       attempt += 1
     )
       token = createPublicToken();
-    await savePublishedSnapshot(token, parsed.data);
-    return NextResponse.json({ token, url: `/s/${token}` }, { status: 201 });
+    const ownerCapability = createCapability();
+    const now = new Date().toISOString();
+    const snapshot = { ...parsed.data.snapshot, publishedAt: now };
+    const etag = await createSharedRecord({
+      schemaVersion: 2,
+      publicToken: token,
+      revision: 1,
+      snapshot,
+      ownerVerifier: capabilityVerifier(ownerCapability),
+      createdAt: now,
+      updatedAt: now,
+    });
+    return NextResponse.json(
+      {
+        token,
+        url: `/s/${token}`,
+        revision: 1,
+        etag,
+        ownerCapability,
+      },
+      { status: 201 },
+    );
   } catch (error) {
-    console.error("Unable to publish setlist", error);
+    console.error("Unable to create shared setlist", error);
     const failure = publishedStoreErrorResponse(error);
     return NextResponse.json(
       { error: failure.error },

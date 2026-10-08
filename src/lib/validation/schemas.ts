@@ -38,6 +38,14 @@ export const songSchema = z.object({
   sourceText: z.string().default(""),
   createdAt: z.string(),
   updatedAt: z.string(),
+  sharedSource: z
+    .object({
+      publicToken: z.string(),
+      sharedSongId: z.string(),
+      importedRevision: z.number().int().positive(),
+      contentHash: z.string(),
+    })
+    .optional(),
 });
 export const setlistEntrySchema = z.object({
   id: z.string(),
@@ -53,12 +61,23 @@ export const setlistSchema = z.object({
   notes: z.string(),
   entries: z.array(setlistEntrySchema),
   publishToken: z.string().optional(),
+  shareBinding: z
+    .object({
+      publicToken: z.string(),
+      ownerCapability: z.string(),
+      revision: z.number().int().positive(),
+      etag: z.string(),
+      sharedBy: z.string().optional(),
+    })
+    .optional(),
   createdAt: z.string(),
   updatedAt: z.string(),
 });
 
 export const publishedSongSchema = z.object({
   entryId: z.string(),
+  sharedSongId: z.string().optional(),
+  contentHash: z.string().optional(),
   title: z.string(),
   artist: z.string(),
   originalKey: z.string(),
@@ -70,7 +89,7 @@ export const publishedSongSchema = z.object({
     .object({ audio: z.string().optional(), reference: z.string().optional() })
     .optional(),
 });
-export const publishedSnapshotSchema = z.object({
+export const legacyPublishedSnapshotSchema = z.object({
   version: z.literal(1),
   name: z.string().min(1),
   venue: z.string(),
@@ -79,4 +98,38 @@ export const publishedSnapshotSchema = z.object({
   songs: z.array(publishedSongSchema),
   publishedAt: z.string(),
 });
+export const publishedSnapshotV2Schema = z.object({
+  version: z.literal(2),
+  name: z.string().min(1),
+  venue: z.string(),
+  date: z.string().optional(),
+  notes: z.string().optional(),
+  sharedBy: z.string().max(80).optional(),
+  songs: z.array(
+    publishedSongSchema.extend({
+      sharedSongId: z.string().min(1),
+      contentHash: z.string().min(1),
+    }),
+  ),
+  publishedAt: z.string(),
+});
+export const publishedSnapshotSchema = z.discriminatedUnion("version", [
+  legacyPublishedSnapshotSchema,
+  publishedSnapshotV2Schema,
+]);
 export type PublishedSnapshot = z.infer<typeof publishedSnapshotSchema>;
+export type PublishedSnapshotV2 = z.infer<typeof publishedSnapshotV2Schema>;
+
+export const sharedSetlistRecordSchema = z.object({
+  schemaVersion: z.literal(2),
+  publicToken: z.string(),
+  revision: z.number().int().positive(),
+  snapshot: publishedSnapshotV2Schema,
+  ownerVerifier: z.string(),
+  // Accepted only so collaborative v2 records remain readable during migration.
+  accessMode: z.enum(["view", "editable"]).optional(),
+  editorVerifier: z.string().nullable().optional(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+export type SharedSetlistRecord = z.infer<typeof sharedSetlistRecordSchema>;

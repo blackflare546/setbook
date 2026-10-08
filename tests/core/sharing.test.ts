@@ -38,10 +38,13 @@ describe("published snapshots", () => {
       updatedAt: "x",
     };
     const snapshot = createPublishedSnapshot(setlist, [song], {
-      includeNotes: false,
+      includeNotes: true,
       includeLinks: false,
     });
-    expect(snapshot.notes).toBeUndefined();
+    expect(snapshot.version).toBe(2);
+    expect(snapshot.songs[0].sharedSongId).toBe("song");
+    expect(snapshot.songs[0].contentHash).toBeTruthy();
+    expect(snapshot.notes).toBe("band note");
     expect(snapshot.songs[0].performanceKey).toBe("A");
     expect(snapshot.songs[0].arrangementCue).toBe("Count four");
     expect(snapshot.songs[0].links).toBeUndefined();

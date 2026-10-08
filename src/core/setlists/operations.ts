@@ -24,6 +24,7 @@ export function duplicateSetlist(
     id,
     name: `${source.name} copy`,
     publishToken: undefined,
+    shareBinding: undefined,
     entries: source.entries.map((entry) => ({
       ...entry,
       id: crypto.randomUUID(),

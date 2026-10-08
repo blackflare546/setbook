@@ -8,6 +8,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Edit3,
+  ExternalLink,
   List,
   Maximize2,
   Minimize2,
@@ -337,12 +338,14 @@ export function PerformanceView({
   backHref,
   editHref,
   publicMode = false,
+  publicToken,
   singleSong = false,
 }: {
   snapshot: PublishedSnapshot;
   backHref?: string;
   editHref?: string;
   publicMode?: boolean;
+  publicToken?: string;
   singleSong?: boolean;
 }) {
   const { theme, setTheme } = useTheme();
@@ -576,6 +579,14 @@ export function PerformanceView({
               </p>
             )}
           </div>
+          {publicMode && publicToken && (
+            <Button asChild variant="secondary" size="sm" className="h-11">
+              <Link href={`/shared/${publicToken}`}>
+                <ExternalLink size={16} />
+                <span className="hidden sm:inline">Open in SetBook</span>
+              </Link>
+            </Button>
+          )}
           {editHref && (
             <Button asChild variant="secondary" size="sm" className="h-11">
               <Link href={editHref}>

@@ -41,10 +41,11 @@ const sections = [
     title: "Sharing a setlist",
     steps: [
       "Open a setlist and publish it.",
-      "Copy the public link and send it to your musicians.",
-      "Republish after making changes to update the same link.",
+      "Copy the public link or show its QR code to your musicians.",
+      "Musicians can scan the QR directly from the Setlists page, then follow the setlist.",
+      "After making changes, use Update published setlist to update the same link.",
     ],
-    note: "Shared setlists are read-only. Viewers cannot edit or access the owner's private library.",
+    note: "Shared setlists are read-only. Update replaces only the followed shared copy; songs enter a private library only after an explicit Import action.",
   },
   {
     title: "Display settings",

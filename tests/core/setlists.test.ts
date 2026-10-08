@@ -55,6 +55,12 @@ describe("setlist operations", () => {
         notes: "",
         entries,
         publishToken: "abc123",
+        shareBinding: {
+          publicToken: "secure123",
+          ownerCapability: "owner-secret",
+          revision: 1,
+          etag: '"etag"',
+        },
         createdAt: "x",
         updatedAt: "x",
       },
@@ -62,6 +68,7 @@ describe("setlist operations", () => {
     );
     expect(copy.name).toBe("Show copy");
     expect(copy.publishToken).toBeUndefined();
+    expect(copy.shareBinding).toBeUndefined();
     expect(copy.entries[0].id).not.toBe(entries[0].id);
   });
 });

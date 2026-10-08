@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useLiveQuery } from "dexie-react-hooks";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
+import * as Dialog from "@radix-ui/react-dialog";
 import {
   ArrowDownAZ,
   Copy,
@@ -20,13 +21,17 @@ import { exportLibrary, importLibrary } from "@/data/repositories/backup";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { FeedbackToast } from "@/components/ui/feedback-toast";
 import { formatMusicalKey } from "@/core/chords/keys";
 import type { Song } from "@/core/songs/types";
 
-function SongActions({ song }: { song: Song }) {
-  const remove = () =>
-    confirm(`Delete “${song.title}”?`) && void songRepository.delete(song.id);
-
+function SongActions({
+  song,
+  onDelete,
+}: {
+  song: Song;
+  onDelete: (song: Song) => void;
+}) {
   return (
     <>
       <div className="hidden gap-1 sm:flex">
@@ -46,8 +51,9 @@ function SongActions({ song }: { song: Song }) {
         <Button
           variant="ghost"
           size="icon"
+          className="text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:text-rose-400 dark:hover:bg-rose-950/40 dark:hover:text-rose-300"
           aria-label="Delete song"
-          onClick={remove}
+          onClick={() => onDelete(song)}
         >
           <Trash2 size={17} />
         </Button>
@@ -88,7 +94,7 @@ function SongActions({ song }: { song: Song }) {
             <DropdownMenu.Separator className="my-1 h-px bg-slate-200 dark:bg-slate-700" />
             <DropdownMenu.Item
               className="flex min-h-11 cursor-pointer items-center gap-3 rounded-md px-3 text-sm font-semibold text-rose-600 outline-none hover:bg-rose-50 focus:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/40 dark:focus:bg-rose-950/40"
-              onSelect={remove}
+              onSelect={() => onDelete(song)}
             >
               <Trash2 size={17} />
               Delete
@@ -105,6 +111,12 @@ export function SongLibrary() {
   const songs = useMemo(() => liveSongs ?? [], [liveSongs]);
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<"updated" | "title">("updated");
+  const [deletingSong, setDeletingSong] = useState<Song | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [feedback, setFeedback] = useState<{
+    message: string;
+    tone: "success" | "error";
+  } | null>(null);
   const importRef = useRef<HTMLInputElement>(null);
   const filtered = useMemo(() => {
     const normalized = query.toLowerCase();
@@ -117,6 +129,12 @@ export function SongLibrary() {
       ? found.toSorted((a, b) => a.title.localeCompare(b.title))
       : found;
   }, [songs, query, sort]);
+
+  useEffect(() => {
+    if (!feedback || feedback.tone !== "success") return;
+    const timeout = window.setTimeout(() => setFeedback(null), 2500);
+    return () => window.clearTimeout(timeout);
+  }, [feedback]);
 
   async function backup() {
     const url = URL.createObjectURL(
@@ -139,8 +157,33 @@ export function SongLibrary() {
     }
   }
 
+  async function deleteSong() {
+    if (!deletingSong) return;
+    setDeleting(true);
+    setFeedback(null);
+    try {
+      await songRepository.delete(deletingSong.id);
+      setDeletingSong(null);
+      setFeedback({ message: "Song deleted", tone: "success" });
+    } catch {
+      setFeedback({
+        message: "Song could not be deleted. Please try again.",
+        tone: "error",
+      });
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   return (
-    <div className="mx-auto max-w-7xl px-3 py-6 pb-24 min-[375px]:px-4 sm:px-6 sm:py-8 lg:py-10">
+    <div
+      className="mx-auto max-w-7xl px-3 py-6 pb-32 min-[375px]:px-4 sm:px-6 sm:py-8 md:pb-40 lg:py-10 lg:pb-32"
+      data-testid="song-library"
+    >
+      <FeedbackToast
+        message={feedback?.message ?? null}
+        tone={feedback?.tone}
+      />
       <div className="mb-7 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div>
           <p className="mb-1 text-sm font-semibold text-indigo-600">
@@ -204,6 +247,7 @@ export function SongLibrary() {
           {filtered.map((song, index) => (
             <div
               key={song.id}
+              data-testid={`song-row-${song.id}`}
               className={`group flex min-w-0 items-center gap-3 p-4 sm:gap-4 ${index ? "border-t border-slate-100 dark:border-slate-800" : ""}`}
             >
               <div className="hidden h-10 w-10 place-items-center rounded-lg bg-indigo-50 text-indigo-600 sm:grid">
@@ -221,7 +265,7 @@ export function SongLibrary() {
                   · {song.sections.length} sections
                 </p>
               </Link>
-              <SongActions song={song} />
+              <SongActions song={song} onDelete={setDeletingSong} />
             </div>
           ))}
         </div>
@@ -247,6 +291,44 @@ export function SongLibrary() {
           </div>
         </Card>
       )}
+      <Dialog.Root
+        open={Boolean(deletingSong)}
+        onOpenChange={(open) => {
+          if (!open && !deleting) setDeletingSong(null);
+        }}
+      >
+        <Dialog.Portal>
+          <Dialog.Overlay
+            className="fixed inset-0 z-40 bg-slate-950/50 backdrop-blur-[1px]"
+            data-testid="song-delete-overlay"
+          />
+          <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[min(calc(100vw-2rem),28rem)] -translate-x-1/2 -translate-y-1/2 rounded-xl border border-slate-200 bg-white p-5 shadow-2xl outline-none dark:border-slate-800 dark:bg-slate-950">
+            <Dialog.Title className="text-lg font-bold">
+              Delete Song?
+            </Dialog.Title>
+            <Dialog.Description className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
+              Are you sure you want to delete “{deletingSong?.title}”? This
+              action cannot be undone.
+            </Dialog.Description>
+            <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <Dialog.Close asChild>
+                <Button type="button" variant="secondary" disabled={deleting}>
+                  Cancel
+                </Button>
+              </Dialog.Close>
+              <Button
+                type="button"
+                variant="danger"
+                disabled={deleting}
+                onClick={() => void deleteSong()}
+              >
+                <Trash2 size={16} />
+                {deleting ? "Deleting…" : "Delete"}
+              </Button>
+            </div>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
     </div>
   );
 }
