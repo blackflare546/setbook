@@ -28,16 +28,20 @@ import {
   ArrowLeft,
   ArrowUp,
   Check,
+  Copy,
   ExternalLink,
   GripVertical,
   Play,
   Plus,
+  QrCode,
+  RotateCw,
   Save,
   Search,
   Share2,
   Trash2,
   X,
 } from "lucide-react";
+import QRCode from "qrcode";
 import type { Setlist, SetlistSongEntry } from "@/core/setlists/types";
 import type { Song } from "@/core/songs/types";
 import { reorderEntries } from "@/core/setlists/operations";
@@ -45,6 +49,7 @@ import { setlistRepository } from "@/data/repositories/setlist-repository";
 import { songRepository } from "@/data/repositories/song-repository";
 import { createPublishedSnapshot } from "@/lib/sharing/snapshot";
 import { deletePublishedSetlistByToken } from "@/lib/sharing/published-client";
+import { fetchSharedSetlist } from "@/data/repositories/shared-setlist-repository";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input, Textarea } from "@/components/ui/input";
@@ -216,6 +221,8 @@ export function SetlistEditor({ id }: { id: string }) {
   const songs = useLiveQuery(() => songRepository.list(), []) ?? [];
   const [includeNotes, setIncludeNotes] = useState(false);
   const [includeLinks, setIncludeLinks] = useState(false);
+  const [sharedBy, setSharedBy] = useState("");
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [publishing, setPublishing] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deletingPublished, setDeletingPublished] = useState(false);
@@ -240,6 +247,9 @@ export function SetlistEditor({ id }: { id: string }) {
   useEffect(() => {
     void setlistRepository.get(id).then((value) => {
       setSetlist(value ?? null);
+      setIncludeNotes(value?.shareBinding?.includeNotes ?? false);
+      setIncludeLinks(value?.shareBinding?.includeLinks ?? false);
+      setSharedBy(value?.shareBinding?.sharedBy ?? "");
       setSaveState("idle");
     });
   }, [id]);
@@ -286,16 +296,31 @@ export function SetlistEditor({ id }: { id: string }) {
       const snapshot = createPublishedSnapshot(currentSetlist, songs, {
         includeNotes,
         includeLinks,
+        sharedBy,
       });
+      const binding = currentSetlist.shareBinding;
       const response = await fetch(
-        currentSetlist.publishToken
-          ? `/api/published-setlists/${currentSetlist.publishToken}`
+        binding
+          ? `/api/published-setlists/${binding.publicToken}`
           : "/api/published-setlists",
-        {
-          method: currentSetlist.publishToken ? "PUT" : "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify(snapshot),
-        },
+        binding
+          ? {
+              method: "PATCH",
+              headers: {
+                "content-type": "application/json",
+                authorization: `Bearer ${binding.ownerCapability}`,
+              },
+              body: JSON.stringify({
+                snapshot,
+                expectedRevision: binding.revision,
+                expectedEtag: binding.etag,
+              }),
+            }
+          : {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({ snapshot, accessMode: "view" }),
+            },
       );
       const result = await response.json().catch(() => null);
       if (!response.ok || !result?.token)
@@ -303,16 +328,35 @@ export function SetlistEditor({ id }: { id: string }) {
           result?.error ??
             `Unable to publish setlist (server returned ${response.status}).`,
         );
+      const nextBinding = binding
+        ? {
+            ...binding,
+            revision: result.revision,
+            etag: result.etag,
+            sharedBy: sharedBy.trim() || undefined,
+            includeNotes,
+            includeLinks,
+          }
+        : {
+            publicToken: result.token,
+            ownerCapability: result.ownerCapability,
+            editorCapability: result.editorCapability ?? undefined,
+            revision: result.revision,
+            etag: result.etag,
+            accessMode: result.accessMode as "view" | "editable",
+            sharedBy: sharedBy.trim() || undefined,
+            includeNotes,
+            includeLinks,
+          };
       const saved = await setlistRepository.save({
         ...currentSetlist,
         publishToken: result.token,
+        shareBinding: nextBinding,
       });
       setSetlist(saved);
       setSaveState("idle");
       setFeedback({
-        message: currentSetlist.publishToken
-          ? "Published setlist updated"
-          : "Setlist published",
+        message: binding ? "Shared setlist updated" : "Setlist shared",
         tone: "success",
       });
     } catch (error) {
@@ -326,21 +370,27 @@ export function SetlistEditor({ id }: { id: string }) {
     }
   }
   async function deletePublished() {
-    const token = currentSetlist.publishToken;
-    if (!token) return;
+    const binding = currentSetlist.shareBinding;
+    if (!binding) return;
     setDeletingPublished(true);
     setFeedback(null);
     try {
-      await deletePublishedSetlistByToken(token);
+      const latest = await fetchSharedSetlist(binding.publicToken);
+      await deletePublishedSetlistByToken(
+        binding.publicToken,
+        binding.ownerCapability,
+        latest.etag,
+      );
 
       const unpublishedSetlist: Setlist = { ...currentSetlist };
       delete unpublishedSetlist.publishToken;
+      delete unpublishedSetlist.shareBinding;
       const saved = await setlistRepository.save(unpublishedSetlist);
       setSetlist(saved);
       setSaveState("idle");
       setDeleteDialogOpen(false);
       setFeedback({
-        message: "Published setlist deleted",
+        message: "Sharing stopped",
         tone: "success",
       });
     } catch (error) {
@@ -354,6 +404,98 @@ export function SetlistEditor({ id }: { id: string }) {
       });
     } finally {
       setDeletingPublished(false);
+    }
+  }
+
+  async function copyText(value: string, message: string) {
+    await navigator.clipboard.writeText(value);
+    setFeedback({ message, tone: "success" });
+  }
+
+  function absoluteUrl(pathname: string): string {
+    return new URL(pathname, window.location.origin).toString();
+  }
+
+  async function showQrCode() {
+    const token = currentSetlist.shareBinding?.publicToken;
+    if (!token) return;
+    setQrDataUrl(
+      await QRCode.toDataURL(absoluteUrl(`/s/${token}`), {
+        width: 640,
+        margin: 2,
+      }),
+    );
+  }
+
+  function downloadRecoveryLink() {
+    const binding = currentSetlist.shareBinding;
+    if (!binding) return;
+    const value = absoluteUrl(
+      `/shared/${binding.publicToken}#owner=${binding.ownerCapability}`,
+    );
+    const blob = new Blob(
+      [
+        `SetBook owner recovery link for “${currentSetlist.name}”\n\n${value}\n\nKeep this file private. Anyone with this link can manage or delete the shared setlist.\n`,
+      ],
+      { type: "text/plain" },
+    );
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `${currentSetlist.name}-setbook-recovery.txt`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function changeAccess(
+    action: "set-mode" | "rotate-editor" | "rotate-owner",
+    mode?: "view" | "editable",
+  ) {
+    const binding = currentSetlist.shareBinding;
+    if (!binding) return;
+    setPublishing(true);
+    try {
+      const response = await fetch(
+        `/api/published-setlists/${binding.publicToken}/access`,
+        {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            authorization: `Bearer ${binding.ownerCapability}`,
+          },
+          body: JSON.stringify({
+            action,
+            mode,
+            expectedRevision: binding.revision,
+            expectedEtag: binding.etag,
+          }),
+        },
+      );
+      const result = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(result?.error ?? "Unable to update access.");
+      const nextBinding = {
+        ...binding,
+        revision: result.revision,
+        etag: result.etag,
+        accessMode: result.accessMode as "view" | "editable",
+        ownerCapability: result.ownerCapability ?? binding.ownerCapability,
+        editorCapability:
+          result.editorCapability ??
+          (result.accessMode === "view" ? undefined : binding.editorCapability),
+      };
+      const saved = await setlistRepository.save({
+        ...currentSetlist,
+        shareBinding: nextBinding,
+      });
+      setSetlist(saved);
+      setFeedback({ message: "Sharing access updated", tone: "success" });
+    } catch (error) {
+      setFeedback({
+        message: error instanceof Error ? error.message : "Unable to update access.",
+        tone: "error",
+      });
+    } finally {
+      setPublishing(false);
     }
   }
   const matchingSongs = songs.filter((song) =>
@@ -600,12 +742,22 @@ export function SetlistEditor({ id }: { id: string }) {
           <Card className="p-4">
             <div className="mb-3 flex items-center gap-2">
               <Share2 className="text-indigo-600" size={18} />
-              <h2 className="font-bold">Public link</h2>
+              <h2 className="font-bold">Sharing &amp; Access</h2>
             </div>
             <p className="mb-4 text-sm leading-6 text-slate-500">
-              Publish a read-only snapshot. Your private library stays on this
-              device.
+              The public link is always view-only. Enable editing only for
+              people who receive the separate editor link.
             </p>
+            <label className="mb-3 block text-sm font-semibold">
+              Shared by (optional)
+              <Input
+                className="mt-1"
+                value={sharedBy}
+                maxLength={80}
+                placeholder="Band or owner name"
+                onChange={(event) => setSharedBy(event.target.value)}
+              />
+            </label>
             <label className="mb-2 flex items-center gap-2 text-sm">
               <input
                 type="checkbox"
@@ -632,25 +784,134 @@ export function SetlistEditor({ id }: { id: string }) {
                 !setlist.entries.length
               }
             >
-              {setlist.publishToken ? (
+              {setlist.shareBinding ? (
                 <Check size={16} />
               ) : (
                 <Share2 size={16} />
               )}{" "}
               {publishing
                 ? "Publishing…"
-                : setlist.publishToken
+                : setlist.shareBinding
                   ? "Update published setlist"
-                  : "Publish setlist"}
+                  : setlist.publishToken
+                    ? "Upgrade sharing"
+                    : "Publish setlist"}
             </Button>
-            {setlist.publishToken && (
+            {setlist.publishToken && !setlist.shareBinding && (
+              <p className="mt-2 rounded-lg bg-amber-50 p-3 text-xs leading-5 text-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
+                This legacy link remains view-only. Upgrade to create secure
+                owner and editor controls with a new public URL.
+              </p>
+            )}
+            {setlist.shareBinding && (
               <div className="mt-2 space-y-2">
                 <Button asChild variant="secondary" className="w-full">
-                  <Link target="_blank" href={`/s/${setlist.publishToken}`}>
+                  <Link
+                    target="_blank"
+                    href={`/s/${setlist.shareBinding.publicToken}`}
+                  >
                     <ExternalLink size={16} />
                     Open public link
                   </Link>
                 </Button>
+                <Button asChild variant="secondary" className="w-full">
+                  <Link
+                    href={`/shared/${setlist.shareBinding.publicToken}#owner=${setlist.shareBinding.ownerCapability}`}
+                  >
+                    Open collaborative editor
+                  </Link>
+                </Button>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    variant="secondary"
+                    onClick={() =>
+                      void copyText(
+                        absoluteUrl(`/s/${setlist.shareBinding!.publicToken}`),
+                        "Public link copied",
+                      )
+                    }
+                  >
+                    <Copy size={16} /> Copy link
+                  </Button>
+                  <Button variant="secondary" onClick={() => void showQrCode()}>
+                    <QrCode size={16} /> QR code
+                  </Button>
+                </div>
+                <Button
+                  variant="secondary"
+                  className="w-full"
+                  onClick={downloadRecoveryLink}
+                >
+                  Download owner recovery file
+                </Button>
+                <div className="grid grid-cols-2 gap-2 rounded-lg bg-slate-100 p-1 dark:bg-slate-900">
+                  <button
+                    type="button"
+                    disabled={
+                      publishing || setlist.shareBinding.accessMode === "view"
+                    }
+                    className={`min-h-10 rounded-md px-2 text-xs font-bold ${setlist.shareBinding.accessMode === "view" ? "bg-white text-indigo-700 shadow-sm dark:bg-slate-800 dark:text-indigo-300" : "text-slate-500"}`}
+                    onClick={() => void changeAccess("set-mode", "view")}
+                  >
+                    View only
+                  </button>
+                  <button
+                    type="button"
+                    disabled={
+                      publishing ||
+                      setlist.shareBinding.accessMode === "editable"
+                    }
+                    className={`min-h-10 rounded-md px-2 text-xs font-bold ${setlist.shareBinding.accessMode === "editable" ? "bg-white text-indigo-700 shadow-sm dark:bg-slate-800 dark:text-indigo-300" : "text-slate-500"}`}
+                    onClick={() => void changeAccess("set-mode", "editable")}
+                  >
+                    Editable
+                  </button>
+                </div>
+                {setlist.shareBinding.accessMode === "editable" &&
+                  setlist.shareBinding.editorCapability && (
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button
+                        variant="secondary"
+                        onClick={() =>
+                          void copyText(
+                            absoluteUrl(
+                              `/shared/${setlist.shareBinding!.publicToken}#editor=${setlist.shareBinding!.editorCapability}`,
+                            ),
+                            "Editor link copied",
+                          )
+                        }
+                      >
+                        <Copy size={16} /> Editor link
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        onClick={() => void changeAccess("rotate-editor")}
+                      >
+                        <RotateCw size={16} /> Rotate
+                      </Button>
+                    </div>
+                  )}
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    variant="secondary"
+                    onClick={() =>
+                      void copyText(
+                        absoluteUrl(
+                          `/shared/${setlist.shareBinding!.publicToken}#owner=${setlist.shareBinding!.ownerCapability}`,
+                        ),
+                        "Owner recovery link copied",
+                      )
+                    }
+                  >
+                    <Copy size={16} /> Recovery link
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    onClick={() => void changeAccess("rotate-owner")}
+                  >
+                    <RotateCw size={16} /> Rotate owner
+                  </Button>
+                </div>
                 <Dialog.Root
                   open={deleteDialogOpen}
                   onOpenChange={(open) => {
@@ -660,18 +921,18 @@ export function SetlistEditor({ id }: { id: string }) {
                   <Dialog.Trigger asChild>
                     <Button variant="ghost" className="w-full text-rose-600">
                       <Trash2 size={16} />
-                      Delete Published Setlist
+                      Stop Sharing
                     </Button>
                   </Dialog.Trigger>
                   <Dialog.Portal>
                     <Dialog.Overlay className="fixed inset-0 z-40 bg-slate-950/50 backdrop-blur-[1px]" />
                     <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[min(calc(100vw-2rem),28rem)] -translate-x-1/2 -translate-y-1/2 rounded-xl border border-slate-200 bg-white p-5 shadow-2xl outline-none dark:border-slate-800 dark:bg-slate-950">
                       <Dialog.Title className="text-lg font-bold">
-                        Delete published setlist?
+                        Stop sharing this setlist?
                       </Dialog.Title>
                       <Dialog.Description className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
-                        This will make the public link unavailable. Your local
-                        setlist will not be deleted.
+                        This invalidates the public and editor links. Your local
+                        setlist and everyone’s imported songs remain available.
                       </Dialog.Description>
                       <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
                         <Dialog.Close asChild>
@@ -690,13 +951,36 @@ export function SetlistEditor({ id }: { id: string }) {
                           <Trash2 size={16} />
                           {deletingPublished
                             ? "Deleting…"
-                            : "Delete Published Setlist"}
+                            : "Stop Sharing"}
                         </Button>
                       </div>
                     </Dialog.Content>
                   </Dialog.Portal>
                 </Dialog.Root>
               </div>
+            )}
+            {qrDataUrl && (
+              <Dialog.Root open onOpenChange={(open) => !open && setQrDataUrl(null)}>
+                <Dialog.Portal>
+                  <Dialog.Overlay className="fixed inset-0 z-40 bg-slate-950/50" />
+                  <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[min(calc(100vw-2rem),28rem)] -translate-x-1/2 -translate-y-1/2 rounded-xl bg-white p-5 text-center shadow-2xl dark:bg-slate-950">
+                    <Dialog.Title className="text-lg font-bold">Public setlist QR code</Dialog.Title>
+                    <Dialog.Description className="mt-1 text-sm text-slate-500">
+                      This QR contains only the read-only public link.
+                    </Dialog.Description>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={qrDataUrl} alt="Public setlist QR code" className="mx-auto mt-4 w-full max-w-72 rounded-lg" />
+                    <div className="mt-4 flex justify-center gap-2">
+                      <Button asChild variant="secondary">
+                        <a href={qrDataUrl} download={`${setlist.name}-setlist-qr.png`}>
+                          Download QR
+                        </a>
+                      </Button>
+                      <Button onClick={() => setQrDataUrl(null)}>Done</Button>
+                    </div>
+                  </Dialog.Content>
+                </Dialog.Portal>
+              </Dialog.Root>
             )}
           </Card>
         </aside>

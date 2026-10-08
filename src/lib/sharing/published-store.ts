@@ -1,12 +1,17 @@
-import { del, get, put } from "@vercel/blob";
-import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
+import { BlobPreconditionFailedError, del, get, put } from "@vercel/blob";
+import { createHash, createHmac, timingSafeEqual } from "node:crypto";
+import { mkdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
-import type { PublishedSnapshot } from "@/lib/validation/schemas";
-import { deserializeSnapshot, serializeSnapshot } from "./snapshot";
+import {
+  publishedSnapshotSchema,
+  sharedSetlistRecordSchema,
+  type PublishedSnapshot,
+  type SharedSetlistRecord,
+} from "@/lib/validation/schemas";
 
 const directory = path.join(process.cwd(), "data", "published-setlists");
-const blobPath = (token: string) => `published-setlists/${token}.json`;
-const localPath = (token: string) => path.join(directory, `${token}.json`);
+const legacyBlobPath = (token: string) => `published-setlists/${token}.json`;
+const legacyLocalPath = (token: string) => path.join(directory, `${token}.json`);
 const shouldUseBlob = () =>
   Boolean(process.env.BLOB_READ_WRITE_TOKEN || process.env.BLOB_STORE_ID);
 const isVercelRuntime = () =>
@@ -20,6 +25,29 @@ export class PublishedStoreConfigurationError extends Error {
     this.name = "PublishedStoreConfigurationError";
   }
 }
+
+export class SharedRecordConflictError extends Error {
+  constructor() {
+    super("The shared setlist changed before this operation completed.");
+    this.name = "SharedRecordConflictError";
+  }
+}
+
+function serverSecret(): string {
+  const value = process.env.SHARE_CAPABILITY_SECRET;
+  if (value) return value;
+  if (isVercelRuntime()) throw new PublishedStoreConfigurationError();
+  return "setbook-local-development-capability-secret";
+}
+
+function recordKey(token: string): string {
+  return createHmac("sha256", serverSecret()).update(`record:${token}`).digest("hex");
+}
+
+const recordBlobPath = (token: string) =>
+  `shared-setlists-v2/${recordKey(token)}.json`;
+const recordLocalPath = (token: string) =>
+  path.join(directory, `v2-${recordKey(token)}.json`);
 
 function usesBlobStorage(): boolean {
   if (shouldUseBlob()) return true;
@@ -41,26 +69,184 @@ export function publishedStoreErrorResponse(error: unknown): {
 } {
   if (error instanceof PublishedStoreConfigurationError)
     return { error: error.message, status: 503 };
+  if (
+    error instanceof SharedRecordConflictError ||
+    error instanceof BlobPreconditionFailedError
+  )
+    return {
+      error: "Someone updated this setlist. Load the latest version before saving.",
+      status: 409,
+    };
   return {
     error:
-      "Published setlist storage is unavailable. Check the Vercel Blob connection and environment configuration.",
+      "Shared setlist storage is unavailable. Check the Vercel Blob connection and environment configuration.",
     status: 502,
   };
 }
 
-export function createPublicToken(length = 8): string {
+export function createPublicToken(length = 20): string {
   const alphabet = "23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
   const bytes = crypto.getRandomValues(new Uint8Array(length));
   return Array.from(bytes, (byte) => alphabet[byte % alphabet.length]).join("");
 }
 
+export function createCapability(): string {
+  return Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString(
+    "base64url",
+  );
+}
+
+export function capabilityVerifier(capability: string): string {
+  return createHmac("sha256", serverSecret())
+    .update(`capability:${capability}`)
+    .digest("base64url");
+}
+
+export function capabilityMatches(
+  capability: string | null,
+  verifier: string | null,
+): boolean {
+  if (!capability || !verifier) return false;
+  const actual = Buffer.from(capabilityVerifier(capability));
+  const expected = Buffer.from(verifier);
+  return actual.length === expected.length && timingSafeEqual(actual, expected);
+}
+
+function localEtag(body: string): string {
+  return `\"${createHash("sha256").update(body).digest("hex")}\"`;
+}
+
+export interface StoredSharedRecord {
+  record: SharedSetlistRecord;
+  etag: string;
+}
+
+export async function createSharedRecord(
+  record: SharedSetlistRecord,
+): Promise<string> {
+  const body = JSON.stringify(sharedSetlistRecordSchema.parse(record));
+  if (usesBlobStorage()) {
+    const result = await put(recordBlobPath(record.publicToken), body, {
+      access: "public",
+      addRandomSuffix: false,
+      allowOverwrite: false,
+      contentType: "application/json",
+      cacheControlMaxAge: 60,
+    });
+    return result.etag;
+  }
+  await mkdir(directory, { recursive: true });
+  await writeFile(recordLocalPath(record.publicToken), body, {
+    encoding: "utf8",
+    flag: "wx",
+  });
+  return localEtag(body);
+}
+
+export async function readSharedRecord(
+  token: string,
+): Promise<StoredSharedRecord | null> {
+  if (usesBlobStorage()) {
+    const result = await get(recordBlobPath(token), { access: "public" });
+    if (!result || result.statusCode !== 200 || !result.stream) return null;
+    const body = await new Response(result.stream).text();
+    return {
+      record: sharedSetlistRecordSchema.parse(JSON.parse(body)),
+      etag: result.blob.etag,
+    };
+  }
+  try {
+    const body = await readFile(recordLocalPath(token), "utf8");
+    return {
+      record: sharedSetlistRecordSchema.parse(JSON.parse(body)),
+      etag: localEtag(body),
+    };
+  } catch (error) {
+    if (isMissingLocalFile(error)) return null;
+    throw error;
+  }
+}
+
+export async function replaceSharedRecord(
+  record: SharedSetlistRecord,
+  expectedEtag: string,
+): Promise<string> {
+  const body = JSON.stringify(sharedSetlistRecordSchema.parse(record));
+  if (usesBlobStorage()) {
+    const result = await put(recordBlobPath(record.publicToken), body, {
+      access: "public",
+      addRandomSuffix: false,
+      allowOverwrite: true,
+      ifMatch: expectedEtag,
+      contentType: "application/json",
+      cacheControlMaxAge: 60,
+    });
+    return result.etag;
+  }
+  const pathname = recordLocalPath(record.publicToken);
+  let current: string;
+  try {
+    current = await readFile(pathname, "utf8");
+  } catch (error) {
+    if (isMissingLocalFile(error)) throw new SharedRecordConflictError();
+    throw error;
+  }
+  if (localEtag(current) !== expectedEtag) throw new SharedRecordConflictError();
+  const temporary = `${pathname}.${crypto.randomUUID()}.tmp`;
+  await writeFile(temporary, body, "utf8");
+  await rename(temporary, pathname);
+  return localEtag(body);
+}
+
+export async function deleteSharedRecord(
+  token: string,
+  expectedEtag: string,
+): Promise<void> {
+  if (usesBlobStorage()) {
+    await del(recordBlobPath(token), { ifMatch: expectedEtag });
+    return;
+  }
+  const pathname = recordLocalPath(token);
+  try {
+    const body = await readFile(pathname, "utf8");
+    if (localEtag(body) !== expectedEtag) throw new SharedRecordConflictError();
+    await unlink(pathname);
+  } catch (error) {
+    if (isMissingLocalFile(error)) return;
+    throw error;
+  }
+}
+
+export async function readPublishedSnapshot(
+  token: string,
+): Promise<PublishedSnapshot | null> {
+  const v2 = await readSharedRecord(token);
+  if (v2) return v2.record.snapshot;
+  if (usesBlobStorage()) {
+    const result = await get(legacyBlobPath(token), { access: "public" });
+    if (!result || result.statusCode !== 200 || !result.stream) return null;
+    return publishedSnapshotSchema.parse(
+      JSON.parse(await new Response(result.stream).text()),
+    );
+  }
+  try {
+    return publishedSnapshotSchema.parse(
+      JSON.parse(await readFile(legacyLocalPath(token), "utf8")),
+    );
+  } catch (error) {
+    if (isMissingLocalFile(error)) return null;
+    throw error;
+  }
+}
+
+// Retained for legacy fixtures. New API mutations use v2 records.
 export async function savePublishedSnapshot(
   token: string,
   snapshot: PublishedSnapshot,
 ): Promise<void> {
-  const body = serializeSnapshot(snapshot);
+  const body = JSON.stringify(publishedSnapshotSchema.parse(snapshot));
   if (usesBlobStorage()) {
-    await put(blobPath(token), body, {
+    await put(legacyBlobPath(token), body, {
       access: "public",
       addRandomSuffix: false,
       allowOverwrite: true,
@@ -70,29 +256,13 @@ export async function savePublishedSnapshot(
     return;
   }
   await mkdir(directory, { recursive: true });
-  await writeFile(localPath(token), body, "utf8");
-}
-
-export async function readPublishedSnapshot(
-  token: string,
-): Promise<PublishedSnapshot | null> {
-  if (usesBlobStorage()) {
-    const result = await get(blobPath(token), { access: "public" });
-    if (!result || result.statusCode !== 200) return null;
-    return deserializeSnapshot(await new Response(result.stream).text());
-  }
-  try {
-    return deserializeSnapshot(await readFile(localPath(token), "utf8"));
-  } catch (error) {
-    if (isMissingLocalFile(error)) return null;
-    throw error;
-  }
+  await writeFile(legacyLocalPath(token), body, "utf8");
 }
 
 export async function deletePublishedSnapshot(token: string): Promise<void> {
   try {
-    if (usesBlobStorage()) await del(blobPath(token));
-    else await unlink(localPath(token));
+    if (usesBlobStorage()) await del(legacyBlobPath(token));
+    else await unlink(legacyLocalPath(token));
   } catch (error) {
     if (isMissingLocalFile(error)) return;
     throw error;

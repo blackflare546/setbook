@@ -1,14 +1,28 @@
 import { NextResponse } from "next/server";
-import { publishedSnapshotSchema } from "@/lib/validation/schemas";
+import { z } from "zod";
+import { publishedSnapshotV2Schema } from "@/lib/validation/schemas";
 import {
-  deletePublishedSnapshot,
+  capabilityMatches,
+  deleteSharedRecord,
   publishedStoreErrorResponse,
   readPublishedSnapshot,
-  savePublishedSnapshot,
+  readSharedRecord,
+  replaceSharedRecord,
 } from "@/lib/sharing/published-store";
 
+const updateSchema = z.object({
+  snapshot: publishedSnapshotV2Schema,
+  expectedRevision: z.number().int().positive(),
+  expectedEtag: z.string().min(1),
+});
+
 function validToken(token: string) {
-  return /^[A-Za-z0-9]{6,24}$/.test(token);
+  return /^[A-Za-z0-9]{6,40}$/.test(token);
+}
+
+function bearer(request: Request): string | null {
+  const value = request.headers.get("authorization");
+  return value?.startsWith("Bearer ") ? value.slice(7) : null;
 }
 
 export async function GET(
@@ -19,72 +33,115 @@ export async function GET(
   if (!validToken(token))
     return NextResponse.json({ error: "Invalid token" }, { status: 400 });
   try {
+    const stored = await readSharedRecord(token);
+    if (stored)
+      return NextResponse.json(
+        {
+          ...stored.record.snapshot,
+          revision: stored.record.revision,
+          accessMode: stored.record.accessMode,
+          updatedAt: stored.record.updatedAt,
+        },
+        { headers: { ETag: stored.etag, "Cache-Control": "no-store" } },
+      );
     const snapshot = await readPublishedSnapshot(token);
     return snapshot
-      ? NextResponse.json(snapshot)
+      ? NextResponse.json(snapshot, {
+          headers: { "Cache-Control": "public, max-age=60" },
+        })
       : NextResponse.json(
-          { error: "Published setlist not found" },
+          { error: "Shared setlist not found" },
           { status: 404 },
         );
   } catch (error) {
-    console.error("Unable to read published setlist", error);
+    console.error("Unable to read shared setlist", error);
     const failure = publishedStoreErrorResponse(error);
-    return NextResponse.json(
-      { error: failure.error },
-      { status: failure.status },
-    );
+    return NextResponse.json({ error: failure.error }, { status: failure.status });
   }
 }
 
-export async function PUT(
+async function update(
+  request: Request,
+  context: { params: Promise<{ token: string }> },
+) {
+  const { token } = await context.params;
+  if (!validToken(token))
+    return NextResponse.json({ error: "Invalid token" }, { status: 400 });
+  const parsed = updateSchema.safeParse(await request.json().catch(() => null));
+  if (!parsed.success)
+    return NextResponse.json(
+      { error: "Invalid shared setlist", details: parsed.error.flatten() },
+      { status: 400 },
+    );
+  try {
+    const stored = await readSharedRecord(token);
+    if (!stored)
+      return NextResponse.json(
+        { error: "Legacy shared setlists are read-only. Upgrade sharing first." },
+        { status: 409 },
+      );
+    const capability = bearer(request);
+    const owner = capabilityMatches(capability, stored.record.ownerVerifier);
+    const editor = capabilityMatches(capability, stored.record.editorVerifier);
+    if (!owner && !(editor && stored.record.accessMode === "editable"))
+      return NextResponse.json({ error: "Edit access denied" }, { status: 403 });
+    if (
+      parsed.data.expectedRevision !== stored.record.revision ||
+      parsed.data.expectedEtag !== stored.etag
+    )
+      return NextResponse.json(
+        { error: "Someone updated this setlist. Load the latest version before saving." },
+        { status: 409 },
+      );
+    const now = new Date().toISOString();
+    const revision = stored.record.revision + 1;
+    const etag = await replaceSharedRecord(
+      {
+        ...stored.record,
+        revision,
+        snapshot: { ...parsed.data.snapshot, publishedAt: now },
+        updatedAt: now,
+      },
+      stored.etag,
+    );
+    return NextResponse.json({ token, revision, etag, updatedAt: now });
+  } catch (error) {
+    console.error("Unable to update shared setlist", error);
+    const failure = publishedStoreErrorResponse(error);
+    return NextResponse.json({ error: failure.error }, { status: failure.status });
+  }
+}
+
+export const PATCH = update;
+export const PUT = update;
+
+export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ token: string }> },
 ) {
   const { token } = await params;
   if (!validToken(token))
     return NextResponse.json({ error: "Invalid token" }, { status: 400 });
-  const parsed = publishedSnapshotSchema.safeParse(
-    await request.json().catch(() => null),
-  );
-  if (!parsed.success)
-    return NextResponse.json(
-      { error: "Invalid published setlist", details: parsed.error.flatten() },
-      { status: 400 },
-    );
   try {
-    if (!(await readPublishedSnapshot(token)))
+    const stored = await readSharedRecord(token);
+    if (!stored)
       return NextResponse.json(
-        { error: "Published setlist not found" },
-        { status: 404 },
+        { error: "Legacy shared setlists are read-only." },
+        { status: 409 },
       );
-    await savePublishedSnapshot(token, parsed.data);
-    return NextResponse.json({ token, url: `/s/${token}` });
-  } catch (error) {
-    console.error("Unable to update published setlist", error);
-    const failure = publishedStoreErrorResponse(error);
-    return NextResponse.json(
-      { error: failure.error },
-      { status: failure.status },
-    );
-  }
-}
-
-export async function DELETE(
-  _: Request,
-  { params }: { params: Promise<{ token: string }> },
-) {
-  const { token } = await params;
-  if (!validToken(token))
-    return NextResponse.json({ error: "Invalid token" }, { status: 400 });
-  try {
-    await deletePublishedSnapshot(token);
+    if (!capabilityMatches(bearer(request), stored.record.ownerVerifier))
+      return NextResponse.json({ error: "Owner access required" }, { status: 403 });
+    const expectedEtag = request.headers.get("if-match");
+    if (!expectedEtag || expectedEtag !== stored.etag)
+      return NextResponse.json(
+        { error: "Someone updated this setlist. Refresh before deleting." },
+        { status: 409 },
+      );
+    await deleteSharedRecord(token, expectedEtag);
     return new NextResponse(null, { status: 204 });
   } catch (error) {
-    console.error("Unable to delete published setlist", error);
+    console.error("Unable to delete shared setlist", error);
     const failure = publishedStoreErrorResponse(error);
-    return NextResponse.json(
-      { error: failure.error },
-      { status: failure.status },
-    );
+    return NextResponse.json({ error: failure.error }, { status: failure.status });
   }
 }

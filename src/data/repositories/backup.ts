@@ -38,12 +38,17 @@ const backupSchema = z.object({
 });
 
 export async function exportLibrary(): Promise<string> {
+  const setlists = (await db.setlists.toArray()).map((setlist) => {
+    const safe = { ...setlist };
+    delete safe.shareBinding;
+    return safe;
+  });
   return JSON.stringify(
     {
       version: 1,
       exportedAt: new Date().toISOString(),
       songs: await db.songs.toArray(),
-      setlists: await db.setlists.toArray(),
+      setlists,
       settings: await db.settings.toArray(),
     },
     null,

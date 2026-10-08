@@ -48,6 +48,12 @@ export interface Song {
   sourceText: string;
   createdAt: string;
   updatedAt: string;
+  sharedSource?: {
+    publicToken: string;
+    sharedSongId: string;
+    importedRevision: number;
+    contentHash: string;
+  };
 }
 
 export const newId = () => crypto.randomUUID();

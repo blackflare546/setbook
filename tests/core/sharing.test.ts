@@ -41,6 +41,9 @@ describe("published snapshots", () => {
       includeNotes: false,
       includeLinks: false,
     });
+    expect(snapshot.version).toBe(2);
+    expect(snapshot.songs[0].sharedSongId).toBe("song");
+    expect(snapshot.songs[0].contentHash).toBeTruthy();
     expect(snapshot.notes).toBeUndefined();
     expect(snapshot.songs[0].performanceKey).toBe("A");
     expect(snapshot.songs[0].arrangementCue).toBe("Count four");

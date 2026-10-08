@@ -3,11 +3,21 @@ import {
   PublishedStoreConfigurationError,
   publishedStoreErrorResponse,
   readPublishedSnapshot,
+  capabilityMatches,
+  capabilityVerifier,
+  createCapability,
 } from "@/lib/sharing/published-store";
 
 afterEach(() => vi.unstubAllEnvs());
 
 describe("published setlist storage configuration", () => {
+  it("verifies high-entropy capabilities without storing the raw value", () => {
+    const capability = createCapability();
+    const verifier = capabilityVerifier(capability);
+    expect(verifier).not.toContain(capability);
+    expect(capabilityMatches(capability, verifier)).toBe(true);
+    expect(capabilityMatches(createCapability(), verifier)).toBe(false);
+  });
   it("never falls back to the deployment filesystem on Vercel", async () => {
     vi.stubEnv("VERCEL", "1");
     vi.stubEnv("VERCEL_ENV", "production");
