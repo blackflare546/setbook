@@ -39,7 +39,6 @@ export async function GET(
         {
           ...stored.record.snapshot,
           revision: stored.record.revision,
-          accessMode: stored.record.accessMode,
           updatedAt: stored.record.updatedAt,
         },
         { headers: { ETag: stored.etag, "Cache-Control": "no-store" } },
@@ -56,7 +55,10 @@ export async function GET(
   } catch (error) {
     console.error("Unable to read shared setlist", error);
     const failure = publishedStoreErrorResponse(error);
-    return NextResponse.json({ error: failure.error }, { status: failure.status });
+    return NextResponse.json(
+      { error: failure.error },
+      { status: failure.status },
+    );
   }
 }
 
@@ -77,29 +79,38 @@ async function update(
     const stored = await readSharedRecord(token);
     if (!stored)
       return NextResponse.json(
-        { error: "Legacy shared setlists are read-only. Upgrade sharing first." },
+        {
+          error: "Legacy shared setlists are read-only. Upgrade sharing first.",
+        },
         { status: 409 },
       );
     const capability = bearer(request);
-    const owner = capabilityMatches(capability, stored.record.ownerVerifier);
-    const editor = capabilityMatches(capability, stored.record.editorVerifier);
-    if (!owner && !(editor && stored.record.accessMode === "editable"))
-      return NextResponse.json({ error: "Edit access denied" }, { status: 403 });
+    if (!capabilityMatches(capability, stored.record.ownerVerifier))
+      return NextResponse.json(
+        { error: "Owner access required" },
+        { status: 403 },
+      );
     if (
       parsed.data.expectedRevision !== stored.record.revision ||
       parsed.data.expectedEtag !== stored.etag
     )
       return NextResponse.json(
-        { error: "Someone updated this setlist. Load the latest version before saving." },
+        {
+          error:
+            "Someone updated this setlist. Load the latest version before saving.",
+        },
         { status: 409 },
       );
     const now = new Date().toISOString();
     const revision = stored.record.revision + 1;
     const etag = await replaceSharedRecord(
       {
-        ...stored.record,
+        schemaVersion: 2,
+        publicToken: stored.record.publicToken,
         revision,
         snapshot: { ...parsed.data.snapshot, publishedAt: now },
+        ownerVerifier: stored.record.ownerVerifier,
+        createdAt: stored.record.createdAt,
         updatedAt: now,
       },
       stored.etag,
@@ -108,12 +119,14 @@ async function update(
   } catch (error) {
     console.error("Unable to update shared setlist", error);
     const failure = publishedStoreErrorResponse(error);
-    return NextResponse.json({ error: failure.error }, { status: failure.status });
+    return NextResponse.json(
+      { error: failure.error },
+      { status: failure.status },
+    );
   }
 }
 
 export const PATCH = update;
-export const PUT = update;
 
 export async function DELETE(
   request: Request,
@@ -130,7 +143,10 @@ export async function DELETE(
         { status: 409 },
       );
     if (!capabilityMatches(bearer(request), stored.record.ownerVerifier))
-      return NextResponse.json({ error: "Owner access required" }, { status: 403 });
+      return NextResponse.json(
+        { error: "Owner access required" },
+        { status: 403 },
+      );
     const expectedEtag = request.headers.get("if-match");
     if (!expectedEtag || expectedEtag !== stored.etag)
       return NextResponse.json(
@@ -142,6 +158,9 @@ export async function DELETE(
   } catch (error) {
     console.error("Unable to delete shared setlist", error);
     const failure = publishedStoreErrorResponse(error);
-    return NextResponse.json({ error: failure.error }, { status: failure.status });
+    return NextResponse.json(
+      { error: failure.error },
+      { status: failure.status },
+    );
   }
 }

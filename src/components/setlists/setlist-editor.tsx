@@ -34,7 +34,6 @@ import {
   Play,
   Plus,
   QrCode,
-  RotateCw,
   Save,
   Search,
   Share2,
@@ -319,7 +318,7 @@ export function SetlistEditor({ id }: { id: string }) {
           : {
               method: "POST",
               headers: { "content-type": "application/json" },
-              body: JSON.stringify({ snapshot, accessMode: "view" }),
+              body: JSON.stringify({ snapshot }),
             },
       );
       const result = await response.json().catch(() => null);
@@ -340,10 +339,8 @@ export function SetlistEditor({ id }: { id: string }) {
         : {
             publicToken: result.token,
             ownerCapability: result.ownerCapability,
-            editorCapability: result.editorCapability ?? undefined,
             revision: result.revision,
             etag: result.etag,
-            accessMode: result.accessMode as "view" | "editable",
             sharedBy: sharedBy.trim() || undefined,
             includeNotes,
             includeLinks,
@@ -427,77 +424,6 @@ export function SetlistEditor({ id }: { id: string }) {
     );
   }
 
-  function downloadRecoveryLink() {
-    const binding = currentSetlist.shareBinding;
-    if (!binding) return;
-    const value = absoluteUrl(
-      `/shared/${binding.publicToken}#owner=${binding.ownerCapability}`,
-    );
-    const blob = new Blob(
-      [
-        `SetBook owner recovery link for “${currentSetlist.name}”\n\n${value}\n\nKeep this file private. Anyone with this link can manage or delete the shared setlist.\n`,
-      ],
-      { type: "text/plain" },
-    );
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = `${currentSetlist.name}-setbook-recovery.txt`;
-    anchor.click();
-    URL.revokeObjectURL(url);
-  }
-
-  async function changeAccess(
-    action: "set-mode" | "rotate-editor" | "rotate-owner",
-    mode?: "view" | "editable",
-  ) {
-    const binding = currentSetlist.shareBinding;
-    if (!binding) return;
-    setPublishing(true);
-    try {
-      const response = await fetch(
-        `/api/published-setlists/${binding.publicToken}/access`,
-        {
-          method: "POST",
-          headers: {
-            "content-type": "application/json",
-            authorization: `Bearer ${binding.ownerCapability}`,
-          },
-          body: JSON.stringify({
-            action,
-            mode,
-            expectedRevision: binding.revision,
-            expectedEtag: binding.etag,
-          }),
-        },
-      );
-      const result = await response.json().catch(() => null);
-      if (!response.ok) throw new Error(result?.error ?? "Unable to update access.");
-      const nextBinding = {
-        ...binding,
-        revision: result.revision,
-        etag: result.etag,
-        accessMode: result.accessMode as "view" | "editable",
-        ownerCapability: result.ownerCapability ?? binding.ownerCapability,
-        editorCapability:
-          result.editorCapability ??
-          (result.accessMode === "view" ? undefined : binding.editorCapability),
-      };
-      const saved = await setlistRepository.save({
-        ...currentSetlist,
-        shareBinding: nextBinding,
-      });
-      setSetlist(saved);
-      setFeedback({ message: "Sharing access updated", tone: "success" });
-    } catch (error) {
-      setFeedback({
-        message: error instanceof Error ? error.message : "Unable to update access.",
-        tone: "error",
-      });
-    } finally {
-      setPublishing(false);
-    }
-  }
   const matchingSongs = songs.filter((song) =>
     `${song.title} ${song.artist}`
       .toLocaleLowerCase()
@@ -742,11 +668,11 @@ export function SetlistEditor({ id }: { id: string }) {
           <Card className="p-4">
             <div className="mb-3 flex items-center gap-2">
               <Share2 className="text-indigo-600" size={18} />
-              <h2 className="font-bold">Sharing &amp; Access</h2>
+              <h2 className="font-bold">Share Setlist</h2>
             </div>
             <p className="mb-4 text-sm leading-6 text-slate-500">
-              The public link is always view-only. Enable editing only for
-              people who receive the separate editor link.
+              Share a simple read-only link. Only this browser can publish
+              updates or stop sharing.
             </p>
             <label className="mb-3 block text-sm font-semibold">
               Shared by (optional)
@@ -800,7 +726,7 @@ export function SetlistEditor({ id }: { id: string }) {
             {setlist.publishToken && !setlist.shareBinding && (
               <p className="mt-2 rounded-lg bg-amber-50 p-3 text-xs leading-5 text-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
                 This legacy link remains view-only. Upgrade to create secure
-                owner and editor controls with a new public URL.
+                owner controls with a new public URL.
               </p>
             )}
             {setlist.shareBinding && (
@@ -812,13 +738,6 @@ export function SetlistEditor({ id }: { id: string }) {
                   >
                     <ExternalLink size={16} />
                     Open public link
-                  </Link>
-                </Button>
-                <Button asChild variant="secondary" className="w-full">
-                  <Link
-                    href={`/shared/${setlist.shareBinding.publicToken}#owner=${setlist.shareBinding.ownerCapability}`}
-                  >
-                    Open collaborative editor
                   </Link>
                 </Button>
                 <div className="grid grid-cols-2 gap-2">
@@ -835,81 +754,6 @@ export function SetlistEditor({ id }: { id: string }) {
                   </Button>
                   <Button variant="secondary" onClick={() => void showQrCode()}>
                     <QrCode size={16} /> QR code
-                  </Button>
-                </div>
-                <Button
-                  variant="secondary"
-                  className="w-full"
-                  onClick={downloadRecoveryLink}
-                >
-                  Download owner recovery file
-                </Button>
-                <div className="grid grid-cols-2 gap-2 rounded-lg bg-slate-100 p-1 dark:bg-slate-900">
-                  <button
-                    type="button"
-                    disabled={
-                      publishing || setlist.shareBinding.accessMode === "view"
-                    }
-                    className={`min-h-10 rounded-md px-2 text-xs font-bold ${setlist.shareBinding.accessMode === "view" ? "bg-white text-indigo-700 shadow-sm dark:bg-slate-800 dark:text-indigo-300" : "text-slate-500"}`}
-                    onClick={() => void changeAccess("set-mode", "view")}
-                  >
-                    View only
-                  </button>
-                  <button
-                    type="button"
-                    disabled={
-                      publishing ||
-                      setlist.shareBinding.accessMode === "editable"
-                    }
-                    className={`min-h-10 rounded-md px-2 text-xs font-bold ${setlist.shareBinding.accessMode === "editable" ? "bg-white text-indigo-700 shadow-sm dark:bg-slate-800 dark:text-indigo-300" : "text-slate-500"}`}
-                    onClick={() => void changeAccess("set-mode", "editable")}
-                  >
-                    Editable
-                  </button>
-                </div>
-                {setlist.shareBinding.accessMode === "editable" &&
-                  setlist.shareBinding.editorCapability && (
-                    <div className="grid grid-cols-2 gap-2">
-                      <Button
-                        variant="secondary"
-                        onClick={() =>
-                          void copyText(
-                            absoluteUrl(
-                              `/shared/${setlist.shareBinding!.publicToken}#editor=${setlist.shareBinding!.editorCapability}`,
-                            ),
-                            "Editor link copied",
-                          )
-                        }
-                      >
-                        <Copy size={16} /> Editor link
-                      </Button>
-                      <Button
-                        variant="secondary"
-                        onClick={() => void changeAccess("rotate-editor")}
-                      >
-                        <RotateCw size={16} /> Rotate
-                      </Button>
-                    </div>
-                  )}
-                <div className="grid grid-cols-2 gap-2">
-                  <Button
-                    variant="secondary"
-                    onClick={() =>
-                      void copyText(
-                        absoluteUrl(
-                          `/shared/${setlist.shareBinding!.publicToken}#owner=${setlist.shareBinding!.ownerCapability}`,
-                        ),
-                        "Owner recovery link copied",
-                      )
-                    }
-                  >
-                    <Copy size={16} /> Recovery link
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    onClick={() => void changeAccess("rotate-owner")}
-                  >
-                    <RotateCw size={16} /> Rotate owner
                   </Button>
                 </div>
                 <Dialog.Root
@@ -931,8 +775,8 @@ export function SetlistEditor({ id }: { id: string }) {
                         Stop sharing this setlist?
                       </Dialog.Title>
                       <Dialog.Description className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
-                        This invalidates the public and editor links. Your local
-                        setlist and everyone’s imported songs remain available.
+                        This removes the public link. Your local setlist and
+                        everyone’s imported songs remain available.
                       </Dialog.Description>
                       <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
                         <Dialog.Close asChild>
@@ -949,9 +793,7 @@ export function SetlistEditor({ id }: { id: string }) {
                           onClick={() => void deletePublished()}
                         >
                           <Trash2 size={16} />
-                          {deletingPublished
-                            ? "Deleting…"
-                            : "Stop Sharing"}
+                          {deletingPublished ? "Deleting…" : "Stop Sharing"}
                         </Button>
                       </div>
                     </Dialog.Content>
@@ -960,19 +802,31 @@ export function SetlistEditor({ id }: { id: string }) {
               </div>
             )}
             {qrDataUrl && (
-              <Dialog.Root open onOpenChange={(open) => !open && setQrDataUrl(null)}>
+              <Dialog.Root
+                open
+                onOpenChange={(open) => !open && setQrDataUrl(null)}
+              >
                 <Dialog.Portal>
                   <Dialog.Overlay className="fixed inset-0 z-40 bg-slate-950/50" />
                   <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[min(calc(100vw-2rem),28rem)] -translate-x-1/2 -translate-y-1/2 rounded-xl bg-white p-5 text-center shadow-2xl dark:bg-slate-950">
-                    <Dialog.Title className="text-lg font-bold">Public setlist QR code</Dialog.Title>
+                    <Dialog.Title className="text-lg font-bold">
+                      Public setlist QR code
+                    </Dialog.Title>
                     <Dialog.Description className="mt-1 text-sm text-slate-500">
                       This QR contains only the read-only public link.
                     </Dialog.Description>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={qrDataUrl} alt="Public setlist QR code" className="mx-auto mt-4 w-full max-w-72 rounded-lg" />
+                    <img
+                      src={qrDataUrl}
+                      alt="Public setlist QR code"
+                      className="mx-auto mt-4 w-full max-w-72 rounded-lg"
+                    />
                     <div className="mt-4 flex justify-center gap-2">
                       <Button asChild variant="secondary">
-                        <a href={qrDataUrl} download={`${setlist.name}-setlist-qr.png`}>
+                        <a
+                          href={qrDataUrl}
+                          download={`${setlist.name}-setlist-qr.png`}
+                        >
                           Download QR
                         </a>
                       </Button>

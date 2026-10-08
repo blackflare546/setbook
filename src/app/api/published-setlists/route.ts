@@ -10,15 +10,12 @@ import {
   readPublishedSnapshot,
 } from "@/lib/sharing/published-store";
 
-const createSchema = z.object({
-  snapshot: publishedSnapshotV2Schema,
-  accessMode: z.enum(["view", "editable"]).default("view"),
-});
+const createSchema = z.object({ snapshot: publishedSnapshotV2Schema });
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => null);
   const parsed = createSchema.safeParse(
-    body?.snapshot ? body : { snapshot: body, accessMode: "view" },
+    body?.snapshot ? body : { snapshot: body },
   );
   if (!parsed.success)
     return NextResponse.json(
@@ -34,20 +31,14 @@ export async function POST(request: Request) {
     )
       token = createPublicToken();
     const ownerCapability = createCapability();
-    const editorCapability =
-      parsed.data.accessMode === "editable" ? createCapability() : null;
     const now = new Date().toISOString();
     const snapshot = { ...parsed.data.snapshot, publishedAt: now };
     const etag = await createSharedRecord({
       schemaVersion: 2,
       publicToken: token,
       revision: 1,
-      accessMode: parsed.data.accessMode,
       snapshot,
       ownerVerifier: capabilityVerifier(ownerCapability),
-      editorVerifier: editorCapability
-        ? capabilityVerifier(editorCapability)
-        : null,
       createdAt: now,
       updatedAt: now,
     });
@@ -57,19 +48,16 @@ export async function POST(request: Request) {
         url: `/s/${token}`,
         revision: 1,
         etag,
-        accessMode: parsed.data.accessMode,
         ownerCapability,
-        editorCapability,
-        recoveryUrl: `/shared/${token}#owner=${ownerCapability}`,
-        editorUrl: editorCapability
-          ? `/shared/${token}#editor=${editorCapability}`
-          : null,
       },
       { status: 201 },
     );
   } catch (error) {
     console.error("Unable to create shared setlist", error);
     const failure = publishedStoreErrorResponse(error);
-    return NextResponse.json({ error: failure.error }, { status: failure.status });
+    return NextResponse.json(
+      { error: failure.error },
+      { status: failure.status },
+    );
   }
 }

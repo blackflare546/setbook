@@ -611,8 +611,12 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
   expect(publishedSnapshot).not.toHaveProperty("theme");
   await page.goto(firstShareUrl!);
   await expect(page.getByText("Shared setlist")).toBeVisible();
-  await expect(page.getByRole("link", { name: "Open in SetBook" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Import all songs" })).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Open in SetBook" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Import all songs" }),
+  ).toHaveCount(0);
   await page.setViewportSize({ width: 1024, height: 900 });
   await expect(page.getByLabel("Open performance menu")).toHaveCount(1);
   await expect(page.locator("aside")).toHaveCount(0);
@@ -791,15 +795,15 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
   await page.setViewportSize({ width: 320, height: 320 });
   await page.goto(performanceUrl);
   await expect(page.getByLabel("Current key")).toBeVisible();
-  const scrollable = await page.evaluate(() => {
-    const pageRoot = document.scrollingElement ?? document.documentElement;
-    const canScroll = pageRoot.scrollHeight > pageRoot.clientHeight;
-    pageRoot.scrollTo(0, pageRoot.scrollHeight);
+  const performanceScroller = page.locator("[data-performance-chart-scroll]");
+  const scrollable = await performanceScroller.evaluate((element) => {
+    const canScroll = element.scrollHeight > element.clientHeight;
+    element.scrollTo(0, element.scrollHeight);
     return canScroll;
   });
   expect(scrollable).toBe(true);
   await expect
-    .poll(() => page.evaluate(() => window.scrollY))
+    .poll(() => performanceScroller.evaluate((element) => element.scrollTop))
     .toBeGreaterThan(0);
 
   for (const [width, height] of [
@@ -857,7 +861,7 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
     name: "Stop sharing this setlist?",
   });
   await expect(deleteDialog).toContainText(
-    "This invalidates the public and editor links. Your local setlist and everyone’s imported songs remain available.",
+    "This removes the public link. Your local setlist and everyone’s imported songs remain available.",
   );
   await deleteDialog.getByRole("button", { name: "Cancel" }).click();
   await expect(shareLink).toHaveAttribute("href", firstShareUrl!);
@@ -868,16 +872,16 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
       await route.fulfill({
         status: 502,
         contentType: "application/json",
-        body: JSON.stringify({ error: "Published setlist could not be deleted" }),
+        body: JSON.stringify({
+          error: "Published setlist could not be deleted",
+        }),
       });
       return;
     }
     await route.continue();
   });
   await page.getByRole("button", { name: "Stop Sharing" }).click();
-  await deleteDialog
-    .getByRole("button", { name: "Stop Sharing" })
-    .click();
+  await deleteDialog.getByRole("button", { name: "Stop Sharing" }).click();
   await expect(
     page.getByRole("alert").filter({
       hasText: "Published setlist could not be deleted",
@@ -893,9 +897,7 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
         response.request().method() === "DELETE" &&
         response.url().includes("/api/published-setlists/"),
     ),
-    deleteDialog
-      .getByRole("button", { name: "Stop Sharing" })
-      .click(),
+    deleteDialog.getByRole("button", { name: "Stop Sharing" }).click(),
   ]);
   await expect(page.getByText("Sharing stopped")).toBeVisible();
   await expect(shareLink).toHaveCount(0);
@@ -933,7 +935,9 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
       await route.fulfill({
         status: 502,
         contentType: "application/json",
-        body: JSON.stringify({ error: "Published setlist could not be deleted" }),
+        body: JSON.stringify({
+          error: "Published setlist could not be deleted",
+        }),
       });
       return;
     }

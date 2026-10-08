@@ -6,7 +6,6 @@ import {
   PATCH as updateShare,
 } from "@/app/api/published-setlists/[token]/route";
 import { createPublishedSnapshot } from "@/lib/sharing/snapshot";
-import { POST as updateAccess } from "@/app/api/published-setlists/[token]/access/route";
 
 function snapshot() {
   return createPublishedSnapshot(
@@ -46,17 +45,20 @@ function snapshot() {
   );
 }
 
-describe("shared setlist API capabilities", () => {
-  it("keeps public reads redacted and enforces editor/owner permissions", async () => {
+describe("shared setlist owner access", () => {
+  it("keeps public reads redacted and permits only the owner to update or delete", async () => {
     const createdResponse = await createShare(
       new Request("http://localhost/api/published-setlists", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ snapshot: snapshot(), accessMode: "editable" }),
+        body: JSON.stringify({ snapshot: snapshot() }),
       }),
     );
     expect(createdResponse.status).toBe(201);
     const created = await createdResponse.json();
+    expect(created.ownerCapability).toBeTruthy();
+    expect(created.editorCapability).toBeUndefined();
+    expect(created.recoveryUrl).toBeUndefined();
     const context = { params: Promise.resolve({ token: created.token }) };
 
     const publicResponse = await getShare(
@@ -66,12 +68,16 @@ describe("shared setlist API capabilities", () => {
     const publicBody = await publicResponse.json();
     expect(publicBody.ownerCapability).toBeUndefined();
     expect(publicBody.editorCapability).toBeUndefined();
+    expect(publicBody.accessMode).toBeUndefined();
     expect(publicBody.revision).toBe(1);
 
     const denied = await updateShare(
       new Request(`http://localhost/api/published-setlists/${created.token}`, {
         method: "PATCH",
-        headers: { "content-type": "application/json" },
+        headers: {
+          "content-type": "application/json",
+          authorization: "Bearer former-editor-capability",
+        },
         body: JSON.stringify({
           snapshot: { ...snapshot(), name: "Denied" },
           expectedRevision: 1,
@@ -87,10 +93,10 @@ describe("shared setlist API capabilities", () => {
         method: "PATCH",
         headers: {
           "content-type": "application/json",
-          authorization: `Bearer ${created.editorCapability}`,
+          authorization: `Bearer ${created.ownerCapability}`,
         },
         body: JSON.stringify({
-          snapshot: { ...snapshot(), name: "Editor update" },
+          snapshot: { ...snapshot(), name: "Owner update" },
           expectedRevision: 1,
           expectedEtag: created.etag,
         }),
@@ -100,63 +106,24 @@ describe("shared setlist API capabilities", () => {
     expect(updated.status).toBe(200);
     const updateResult = await updated.json();
 
-    const disabled = await updateAccess(
-      new Request(
-        `http://localhost/api/published-setlists/${created.token}/access`,
-        {
-          method: "POST",
-          headers: {
-            "content-type": "application/json",
-            authorization: `Bearer ${created.ownerCapability}`,
-          },
-          body: JSON.stringify({
-            action: "set-mode",
-            mode: "view",
-            expectedRevision: updateResult.revision,
-            expectedEtag: updateResult.etag,
-          }),
-        },
-      ),
-      context,
-    );
-    expect(disabled.status).toBe(200);
-    const disabledResult = await disabled.json();
-
-    const revokedEditor = await updateShare(
-      new Request(`http://localhost/api/published-setlists/${created.token}`, {
-        method: "PATCH",
-        headers: {
-          "content-type": "application/json",
-          authorization: `Bearer ${created.editorCapability}`,
-        },
-        body: JSON.stringify({
-          snapshot: { ...snapshot(), name: "Revoked editor" },
-          expectedRevision: disabledResult.revision,
-          expectedEtag: disabledResult.etag,
-        }),
-      }),
-      context,
-    );
-    expect(revokedEditor.status).toBe(403);
-
-    const editorDelete = await deleteShare(
+    const nonOwnerDelete = await deleteShare(
       new Request(`http://localhost/api/published-setlists/${created.token}`, {
         method: "DELETE",
         headers: {
-          authorization: `Bearer ${created.editorCapability}`,
-          "if-match": disabledResult.etag,
+          authorization: "Bearer former-editor-capability",
+          "if-match": updateResult.etag,
         },
       }),
       context,
     );
-    expect(editorDelete.status).toBe(403);
+    expect(nonOwnerDelete.status).toBe(403);
 
     const deleted = await deleteShare(
       new Request(`http://localhost/api/published-setlists/${created.token}`, {
         method: "DELETE",
         headers: {
           authorization: `Bearer ${created.ownerCapability}`,
-          "if-match": disabledResult.etag,
+          "if-match": updateResult.etag,
         },
       }),
       context,

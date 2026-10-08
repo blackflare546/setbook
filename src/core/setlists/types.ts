@@ -22,10 +22,8 @@ export interface Setlist {
   shareBinding?: {
     publicToken: string;
     ownerCapability: string;
-    editorCapability?: string;
     revision: number;
     etag: string;
-    accessMode: "view" | "editable";
     sharedBy?: string;
     includeNotes: boolean;
     includeLinks: boolean;
@@ -39,9 +37,6 @@ export interface FollowedSharedSetlist {
   snapshot: import("@/lib/validation/schemas").PublishedSnapshot;
   revision: number;
   etag: string;
-  accessMode: "view" | "editable";
-  role: "viewer" | "editor" | "owner";
-  capability?: string;
   status: "current" | "update-available" | "offline" | "unavailable";
   followedAt: string;
   lastCheckedAt: string;

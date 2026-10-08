@@ -22,10 +22,38 @@ export class SongbookDatabase extends Dexie {
     this.version(2).stores({
       songs:
         "id, title, artist, originalKey, updatedAt, *tags, [sharedSource.publicToken+sharedSource.sharedSongId]",
-      setlists: "id, name, date, updatedAt, publishToken, shareBinding.publicToken",
+      setlists:
+        "id, name, date, updatedAt, publishToken, shareBinding.publicToken",
       settings: "id",
       sharedSetlists: "publicToken, status, lastCheckedAt, role",
     });
+    this.version(3)
+      .stores({
+        songs:
+          "id, title, artist, originalKey, updatedAt, *tags, [sharedSource.publicToken+sharedSource.sharedSongId]",
+        setlists:
+          "id, name, date, updatedAt, publishToken, shareBinding.publicToken",
+        settings: "id",
+        sharedSetlists: "publicToken, status, lastCheckedAt",
+      })
+      .upgrade(async (transaction) => {
+        await transaction
+          .table("sharedSetlists")
+          .toCollection()
+          .modify((record: Record<string, unknown>) => {
+            delete record.role;
+            delete record.capability;
+            delete record.accessMode;
+          });
+        await transaction
+          .table("setlists")
+          .toCollection()
+          .modify((record: { shareBinding?: Record<string, unknown> }) => {
+            if (!record.shareBinding) return;
+            delete record.shareBinding.editorCapability;
+            delete record.shareBinding.accessMode;
+          });
+      });
   }
 }
 

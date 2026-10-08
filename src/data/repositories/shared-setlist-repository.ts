@@ -7,7 +7,6 @@ export interface RemoteSharedSetlist {
   snapshot: PublishedSnapshot;
   revision: number;
   etag: string;
-  accessMode: "view" | "editable";
   updatedAt: string;
 }
 
@@ -30,7 +29,6 @@ export async function fetchSharedSetlist(
     snapshot,
     revision: body.version === 2 ? body.revision : 1,
     etag: response.headers.get("etag") ?? "legacy",
-    accessMode: body.version === 2 ? body.accessMode : "view",
     updatedAt: body.version === 2 ? body.updatedAt : body.publishedAt,
   };
 }
@@ -52,8 +50,6 @@ export class SharedSetlistRepository {
   async follow(
     publicToken: string,
     remote: RemoteSharedSetlist,
-    role: FollowedSharedSetlist["role"] = "viewer",
-    capability?: string,
   ): Promise<FollowedSharedSetlist> {
     const existing = await this.get(publicToken);
     const now = new Date().toISOString();
@@ -62,9 +58,6 @@ export class SharedSetlistRepository {
       snapshot: remote.snapshot,
       revision: remote.revision,
       etag: remote.etag,
-      accessMode: remote.accessMode,
-      role,
-      capability,
       status: "current",
       followedAt: existing?.followedAt ?? now,
       lastCheckedAt: now,
@@ -78,12 +71,7 @@ export class SharedSetlistRepository {
     if (!existing) throw new Error("This setlist is not followed.");
     try {
       const remote = await fetchSharedSetlist(publicToken);
-      return this.follow(
-        publicToken,
-        remote,
-        existing.role,
-        existing.capability,
-      );
+      return this.follow(publicToken, remote);
     } catch (error) {
       const offline = typeof navigator !== "undefined" && !navigator.onLine;
       const unavailable = {
@@ -103,7 +91,6 @@ export class SharedSetlistRepository {
       const remote = await fetchSharedSetlist(publicToken);
       const checked: FollowedSharedSetlist = {
         ...existing,
-        accessMode: remote.accessMode,
         status:
           remote.revision > existing.revision ? "update-available" : "current",
         lastCheckedAt: new Date().toISOString(),

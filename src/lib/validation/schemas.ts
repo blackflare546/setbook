@@ -65,10 +65,8 @@ export const setlistSchema = z.object({
     .object({
       publicToken: z.string(),
       ownerCapability: z.string(),
-      editorCapability: z.string().optional(),
       revision: z.number().int().positive(),
       etag: z.string(),
-      accessMode: z.enum(["view", "editable"]),
       sharedBy: z.string().optional(),
       includeNotes: z.boolean().default(false),
       includeLinks: z.boolean().default(false),
@@ -124,15 +122,15 @@ export const publishedSnapshotSchema = z.discriminatedUnion("version", [
 export type PublishedSnapshot = z.infer<typeof publishedSnapshotSchema>;
 export type PublishedSnapshotV2 = z.infer<typeof publishedSnapshotV2Schema>;
 
-export const sharedAccessModeSchema = z.enum(["view", "editable"]);
 export const sharedSetlistRecordSchema = z.object({
   schemaVersion: z.literal(2),
   publicToken: z.string(),
   revision: z.number().int().positive(),
-  accessMode: sharedAccessModeSchema,
   snapshot: publishedSnapshotV2Schema,
   ownerVerifier: z.string(),
-  editorVerifier: z.string().nullable(),
+  // Accepted only so collaborative v2 records remain readable during migration.
+  accessMode: z.enum(["view", "editable"]).optional(),
+  editorVerifier: z.string().nullable().optional(),
   createdAt: z.string(),
   updatedAt: z.string(),
 });

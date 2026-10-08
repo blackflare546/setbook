@@ -8,7 +8,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Edit3,
-  Download,
   ExternalLink,
   List,
   Maximize2,
@@ -43,8 +42,6 @@ import { Button } from "@/components/ui/button";
 import { settingsRepository } from "@/data/repositories/settings-repository";
 import { useTheme } from "@/components/theme/theme-provider";
 import { cn } from "@/lib/utils";
-import { importSharedSong } from "@/lib/sharing/import-song";
-import { FeedbackToast } from "@/components/ui/feedback-toast";
 import { useResponsiveAutoHideControls } from "./use-responsive-auto-hide-controls";
 
 function withoutTrailingBlankLines(lines: SongLine[]): SongLine[] {
@@ -342,7 +339,6 @@ export function PerformanceView({
   editHref,
   publicMode = false,
   publicToken,
-  publicRevision = 1,
   singleSong = false,
 }: {
   snapshot: PublishedSnapshot;
@@ -350,7 +346,6 @@ export function PerformanceView({
   editHref?: string;
   publicMode?: boolean;
   publicToken?: string;
-  publicRevision?: number;
   singleSong?: boolean;
 }) {
   const { theme, setTheme } = useTheme();
@@ -362,7 +357,6 @@ export function PerformanceView({
   >({});
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [fullscreenAvailable, setFullscreenAvailable] = useState(false);
-  const [importFeedback, setImportFeedback] = useState<string | null>(null);
   const [fontSettings, setFontSettings] = useState<ChartFontSettings>(
     DEFAULT_CHART_FONT_SETTINGS,
   );
@@ -518,24 +512,6 @@ export function PerformanceView({
     : "Not set";
   const controlsVisible = !autoHide.responsive || autoHide.controlsVisible;
 
-  async function importAllPublicSongs() {
-    if (!publicToken) return;
-    let added = 0;
-    for (const sharedSong of snapshot.songs) {
-      const result = await importSharedSong(
-        publicToken,
-        publicRevision,
-        sharedSong,
-      );
-      if (!result.existed) added += 1;
-    }
-    setImportFeedback(
-      added
-        ? `${added} ${added === 1 ? "song" : "songs"} imported to your library`
-        : "These songs are already in your library",
-    );
-  }
-
   return (
     <main
       ref={performanceRootRef}
@@ -545,7 +521,6 @@ export function PerformanceView({
         "min-h-dvh pb-24",
       )}
     >
-      <FeedbackToast message={importFeedback} tone="success" />
       {!singleSong && autoHide.responsive && autoHide.controlsVisible && (
         <Button
           size="icon"
@@ -605,23 +580,12 @@ export function PerformanceView({
             )}
           </div>
           {publicMode && publicToken && (
-            <>
-              <Button asChild variant="secondary" size="sm" className="h-11">
-                <Link href={`/shared/${publicToken}`}>
-                  <ExternalLink size={16} />
-                  <span className="hidden sm:inline">Open in SetBook</span>
-                </Link>
-              </Button>
-              <Button
-                variant="secondary"
-                size="icon"
-                className="h-11 w-11"
-                aria-label="Import all songs"
-                onClick={() => void importAllPublicSongs()}
-              >
-                <Download size={17} />
-              </Button>
-            </>
+            <Button asChild variant="secondary" size="sm" className="h-11">
+              <Link href={`/shared/${publicToken}`}>
+                <ExternalLink size={16} />
+                <span className="hidden sm:inline">Open in SetBook</span>
+              </Link>
+            </Button>
           )}
           {editHref && (
             <Button asChild variant="secondary" size="sm" className="h-11">
