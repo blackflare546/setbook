@@ -25,8 +25,6 @@ export interface Setlist {
     revision: number;
     etag: string;
     sharedBy?: string;
-    includeNotes: boolean;
-    includeLinks: boolean;
   };
   createdAt: string;
   updatedAt: string;

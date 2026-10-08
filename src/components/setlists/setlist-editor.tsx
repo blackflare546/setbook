@@ -65,6 +65,7 @@ interface SortableSetlistEntryProps {
   song?: Song;
   dropEdge: "before" | "after" | null;
   onChange: (entries: SetlistSongEntry[]) => void;
+  onRequestRemove: (entry: SetlistSongEntry) => void;
 }
 
 function SortableSetlistEntry({
@@ -74,6 +75,7 @@ function SortableSetlistEntry({
   song,
   dropEdge,
   onChange,
+  onRequestRemove,
 }: SortableSetlistEntryProps) {
   const {
     attributes,
@@ -162,9 +164,7 @@ function SortableSetlistEntry({
                 size="icon"
                 variant="ghost"
                 aria-label={`Remove ${song?.title ?? "song"}`}
-                onClick={() =>
-                  onChange(entries.filter((item) => item.id !== entry.id))
-                }
+                onClick={() => onRequestRemove(entry)}
               >
                 <Trash2 size={15} />
               </Button>
@@ -218,8 +218,6 @@ function SortableSetlistEntry({
 export function SetlistEditor({ id }: { id: string }) {
   const [setlist, setSetlist] = useState<Setlist | null>(null);
   const songs = useLiveQuery(() => songRepository.list(), []) ?? [];
-  const [includeNotes, setIncludeNotes] = useState(false);
-  const [includeLinks, setIncludeLinks] = useState(false);
   const [sharedBy, setSharedBy] = useState("");
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [publishing, setPublishing] = useState(false);
@@ -230,6 +228,9 @@ export function SetlistEditor({ id }: { id: string }) {
   const [songQuery, setSongQuery] = useState("");
   const [draggedEntryId, setDraggedEntryId] = useState<string | null>(null);
   const [dropTargetId, setDropTargetId] = useState<string | null>(null);
+  const [entryToRemove, setEntryToRemove] = useState<SetlistSongEntry | null>(
+    null,
+  );
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
     useSensor(TouchSensor, {
@@ -246,8 +247,6 @@ export function SetlistEditor({ id }: { id: string }) {
   useEffect(() => {
     void setlistRepository.get(id).then((value) => {
       setSetlist(value ?? null);
-      setIncludeNotes(value?.shareBinding?.includeNotes ?? false);
-      setIncludeLinks(value?.shareBinding?.includeLinks ?? false);
       setSharedBy(value?.shareBinding?.sharedBy ?? "");
       setSaveState("idle");
     });
@@ -293,8 +292,8 @@ export function SetlistEditor({ id }: { id: string }) {
     setFeedback(null);
     try {
       const snapshot = createPublishedSnapshot(currentSetlist, songs, {
-        includeNotes,
-        includeLinks,
+        includeNotes: true,
+        includeLinks: false,
         sharedBy,
       });
       const binding = currentSetlist.shareBinding;
@@ -327,24 +326,13 @@ export function SetlistEditor({ id }: { id: string }) {
           result?.error ??
             `Unable to publish setlist (server returned ${response.status}).`,
         );
-      const nextBinding = binding
-        ? {
-            ...binding,
-            revision: result.revision,
-            etag: result.etag,
-            sharedBy: sharedBy.trim() || undefined,
-            includeNotes,
-            includeLinks,
-          }
-        : {
-            publicToken: result.token,
-            ownerCapability: result.ownerCapability,
-            revision: result.revision,
-            etag: result.etag,
-            sharedBy: sharedBy.trim() || undefined,
-            includeNotes,
-            includeLinks,
-          };
+      const nextBinding = {
+        publicToken: result.token,
+        ownerCapability: binding?.ownerCapability ?? result.ownerCapability,
+        revision: result.revision,
+        etag: result.etag,
+        sharedBy: sharedBy.trim() || undefined,
+      };
       const saved = await setlistRepository.save({
         ...currentSetlist,
         publishToken: result.token,
@@ -454,13 +442,20 @@ export function SetlistEditor({ id }: { id: string }) {
     update({ entries: reorderEntries(currentSetlist.entries, from, to) });
   }
   return (
-    <div className="mx-auto max-w-6xl px-3 py-5 pb-24 min-[375px]:px-4 sm:px-6 sm:py-7 md:pb-32 lg:pb-24">
+    <div
+      data-testid="setlist-editor"
+      className="mx-auto max-w-6xl px-3 py-5 pb-24 min-[375px]:px-4 sm:px-6 sm:py-7 md:pb-40 lg:pb-32"
+    >
       <FeedbackToast
         message={feedback?.message ?? null}
         tone={feedback?.tone}
       />
       <div className="mb-6 flex flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:items-center">
-        <Button asChild variant="ghost" className="-ml-3">
+        <Button
+          asChild
+          variant="ghost"
+          className="-ml-3 self-start sm:self-auto"
+        >
           <Link href="/setlists">
             <ArrowLeft size={17} />
             Setlists
@@ -637,6 +632,7 @@ export function SetlistEditor({ id }: { id: string }) {
                       song={songMap.get(entry.songId)}
                       dropEdge={dropEdge}
                       onChange={(entries) => update({ entries })}
+                      onRequestRemove={setEntryToRemove}
                     />
                   );
                 })}
@@ -672,7 +668,8 @@ export function SetlistEditor({ id }: { id: string }) {
             </div>
             <p className="mb-4 text-sm leading-6 text-slate-500">
               Share a simple read-only link. Only this browser can publish
-              updates or stop sharing.
+              updates or stop sharing. Band notes are included; song links stay
+              private.
             </p>
             <label className="mb-3 block text-sm font-semibold">
               Shared by (optional)
@@ -683,22 +680,6 @@ export function SetlistEditor({ id }: { id: string }) {
                 placeholder="Band or owner name"
                 onChange={(event) => setSharedBy(event.target.value)}
               />
-            </label>
-            <label className="mb-2 flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={includeNotes}
-                onChange={(e) => setIncludeNotes(e.target.checked)}
-              />
-              Include setlist and band notes
-            </label>
-            <label className="mb-4 flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={includeLinks}
-                onChange={(e) => setIncludeLinks(e.target.checked)}
-              />
-              Include song links
             </label>
             <Button
               className="w-full"
@@ -839,6 +820,50 @@ export function SetlistEditor({ id }: { id: string }) {
           </Card>
         </aside>
       </div>
+      <Dialog.Root
+        open={Boolean(entryToRemove)}
+        onOpenChange={(open) => !open && setEntryToRemove(null)}
+      >
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 z-40 bg-slate-950/50 backdrop-blur-[1px]" />
+          <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[min(calc(100vw-2rem),28rem)] -translate-x-1/2 -translate-y-1/2 rounded-xl border border-slate-200 bg-white p-5 shadow-2xl outline-none dark:border-slate-800 dark:bg-slate-950">
+            <Dialog.Title className="text-lg font-bold">
+              Remove{" "}
+              {entryToRemove
+                ? (songMap.get(entryToRemove.songId)?.title ?? "this song")
+                : "this song"}
+              ?
+            </Dialog.Title>
+            <Dialog.Description className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
+              This removes the song from this setlist only. The original remains
+              in My Library, and this change is not permanent until you save the
+              setlist.
+            </Dialog.Description>
+            <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <Dialog.Close asChild>
+                <Button type="button" variant="secondary">
+                  Cancel
+                </Button>
+              </Dialog.Close>
+              <Button
+                type="button"
+                variant="danger"
+                onClick={() => {
+                  if (!entryToRemove) return;
+                  update({
+                    entries: currentSetlist.entries.filter(
+                      (entry) => entry.id !== entryToRemove.id,
+                    ),
+                  });
+                  setEntryToRemove(null);
+                }}
+              >
+                <Trash2 size={16} /> Remove song
+              </Button>
+            </div>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
     </div>
   );
 }

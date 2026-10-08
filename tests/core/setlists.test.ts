@@ -60,8 +60,6 @@ describe("setlist operations", () => {
           ownerCapability: "owner-secret",
           revision: 1,
           etag: '"etag"',
-          includeNotes: false,
-          includeLinks: false,
         },
         createdAt: "x",
         updatedAt: "x",

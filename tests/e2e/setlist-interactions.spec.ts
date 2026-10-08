@@ -139,8 +139,14 @@ test("setlist cards open from the full surface without hijacking actions", async
   await page.goto("/setlists");
 
   const card = page.getByTestId(`setlist-card-${setlistId}`);
-  page.once("dialog", (dialog) => dialog.dismiss());
   await card.getByRole("button", { name: "Delete Sortable Setlist" }).click();
+  const deleteDialog = page.getByRole("dialog", {
+    name: "Delete Sortable Setlist?",
+  });
+  await expect(deleteDialog).toContainText(
+    "Songs in My Library remain available.",
+  );
+  await deleteDialog.getByRole("button", { name: "Cancel" }).click();
   await expect(page).toHaveURL(/\/setlists$/);
 
   await card.click({ position: { x: 12, y: 12 } });
@@ -160,6 +166,54 @@ test("setlist cards open from the full surface without hijacking actions", async
   await cardLink.focus();
   await page.keyboard.press("Space");
   await expect(page).toHaveURL(`/setlists/${setlistId}`);
+});
+
+test("confirms song removal and keeps the library song", async ({ page }) => {
+  await restoreSetlistFixture(page);
+  await page.goto(`/setlists/${setlistId}`);
+
+  await page.getByRole("button", { name: "Remove Alpha Song" }).click();
+  const removeDialog = page.getByRole("dialog", {
+    name: "Remove Alpha Song?",
+  });
+  await expect(removeDialog).toContainText(
+    "The original remains in My Library, and this change is not permanent until you save the setlist.",
+  );
+  await removeDialog.getByRole("button", { name: "Cancel" }).click();
+  await expectEntryOrder(page, ["Alpha Song", "Bravo Song", "Charlie Song"]);
+
+  await page.getByRole("button", { name: "Remove Alpha Song" }).click();
+  await removeDialog.getByRole("button", { name: "Remove song" }).click();
+  await expectEntryOrder(page, ["Bravo Song", "Charlie Song"]);
+  await expect(page.getByRole("button", { name: "Perform" })).toBeDisabled();
+
+  await page.goto("/library");
+  await expect(page.getByRole("heading", { name: "Alpha Song" })).toBeVisible();
+});
+
+test("keeps the mobile back button left aligned and adds editor bottom clearance", async ({
+  page,
+}) => {
+  await restoreSetlistFixture(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(`/setlists/${setlistId}`);
+  const back = page
+    .getByTestId("setlist-editor")
+    .getByRole("link", { name: "Setlists" });
+  const backBox = await back.boundingBox();
+  expect(backBox).not.toBeNull();
+  expect(backBox!.x).toBeLessThan(40);
+  expect(backBox!.width).toBeLessThan(140);
+
+  for (const width of [768, 1024]) {
+    await page.setViewportSize({ width, height: 900 });
+    const bottomPadding = await page
+      .getByTestId("setlist-editor")
+      .evaluate((element) =>
+        Number.parseFloat(getComputedStyle(element).paddingBottom),
+      );
+    expect(bottomPadding).toBeGreaterThanOrEqual(128);
+  }
 });
 
 test("dragging reorders complete entries and persists only after Save", async ({

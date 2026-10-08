@@ -573,6 +573,8 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
 
   await page.goto(setlistEditorUrl);
   await expect(page.getByText("Setlist saved")).toHaveCount(0);
+  await expect(page.getByText("Include setlist and band notes")).toHaveCount(0);
+  await expect(page.getByText("Include song links")).toHaveCount(0);
   await page.getByRole("button", { name: "Publish setlist" }).click();
   await expect(page.getByText("Setlist shared")).toBeVisible();
   await expect(page.getByText("Setlist saved")).toHaveCount(0);
@@ -609,6 +611,12 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
   );
   const publishedSnapshot = await publishedResponse.json();
   expect(publishedSnapshot).not.toHaveProperty("theme");
+  expect(publishedSnapshot.notes).toBe(
+    "Guitar enters on Chorus\nDrums build during Bridge",
+  );
+  expect(
+    publishedSnapshot.songs.every((song: { links?: unknown }) => !song.links),
+  ).toBe(true);
   await page.goto(firstShareUrl!);
   await expect(page.getByText("Shared setlist")).toBeVisible();
   await expect(
@@ -943,8 +951,16 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
     }
     await route.continue();
   });
-  page.once("dialog", (dialog) => dialog.accept());
   await page.getByRole("button", { name: "Delete Friday Night" }).click();
+  const setlistDeleteDialog = page.getByRole("dialog", {
+    name: "Delete Friday Night?",
+  });
+  await expect(setlistDeleteDialog).toContainText(
+    "Its public share will be deleted first. If that fails, the local setlist will be kept so you can try again.",
+  );
+  await setlistDeleteDialog
+    .getByRole("button", { name: "Delete setlist" })
+    .click();
   await expect(
     page.getByRole("alert").filter({
       hasText: "Published setlist could not be deleted",
@@ -953,14 +969,14 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
   await expect(page.getByText("Friday Night", { exact: true })).toBeVisible();
   await page.unroute(republishedDeletePattern);
 
-  page.once("dialog", (dialog) => dialog.accept());
+  await page.getByRole("button", { name: "Delete Friday Night" }).click();
   await Promise.all([
     page.waitForResponse(
       (response) =>
         response.request().method() === "DELETE" &&
         response.url().includes("/api/published-setlists/"),
     ),
-    page.getByRole("button", { name: "Delete Friday Night" }).click(),
+    setlistDeleteDialog.getByRole("button", { name: "Delete setlist" }).click(),
   ]);
   await expect(page.getByText("Setlist deleted")).toBeVisible();
   await expect(page.getByText("No setlists yet")).toBeVisible();

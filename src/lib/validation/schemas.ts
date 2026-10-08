@@ -68,8 +68,6 @@ export const setlistSchema = z.object({
       revision: z.number().int().positive(),
       etag: z.string(),
       sharedBy: z.string().optional(),
-      includeNotes: z.boolean().default(false),
-      includeLinks: z.boolean().default(false),
     })
     .optional(),
   createdAt: z.string(),

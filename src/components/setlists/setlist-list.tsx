@@ -61,6 +61,7 @@ export function SetlistList() {
   );
   const [name, setName] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deletingSetlist, setDeletingSetlist] = useState<Setlist | null>(null);
   const [unfollowing, setUnfollowing] = useState<FollowedSharedSetlist | null>(
     null,
   );
@@ -124,7 +125,6 @@ export function SetlistList() {
   }
 
   async function deleteSetlist(setlist: Setlist) {
-    if (!confirm(`Delete “${setlist.name}”?`)) return;
     setDeletingId(setlist.id);
     setFeedback(null);
     try {
@@ -150,6 +150,7 @@ export function SetlistList() {
       });
     } finally {
       setDeletingId(null);
+      setDeletingSetlist(null);
     }
   }
 
@@ -258,7 +259,7 @@ export function SetlistList() {
                         variant="ghost"
                         aria-label={`Delete ${setlist.name}`}
                         disabled={deletingId === setlist.id}
-                        onClick={() => void deleteSetlist(setlist)}
+                        onClick={() => setDeletingSetlist(setlist)}
                       >
                         <Trash2 size={16} />
                       </Button>
@@ -393,6 +394,53 @@ export function SetlistList() {
                 onClick={() => void confirmUnfollow()}
               >
                 <Trash2 size={16} /> Unfollow
+              </Button>
+            </div>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
+      <Dialog.Root
+        open={Boolean(deletingSetlist)}
+        onOpenChange={(open) => {
+          if (!open && !deletingId) setDeletingSetlist(null);
+        }}
+      >
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 z-40 bg-slate-950/50 backdrop-blur-[1px]" />
+          <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[min(calc(100vw-2rem),28rem)] -translate-x-1/2 -translate-y-1/2 rounded-xl border border-slate-200 bg-white p-5 shadow-2xl outline-none dark:border-slate-800 dark:bg-slate-950">
+            <Dialog.Title className="text-lg font-bold">
+              Delete {deletingSetlist?.name}?
+            </Dialog.Title>
+            <Dialog.Description className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
+              This permanently deletes the setlist from this device. Songs in My
+              Library remain available.
+              {deletingSetlist?.shareBinding && (
+                <span className="mt-2 block">
+                  Its public share will be deleted first. If that fails, the
+                  local setlist will be kept so you can try again.
+                </span>
+              )}
+            </Dialog.Description>
+            <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <Dialog.Close asChild>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  disabled={Boolean(deletingId)}
+                >
+                  Cancel
+                </Button>
+              </Dialog.Close>
+              <Button
+                type="button"
+                variant="danger"
+                disabled={Boolean(deletingId)}
+                onClick={() =>
+                  deletingSetlist && void deleteSetlist(deletingSetlist)
+                }
+              >
+                <Trash2 size={16} />
+                {deletingId ? "Deleting…" : "Delete setlist"}
               </Button>
             </div>
           </Dialog.Content>
