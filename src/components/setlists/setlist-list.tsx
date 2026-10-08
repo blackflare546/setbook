@@ -1,26 +1,30 @@
 "use client";
+
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
+import * as Dialog from "@radix-ui/react-dialog";
 import {
   CalendarDays,
+  CloudDownload,
   Copy,
-  ExternalLink,
   ListMusic,
   Plus,
-  RefreshCw,
+  Share2,
   Trash2,
 } from "lucide-react";
 import { setlistRepository } from "@/data/repositories/setlist-repository";
-import type { Setlist } from "@/core/setlists/types";
+import type { FollowedSharedSetlist, Setlist } from "@/core/setlists/types";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { FeedbackToast } from "@/components/ui/feedback-toast";
 import { deletePublishedSetlistByToken } from "@/lib/sharing/published-client";
-import { sharedSetlistRepository } from "@/data/repositories/shared-setlist-repository";
-import { fetchSharedSetlist } from "@/data/repositories/shared-setlist-repository";
+import {
+  fetchSharedSetlist,
+  sharedSetlistRepository,
+} from "@/data/repositories/shared-setlist-repository";
 import { QrScannerDialog } from "@/components/setlists/qr-scanner-dialog";
 
 const sharedStatusStyles = {
@@ -33,25 +37,62 @@ const sharedStatusStyles = {
     "bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-200",
 } as const;
 
+function sharedStatusLabel(status: FollowedSharedSetlist["status"]): string {
+  if (status === "current") return "Up to date";
+  if (status === "update-available") return "Update available";
+  return status[0].toUpperCase() + status.slice(1);
+}
+
+type SetlistCard =
+  | { kind: "owned"; sortAt: string; setlist: Setlist }
+  | { kind: "shared"; sortAt: string; shared: FollowedSharedSetlist };
+
 export function SetlistList() {
   const router = useRouter();
-  const setlists = useLiveQuery(() => setlistRepository.list(), []) ?? [];
-  const sharedSetlists =
-    useLiveQuery(() => sharedSetlistRepository.list(), []) ?? [];
-  const [tab, setTab] = useState<"mine" | "shared">("mine");
+  const setlistsQuery = useLiveQuery(() => setlistRepository.list(), []);
+  const sharedSetlistsQuery = useLiveQuery(
+    () => sharedSetlistRepository.list(),
+    [],
+  );
+  const setlists = useMemo(() => setlistsQuery ?? [], [setlistsQuery]);
+  const sharedSetlists = useMemo(
+    () => sharedSetlistsQuery ?? [],
+    [sharedSetlistsQuery],
+  );
   const [name, setName] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [unfollowing, setUnfollowing] = useState<FollowedSharedSetlist | null>(
+    null,
+  );
   const [feedback, setFeedback] = useState<{
     message: string;
     tone: "success" | "error";
   } | null>(null);
+
+  const cards = useMemo<SetlistCard[]>(
+    () =>
+      [
+        ...setlists.map((setlist): SetlistCard => ({
+          kind: "owned",
+          sortAt: setlist.updatedAt,
+          setlist,
+        })),
+        ...sharedSetlists.map((shared): SetlistCard => ({
+          kind: "shared",
+          sortAt: shared.snapshot.publishedAt,
+          shared,
+        })),
+      ].sort((left, right) => right.sortAt.localeCompare(left.sortAt)),
+    [setlists, sharedSetlists],
+  );
+
   useEffect(() => {
     if (!feedback || feedback.tone !== "success") return;
     const timeout = window.setTimeout(() => setFeedback(null), 2500);
     return () => window.clearTimeout(timeout);
   }, [feedback]);
+
   useEffect(() => {
-    if (tab !== "shared") return;
     const checkAll = () => {
       for (const shared of sharedSetlists)
         void sharedSetlistRepository
@@ -61,9 +102,10 @@ export function SetlistList() {
     checkAll();
     window.addEventListener("focus", checkAll);
     return () => window.removeEventListener("focus", checkAll);
-    // Checking writes status timestamps, so depending on the live array would loop.
+    // Checking changes statuses but not the number of followed setlists.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sharedSetlists.length, tab]);
+  }, [sharedSetlists.length]);
+
   async function create() {
     if (!name.trim()) return;
     const now = new Date().toISOString();
@@ -80,6 +122,7 @@ export function SetlistList() {
     setName("");
     router.push(`/setlists/${setlist.id}`);
   }
+
   async function deleteSetlist(setlist: Setlist) {
     if (!confirm(`Delete “${setlist.name}”?`)) return;
     setDeletingId(setlist.id);
@@ -109,6 +152,33 @@ export function SetlistList() {
       setDeletingId(null);
     }
   }
+
+  async function updateShared(shared: FollowedSharedSetlist) {
+    setFeedback(null);
+    try {
+      await sharedSetlistRepository.refresh(shared.publicToken);
+      setFeedback({
+        message: "Shared setlist updated. No songs were imported.",
+        tone: "success",
+      });
+    } catch (error) {
+      setFeedback({
+        message:
+          error instanceof Error
+            ? error.message
+            : "Unable to update shared setlist.",
+        tone: "error",
+      });
+    }
+  }
+
+  async function confirmUnfollow() {
+    if (!unfollowing) return;
+    await sharedSetlistRepository.unfollow(unfollowing.publicToken);
+    setUnfollowing(null);
+    setFeedback({ message: "Shared setlist removed", tone: "success" });
+  }
+
   return (
     <div className="mx-auto max-w-6xl px-3 py-6 pb-24 min-[375px]:px-4 sm:px-6 sm:py-8 lg:py-10">
       <FeedbackToast
@@ -123,145 +193,35 @@ export function SetlistList() {
           Setlists
         </h1>
         <p className="mt-1 text-slate-500">
-          Build a running order, choose performance keys, and add cues.
+          Build your own setlists or open one shared by your team.
         </p>
       </div>
-      <div className="mb-5 grid grid-cols-2 rounded-xl bg-slate-100 p-1 dark:bg-slate-900">
-        <button
+
+      <Card className="mb-5 flex flex-col gap-3 p-4 sm:flex-row">
+        <Input
+          placeholder="New setlist name…"
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+          onKeyDown={(event) => event.key === "Enter" && void create()}
+        />
+        <Button
           type="button"
-          className={`min-h-11 rounded-lg px-4 text-sm font-bold ${tab === "mine" ? "bg-white text-indigo-700 shadow-sm dark:bg-slate-800 dark:text-indigo-300" : "text-slate-500"}`}
-          onClick={() => setTab("mine")}
+          onClick={() => void create()}
+          disabled={!name.trim()}
         >
-          My Setlists
-        </button>
-        <button
-          type="button"
-          className={`min-h-11 rounded-lg px-4 text-sm font-bold ${tab === "shared" ? "bg-white text-indigo-700 shadow-sm dark:bg-slate-800 dark:text-indigo-300" : "text-slate-500"}`}
-          onClick={() => setTab("shared")}
-        >
-          Shared with me
-        </button>
-      </div>
-      {tab === "shared" ? (
-        <>
-          <div className="mb-5 flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 sm:flex-row sm:items-center sm:justify-between dark:border-slate-800 dark:bg-slate-950">
-            <div>
-              <h2 className="font-bold">Open a shared setlist</h2>
-              <p className="mt-1 text-sm text-slate-500">
-                Scan its QR code, upload a QR image, or paste its public link.
-              </p>
-            </div>
-            <QrScannerDialog />
-          </div>
-          {sharedSetlists.length ? (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {sharedSetlists.map((shared) => (
-                <Card key={shared.publicToken} className="p-5">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <h2 className="break-words text-lg font-bold">
-                        {shared.snapshot.name}
-                      </h2>
-                      {shared.snapshot.version === 2 &&
-                        shared.snapshot.sharedBy && (
-                          <p className="text-sm text-slate-500">
-                            Shared by {shared.snapshot.sharedBy}
-                          </p>
-                        )}
-                    </div>
-                    <span
-                      aria-label={`Status: ${shared.status === "current" ? "Up to date" : shared.status.replace("-", " ")}`}
-                      className={`rounded-full px-2 py-1 text-[11px] font-bold uppercase ${sharedStatusStyles[shared.status]}`}
-                    >
-                      {shared.status === "current"
-                        ? "Up to date"
-                        : shared.status.replace("-", " ")}
-                    </span>
-                  </div>
-                  <p className="mt-3 text-sm text-slate-500">
-                    Revision {shared.revision} · {shared.snapshot.songs.length}{" "}
-                    songs
-                  </p>
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    <Button asChild size="sm">
-                      <Link href={`/shared/${shared.publicToken}`}>
-                        <ExternalLink size={15} /> Open
-                      </Link>
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onClick={() => {
-                        setFeedback(null);
-                        void sharedSetlistRepository
-                          .refresh(shared.publicToken)
-                          .then(() =>
-                            setFeedback({
-                              message:
-                                "Shared setlist refreshed. No songs were imported.",
-                              tone: "success",
-                            }),
-                          )
-                          .catch((error) =>
-                            setFeedback({
-                              message:
-                                error instanceof Error
-                                  ? error.message
-                                  : "Unable to refresh shared setlist.",
-                              tone: "error",
-                            }),
-                          );
-                      }}
-                    >
-                      <RefreshCw size={15} /> Refresh
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() =>
-                        void sharedSetlistRepository.unfollow(
-                          shared.publicToken,
-                        )
-                      }
-                    >
-                      Unfollow
-                    </Button>
-                  </div>
-                </Card>
-              ))}
-            </div>
-          ) : (
-            <Card className="grid min-h-72 place-items-center p-8 text-center">
-              <div>
-                <ListMusic className="mx-auto mb-3 text-indigo-500" size={34} />
-                <h2 className="font-bold">No shared setlists yet</h2>
-                <p className="mt-1 text-sm text-slate-500">
-                  Scan a QR code above, or open a public setlist and choose Open
-                  in SetBook.
-                </p>
-              </div>
-            </Card>
-          )}
-        </>
-      ) : (
-        <>
-          <Card className="mb-5 flex flex-col gap-3 p-4 sm:flex-row">
-            <Input
-              placeholder="New setlist name…"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && void create()}
-            />
-            <Button onClick={() => void create()} disabled={!name.trim()}>
-              <Plus size={17} />
-              Create setlist
-            </Button>
-          </Card>
-          {setlists.length ? (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {setlists.map((setlist) => (
+          <Plus size={17} /> Create setlist
+        </Button>
+        <QrScannerDialog />
+      </Card>
+
+      {cards.length ? (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {cards.map((card) => {
+            if (card.kind === "owned") {
+              const { setlist } = card;
+              return (
                 <Card
-                  key={setlist.id}
+                  key={`owned-${setlist.id}`}
                   data-testid={`setlist-card-${setlist.id}`}
                   className="group relative p-5"
                 >
@@ -277,11 +237,12 @@ export function SetlistList() {
                     }}
                   />
                   <div className="pointer-events-none relative mb-5 flex items-start justify-between">
-                    <span className="grid h-11 w-11 place-items-center rounded-lg bg-indigo-50 text-indigo-600">
+                    <span className="grid h-11 w-11 place-items-center rounded-lg bg-indigo-50 text-indigo-600 dark:bg-indigo-950/50 dark:text-indigo-300">
                       <ListMusic size={21} />
                     </span>
                     <div className="pointer-events-auto relative z-10 flex opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
                       <Button
+                        type="button"
                         size="icon"
                         variant="ghost"
                         aria-label={`Duplicate ${setlist.name}`}
@@ -292,6 +253,7 @@ export function SetlistList() {
                         <Copy size={16} />
                       </Button>
                       <Button
+                        type="button"
                         size="icon"
                         variant="ghost"
                         aria-label={`Delete ${setlist.name}`}
@@ -321,21 +283,121 @@ export function SetlistList() {
                     )}
                   </div>
                 </Card>
-              ))}
-            </div>
-          ) : (
-            <Card className="grid min-h-72 place-items-center p-8 text-center">
-              <div>
-                <ListMusic className="mx-auto mb-3 text-indigo-500" size={34} />
-                <h2 className="font-bold">No setlists yet</h2>
-                <p className="mt-1 text-sm text-slate-500">
-                  Name your next show above to get started.
-                </p>
-              </div>
-            </Card>
-          )}
-        </>
+              );
+            }
+
+            const { shared } = card;
+            return (
+              <Card
+                key={`shared-${shared.publicToken}`}
+                className="group relative p-5"
+              >
+                <Link
+                  href={`/shared/${shared.publicToken}`}
+                  aria-label={`Open shared setlist ${shared.snapshot.name}`}
+                  className="absolute inset-0 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-500"
+                />
+                <div className="pointer-events-none relative mb-4 flex items-start justify-between gap-3">
+                  <span className="grid h-11 w-11 place-items-center rounded-lg bg-violet-50 text-violet-600 dark:bg-violet-950/50 dark:text-violet-300">
+                    <Share2 size={20} />
+                  </span>
+                  <div className="flex flex-wrap justify-end gap-1.5">
+                    <span className="rounded-full bg-violet-100 px-2 py-1 text-[11px] font-bold uppercase text-violet-800 dark:bg-violet-950/60 dark:text-violet-200">
+                      Shared
+                    </span>
+                    <span
+                      aria-label={`Status: ${sharedStatusLabel(shared.status)}`}
+                      className={`rounded-full px-2 py-1 text-[11px] font-bold uppercase ${sharedStatusStyles[shared.status]}`}
+                    >
+                      {sharedStatusLabel(shared.status)}
+                    </span>
+                  </div>
+                </div>
+                <div className="pointer-events-none relative">
+                  <h2 className="break-words text-lg font-bold group-hover:text-indigo-700 dark:group-hover:text-indigo-300">
+                    {shared.snapshot.name}
+                  </h2>
+                  {shared.snapshot.version === 2 &&
+                    shared.snapshot.sharedBy && (
+                      <p className="mt-1 text-sm text-slate-500">
+                        Shared by {shared.snapshot.sharedBy}
+                      </p>
+                    )}
+                  <p className="mt-2 text-sm text-slate-500">
+                    {shared.snapshot.songs.length}{" "}
+                    {shared.snapshot.songs.length === 1 ? "song" : "songs"}
+                    {shared.snapshot.venue ? ` · ${shared.snapshot.venue}` : ""}
+                  </p>
+                </div>
+                <div className="pointer-events-auto relative z-10 mt-4 flex flex-wrap gap-2">
+                  {shared.status === "update-available" && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => void updateShared(shared)}
+                    >
+                      <CloudDownload size={15} /> Update
+                    </Button>
+                  )}
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    className="text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:text-rose-300 dark:hover:bg-rose-950/40 dark:hover:text-rose-200"
+                    onClick={() => setUnfollowing(shared)}
+                  >
+                    <Trash2 size={15} /> Unfollow
+                  </Button>
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      ) : (
+        <Card className="grid min-h-72 place-items-center p-8 text-center">
+          <div>
+            <ListMusic className="mx-auto mb-3 text-indigo-500" size={34} />
+            <h2 className="font-bold">No setlists yet</h2>
+            <p className="mt-1 text-sm text-slate-500">
+              Create a setlist above or scan a shared setlist QR code.
+            </p>
+          </div>
+        </Card>
       )}
+
+      <Dialog.Root
+        open={Boolean(unfollowing)}
+        onOpenChange={(open) => !open && setUnfollowing(null)}
+      >
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 z-40 bg-slate-950/50 backdrop-blur-[1px]" />
+          <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[min(calc(100vw-2rem),28rem)] -translate-x-1/2 -translate-y-1/2 rounded-xl border border-slate-200 bg-white p-5 shadow-2xl outline-none dark:border-slate-800 dark:bg-slate-950">
+            <Dialog.Title className="text-lg font-bold">
+              Unfollow {unfollowing?.snapshot.name}?
+            </Dialog.Title>
+            <Dialog.Description className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
+              This removes the shared setlist from this device. It does not
+              delete the owner’s shared setlist or any songs you already
+              imported.
+            </Dialog.Description>
+            <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <Dialog.Close asChild>
+                <Button type="button" variant="secondary">
+                  Cancel
+                </Button>
+              </Dialog.Close>
+              <Button
+                type="button"
+                variant="danger"
+                onClick={() => void confirmUnfollow()}
+              >
+                <Trash2 size={16} /> Unfollow
+              </Button>
+            </div>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
     </div>
   );
 }

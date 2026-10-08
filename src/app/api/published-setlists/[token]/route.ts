@@ -150,7 +150,7 @@ export async function DELETE(
     const expectedEtag = request.headers.get("if-match");
     if (!expectedEtag || expectedEtag !== stored.etag)
       return NextResponse.json(
-        { error: "Someone updated this setlist. Refresh before deleting." },
+        { error: "Someone updated this setlist. Update before deleting." },
         { status: 409 },
       );
     await deleteSharedRecord(token, expectedEtag);

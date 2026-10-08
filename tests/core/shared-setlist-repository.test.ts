@@ -74,4 +74,34 @@ describe("shared setlist refresh", () => {
     expect(refreshed.snapshot.name).toBe("Updated team setlist");
     expect(songsAfter).toEqual(songsBefore);
   });
+
+  it("detects an update without replacing the cached snapshot", async () => {
+    await repository.follow("abc123", {
+      snapshot,
+      revision: 1,
+      etag: '"one"',
+      updatedAt: snapshot.publishedAt,
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            ...snapshot,
+            name: "Remote update not applied yet",
+            revision: 2,
+            updatedAt: "2026-01-02T00:00:00.000Z",
+          }),
+          { status: 200, headers: { etag: '"two"' } },
+        ),
+      ),
+    );
+
+    const checked = await repository.check("abc123");
+
+    expect(checked.status).toBe("update-available");
+    expect(checked.revision).toBe(1);
+    expect(checked.snapshot.name).toBe("Team setlist");
+    expect(checked.etag).toBe('"one"');
+  });
 });
