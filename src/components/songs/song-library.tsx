@@ -140,7 +140,10 @@ export function SongLibrary() {
   }
 
   return (
-    <div className="mx-auto max-w-7xl px-3 py-6 pb-24 min-[375px]:px-4 sm:px-6 sm:py-8 lg:py-10">
+    <div
+      className="mx-auto max-w-7xl px-3 py-6 pb-32 min-[375px]:px-4 sm:px-6 sm:py-8 md:pb-40 lg:py-10 lg:pb-32"
+      data-testid="song-library"
+    >
       <div className="mb-7 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div>
           <p className="mb-1 text-sm font-semibold text-indigo-600">
