@@ -355,8 +355,11 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
   await expect(page.getByText("2 songs, available offline")).toBeVisible();
   const copyActions = page.getByLabel(`Song actions for ${title} copy`);
   await copyActions.click();
-  page.once("dialog", (dialog) => dialog.accept());
   await page.getByRole("menuitem", { name: "Delete" }).click();
+  await page
+    .getByRole("dialog", { name: "Delete Song?" })
+    .getByRole("button", { name: "Delete", exact: true })
+    .click();
   await expect(page.getByText("1 song, available offline")).toBeVisible();
 
   await songActions.click();

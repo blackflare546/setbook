@@ -139,7 +139,19 @@ test("setlist cards open from the full surface without hijacking actions", async
   await page.goto("/setlists");
 
   const card = page.getByTestId(`setlist-card-${setlistId}`);
-  await card.getByRole("button", { name: "Delete Sortable Setlist" }).click();
+  const actions = page.getByTestId(`setlist-actions-${setlistId}`);
+  const deleteButton = card.getByRole("button", {
+    name: "Delete Sortable Setlist",
+  });
+  await expect(actions).toHaveCSS("opacity", "0");
+  const cardBox = await card.boundingBox();
+  expect(cardBox).not.toBeNull();
+  expect(cardBox!.height).toBeLessThan(150);
+
+  await card.hover();
+  await expect(actions).toHaveCSS("opacity", "1");
+  await expect(deleteButton).toHaveClass(/text-rose-600/);
+  await deleteButton.click();
   const deleteDialog = page.getByRole("dialog", {
     name: "Delete Sortable Setlist?",
   });
@@ -166,6 +178,73 @@ test("setlist cards open from the full surface without hijacking actions", async
   await cardLink.focus();
   await page.keyboard.press("Space");
   await expect(page).toHaveURL(`/setlists/${setlistId}`);
+});
+
+test("confirms song deletion without deleting on dismissal", async ({
+  page,
+}) => {
+  await restoreSetlistFixture(page);
+  await page.goto("/library");
+
+  const row = page.getByTestId("song-row-song-a");
+  const deleteButton = row.getByRole("button", { name: "Delete song" });
+  await expect(deleteButton).toHaveClass(/text-rose-600/);
+
+  await deleteButton.click();
+  const dialog = page.getByRole("dialog", { name: "Delete Song?" });
+  await expect(dialog).toContainText(
+    "Are you sure you want to delete “Alpha Song”? This action cannot be undone.",
+  );
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
+  await expect(row).toBeVisible();
+
+  await deleteButton.click();
+  await page
+    .getByTestId("song-delete-overlay")
+    .click({ position: { x: 4, y: 4 } });
+  await expect(dialog).toBeHidden();
+  await expect(row).toBeVisible();
+
+  await deleteButton.click();
+  await dialog.getByRole("button", { name: "Cancel" }).click();
+  await expect(row).toBeVisible();
+
+  await deleteButton.click();
+  await dialog.getByRole("button", { name: "Delete", exact: true }).click();
+  await expect(row).toHaveCount(0);
+  await expect(page.getByText("Song deleted")).toBeVisible();
+});
+
+test("keeps owned setlist actions accessible on touch devices", async ({
+  browser,
+}) => {
+  const context = await browser.newContext({
+    baseURL: test.info().project.use.baseURL as string,
+    hasTouch: true,
+    isMobile: true,
+    viewport: { width: 390, height: 844 },
+  });
+  const page = await context.newPage();
+
+  try {
+    await restoreSetlistFixture(page);
+    await page.goto("/setlists");
+
+    const actions = page.getByTestId(`setlist-actions-${setlistId}`);
+    await expect(actions).toHaveCSS("opacity", "1");
+    for (const name of [
+      "Duplicate Sortable Setlist",
+      "Delete Sortable Setlist",
+    ]) {
+      const box = await page.getByRole("button", { name }).boundingBox();
+      expect(box).not.toBeNull();
+      expect(box!.width).toBeGreaterThanOrEqual(44);
+      expect(box!.height).toBeGreaterThanOrEqual(44);
+    }
+  } finally {
+    await context.close();
+  }
 });
 
 test("confirms song removal and keeps the library song", async ({ page }) => {

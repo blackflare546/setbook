@@ -216,7 +216,7 @@ export function SetlistList() {
       </Card>
 
       {cards.length ? (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {cards.map((card) => {
             if (card.kind === "owned") {
               const { setlist } = card;
@@ -224,7 +224,7 @@ export function SetlistList() {
                 <Card
                   key={`owned-${setlist.id}`}
                   data-testid={`setlist-card-${setlist.id}`}
-                  className="group relative p-5"
+                  className="group relative p-4"
                 >
                   <Link
                     href={`/setlists/${setlist.id}`}
@@ -237,15 +237,19 @@ export function SetlistList() {
                       }
                     }}
                   />
-                  <div className="pointer-events-none relative mb-5 flex items-start justify-between">
-                    <span className="grid h-11 w-11 place-items-center rounded-lg bg-indigo-50 text-indigo-600 dark:bg-indigo-950/50 dark:text-indigo-300">
-                      <ListMusic size={21} />
+                  <div className="pointer-events-none relative mb-3 flex items-start justify-between">
+                    <span className="grid h-10 w-10 place-items-center rounded-lg bg-indigo-50 text-indigo-600 dark:bg-indigo-950/50 dark:text-indigo-300">
+                      <ListMusic size={20} />
                     </span>
-                    <div className="pointer-events-auto relative z-10 flex opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
+                    <div
+                      className="pointer-events-auto relative z-10 flex opacity-100 transition-opacity [@media(hover:hover)_and_(pointer:fine)]:opacity-0 [@media(hover:hover)_and_(pointer:fine)]:group-focus-within:opacity-100 [@media(hover:hover)_and_(pointer:fine)]:group-hover:opacity-100"
+                      data-testid={`setlist-actions-${setlist.id}`}
+                    >
                       <Button
                         type="button"
                         size="icon"
                         variant="ghost"
+                        className="h-11 w-11 sm:h-9 sm:w-9"
                         aria-label={`Duplicate ${setlist.name}`}
                         onClick={() =>
                           void setlistRepository.duplicate(setlist.id)
@@ -257,6 +261,7 @@ export function SetlistList() {
                         type="button"
                         size="icon"
                         variant="ghost"
+                        className="h-11 w-11 text-rose-600 hover:bg-rose-50 hover:text-rose-700 sm:h-9 sm:w-9 dark:text-rose-400 dark:hover:bg-rose-950/40 dark:hover:text-rose-300"
                         aria-label={`Delete ${setlist.name}`}
                         disabled={deletingId === setlist.id}
                         onClick={() => setDeletingSetlist(setlist)}
@@ -275,7 +280,7 @@ export function SetlistList() {
                       {setlist.venue ? ` · ${setlist.venue}` : ""}
                     </p>
                     {setlist.date && (
-                      <p className="mt-3 flex items-center gap-2 text-xs font-medium text-slate-500">
+                      <p className="mt-2 flex items-center gap-2 text-xs font-medium text-slate-500">
                         <CalendarDays size={14} />
                         {new Date(
                           `${setlist.date}T00:00:00`,
@@ -291,15 +296,15 @@ export function SetlistList() {
             return (
               <Card
                 key={`shared-${shared.publicToken}`}
-                className="group relative p-5"
+                className="group relative p-4"
               >
                 <Link
                   href={`/shared/${shared.publicToken}`}
                   aria-label={`Open shared setlist ${shared.snapshot.name}`}
                   className="absolute inset-0 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-500"
                 />
-                <div className="pointer-events-none relative mb-4 flex items-start justify-between gap-3">
-                  <span className="grid h-11 w-11 place-items-center rounded-lg bg-violet-50 text-violet-600 dark:bg-violet-950/50 dark:text-violet-300">
+                <div className="pointer-events-none relative mb-3 flex items-start justify-between gap-3">
+                  <span className="grid h-10 w-10 place-items-center rounded-lg bg-violet-50 text-violet-600 dark:bg-violet-950/50 dark:text-violet-300">
                     <Share2 size={20} />
                   </span>
                   <div className="flex flex-wrap justify-end gap-1.5">
@@ -330,7 +335,7 @@ export function SetlistList() {
                     {shared.snapshot.venue ? ` · ${shared.snapshot.venue}` : ""}
                   </p>
                 </div>
-                <div className="pointer-events-auto relative z-10 mt-4 flex flex-wrap gap-2">
+                <div className="pointer-events-auto relative z-10 mt-3 flex flex-wrap gap-2">
                   {shared.status === "update-available" && (
                     <Button
                       type="button"
