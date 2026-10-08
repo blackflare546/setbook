@@ -17,11 +17,6 @@ import type { Song } from "@/core/songs/types";
 import { createEmptySong, newId } from "@/core/songs/types";
 import { parseSong, parseText, sectionsToText } from "@/core/parser/parser";
 import {
-  arrangementToText,
-  parseSectionArrangement,
-  type SectionArrangement,
-} from "@/core/parser/section-arrangement";
-import {
   detectSongKey,
   type DetectedKeyCandidate,
 } from "@/core/chords/key-detection";
@@ -32,7 +27,6 @@ import { Card } from "@/components/ui/card";
 import { Input, Textarea } from "@/components/ui/input";
 import { FeedbackToast } from "@/components/ui/feedback-toast";
 import { KeySelector } from "@/components/ui/key-selector";
-import { SmartPasteSectionBadges } from "@/components/songs/smart-paste-section-badges";
 
 const example = `[Verse 1]\nG                 D\nI found a love for me\nEm                           C\nDarling, just dive right in\n\n[Chorus]\n[G]Take me into your [D]loving arms`;
 
@@ -69,8 +63,6 @@ export function SongEditor({ songId }: { songId?: string }) {
     songId ? null : createEmptySong(),
   );
   const [paste, setPaste] = useState("");
-  const [sectionArrangement, setSectionArrangement] =
-    useState<SectionArrangement>(() => parseSectionArrangement(""));
   const [mode, setMode] = useState<"paste" | "edit">("paste");
   const [originalDetectedKey, setOriginalDetectedKey] =
     useState<DetectedKeyCandidate | null>(null);
@@ -92,7 +84,6 @@ export function SongEditor({ songId }: { songId?: string }) {
         const detection = detectSongKey(parseText(source));
         setSong(loaded);
         setPaste(source);
-        setSectionArrangement(parseSectionArrangement(source));
         if (detection.confidence === "confident" && detection.primary) {
           setOriginalDetectedKey(detection.primary);
         }
@@ -113,24 +104,11 @@ export function SongEditor({ songId }: { songId?: string }) {
     );
   }
   function openSmartPaste() {
-    const source = song?.sourceText || sectionsToText(song?.sections ?? []);
-    setPaste(source);
-    setSectionArrangement(parseSectionArrangement(source));
+    setPaste(song?.sourceText || sectionsToText(song?.sections ?? []));
     setMode("paste");
   }
   function changePaste(value: string) {
     setPaste(value);
-    const arrangement = parseSectionArrangement(value);
-    setSectionArrangement(arrangement);
-    setSong((current) =>
-      current
-        ? {
-            ...current,
-            sections: arrangement.sections.map((item) => item.section),
-            sourceText: value,
-          }
-        : current,
-    );
     if (originalDetectedKey) return;
     const detection = detectSongKey(parseText(value));
     if (detection.confidence !== "confident" || !detection.primary) return;
@@ -139,20 +117,6 @@ export function SongEditor({ songId }: { songId?: string }) {
     if (!keyManuallyChanged && !song?.originalKey) {
       update({ originalKey: detectedKeyValue(detection.primary) });
     }
-  }
-  function changeSectionArrangement(arrangement: SectionArrangement) {
-    const source = arrangementToText(arrangement);
-    setSectionArrangement(arrangement);
-    setPaste(source);
-    setSong((current) =>
-      current
-        ? {
-            ...current,
-            sections: arrangement.sections.map((item) => item.section),
-            sourceText: source,
-          }
-        : current,
-    );
   }
   function changeSongKey(originalKey: string) {
     setKeyManuallyChanged(true);
@@ -294,10 +258,6 @@ export function SongEditor({ songId }: { songId?: string }) {
             </label>
           </div>
           <div className="p-4 sm:p-6">
-            <SmartPasteSectionBadges
-              arrangement={sectionArrangement}
-              onChange={changeSectionArrangement}
-            />
             <label className="mb-2 block text-sm font-semibold">
               Chord sheet
             </label>
