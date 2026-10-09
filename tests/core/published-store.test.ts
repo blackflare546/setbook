@@ -1,4 +1,4 @@
-import { BlobNotFoundError, del, get } from "@vercel/blob";
+import { BlobNotFoundError, del, get, head } from "@vercel/blob";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   PublishedStoreConfigurationError,
@@ -15,7 +15,7 @@ import {
 
 vi.mock("@vercel/blob", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@vercel/blob")>();
-  return { ...actual, del: vi.fn(), get: vi.fn() };
+  return { ...actual, del: vi.fn(), get: vi.fn(), head: vi.fn() };
 });
 
 afterEach(() => vi.unstubAllEnvs());
@@ -65,8 +65,9 @@ describe("published setlist storage configuration", () => {
 
   it("treats a missing Blob read as a missing shared record", async () => {
     vi.stubEnv("BLOB_STORE_ID", "store_test");
-    vi.mocked(get).mockRejectedValueOnce(new BlobNotFoundError());
+    vi.mocked(head).mockRejectedValueOnce(new BlobNotFoundError());
 
     await expect(readSharedRecord("missingToken")).resolves.toBeNull();
+    expect(get).not.toHaveBeenCalled();
   });
 });
