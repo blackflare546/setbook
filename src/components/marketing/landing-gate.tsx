@@ -18,8 +18,15 @@ export function LandingGate() {
 
   if (!showLanding) {
     return (
-      <main className="grid min-h-dvh place-items-center bg-white text-sm text-slate-500 dark:bg-slate-950 dark:text-slate-400">
-        Opening SetBook…
+      <main className="grid min-h-dvh place-items-center bg-white px-4 text-center dark:bg-slate-950">
+        <div>
+          <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-indigo-600 dark:text-indigo-400">
+            SetBook
+          </p>
+          <p className="mt-2 text-sm font-medium text-slate-500 dark:text-slate-400">
+            Opening your workspace…
+          </p>
+        </div>
       </main>
     );
   }

@@ -114,10 +114,10 @@ export function QrScannerDialog() {
       </Dialog.Trigger>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-40 bg-slate-950/60 backdrop-blur-[1px]" />
-        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 max-h-[calc(100dvh-2rem)] w-[min(calc(100vw-2rem),32rem)] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-xl border border-slate-200 bg-white p-5 shadow-2xl outline-none dark:border-slate-800 dark:bg-slate-950">
+        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 max-h-[calc(100dvh-2rem)] w-[min(calc(100vw-2rem),32rem)] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl outline-none sm:p-6 dark:border-slate-800 dark:bg-slate-950">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <Dialog.Title className="text-lg font-bold">
+              <Dialog.Title className="text-xl font-semibold tracking-[-0.02em]">
                 Scan a setlist QR
               </Dialog.Title>
               <Dialog.Description className="mt-1 text-sm text-slate-500">
@@ -136,7 +136,7 @@ export function QrScannerDialog() {
             </Dialog.Close>
           </div>
 
-          <div className="relative mt-4 overflow-hidden rounded-xl bg-slate-950">
+          <div className="relative mt-5 overflow-hidden rounded-xl border border-slate-800 bg-slate-950">
             <video
               ref={videoRef}
               className="aspect-square w-full object-cover sm:aspect-video"
@@ -161,7 +161,7 @@ export function QrScannerDialog() {
           )}
 
           <div className="mt-4 grid gap-3 border-t border-slate-200 pt-4 dark:border-slate-800">
-            <label className="inline-flex min-h-10 cursor-pointer items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-800 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100">
+            <label className="inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-[10px] border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-800 shadow-sm hover:border-slate-400 hover:bg-slate-100 focus-within:ring-2 focus-within:ring-indigo-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100">
               <ImageUp size={17} /> Upload QR image
               <input
                 className="sr-only"

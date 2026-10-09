@@ -3,6 +3,7 @@ import Link from "next/link";
 import { BookOpen } from "lucide-react";
 import { SetBookMark } from "@/components/brand/setbook-logo";
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/ui/page-header";
 
 export const metadata: Metadata = { title: "About" };
 
@@ -18,21 +19,21 @@ const capabilities = [
 
 export default function AboutPage() {
   return (
-    <div className="px-4 py-10 pb-28 sm:px-6 sm:py-14 lg:pb-14">
-      <main className="mx-auto max-w-3xl">
-        <p className="text-sm font-bold uppercase tracking-[.18em] text-indigo-600 dark:text-indigo-400">
-          About
-        </p>
-        <div className="mt-3 flex items-center gap-3">
-          <SetBookMark className="h-11 w-11 text-slate-950 dark:text-white" />
-          <h1 className="text-4xl font-black tracking-tight">SetBook</h1>
-        </div>
+    <div className="px-4 py-8 pb-28 sm:px-6 sm:py-10 lg:px-8 lg:py-12 lg:pb-16">
+      <main className="mx-auto max-w-5xl">
+        <PageHeader
+          title="SetBook"
+          description="A local-first song chart and setlist workspace for worship teams and bands."
+          actions={
+            <SetBookMark className="h-12 w-12 text-slate-950 dark:text-white" />
+          }
+        />
 
-        <section className="mt-8 border-y border-slate-200 py-8 dark:border-slate-800">
-          <h2 className="text-2xl font-bold tracking-tight">
+        <section className="grid gap-8 border-b border-slate-200 pb-9 md:grid-cols-[0.8fr_1.2fr] dark:border-slate-800">
+          <h2 className="text-2xl font-semibold leading-tight tracking-[-0.035em] sm:text-3xl">
             A simple song chart and setlist tool for worship teams and bands.
           </h2>
-          <p className="mt-4 leading-7 text-slate-600 dark:text-slate-300">
+          <p className="leading-7 text-slate-600 dark:text-slate-300">
             Organize songs, chord charts, and setlists in one place so musicians
             can work from a consistent version of each song. Instead of
             switching between different chord apps, files, and chord sheets,
@@ -40,15 +41,17 @@ export default function AboutPage() {
           </p>
         </section>
 
-        <section className="py-8">
-          <h2 className="text-xl font-bold">What you can do</h2>
-          <ul className="mt-5 grid gap-3 sm:grid-cols-2">
+        <section className="py-9">
+          <h2 className="text-xl font-semibold tracking-[-0.02em]">
+            What you can do
+          </h2>
+          <ul className="mt-5 grid overflow-hidden rounded-2xl border border-slate-200 sm:grid-cols-2 dark:border-slate-800">
             {capabilities.map((capability) => (
               <li
                 key={capability}
-                className="flex items-start gap-3 text-sm leading-6"
+                className="flex min-h-14 items-center gap-3 border-b border-slate-200 px-4 py-3 text-sm leading-6 sm:odd:border-r dark:border-slate-800"
               >
-                <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-indigo-600" />
+                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-indigo-600" />
                 {capability}
               </li>
             ))}
@@ -62,7 +65,7 @@ export default function AboutPage() {
         </Button>
       </main>
 
-      <footer className="mx-auto mt-12 max-w-3xl border-t border-slate-200 pt-6 text-sm text-slate-500 dark:border-slate-800 dark:text-slate-400">
+      <footer className="mx-auto mt-12 max-w-5xl border-t border-slate-200 pt-6 text-sm text-slate-500 dark:border-slate-800 dark:text-slate-400">
         Developed by:{" "}
         <a
           href="https://www.facebook.com/glennmark5466/"

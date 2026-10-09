@@ -47,7 +47,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 ## Design work
 
 - Project-wide visual direction is defined in `DESIGN.md`.
-- For substantial landing-page or marketing UI work, invoke the installed
+- For substantial product, landing-page, or marketing UI work, invoke the installed
   `gpt-taste` skill at `.agents/skills/gpt-taste/SKILL.md` and read it before
   coding.
 - Apply the skill as design critique and composition guidance, then reconcile it

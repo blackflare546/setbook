@@ -24,8 +24,15 @@ export function LocalPerformance({ id }: { id: string }) {
   return snapshot ? (
     <PerformanceView snapshot={snapshot} backHref={`/setlists/${id}`} />
   ) : (
-    <div className="grid min-h-screen place-items-center bg-slate-950 text-slate-400">
-      Preparing performance…
+    <div className="grid min-h-screen place-items-center bg-slate-950 px-4 text-center text-sm text-slate-400">
+      <div>
+        <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-slate-500">
+          SetBook performance
+        </p>
+        <p className="mt-2 text-base font-semibold text-slate-200">
+          Preparing performance…
+        </p>
+      </div>
     </div>
   );
 }

@@ -2,13 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  BookOpen,
-  CircleHelp,
-  Info,
-  ListMusic,
-  Plus,
-} from "lucide-react";
+import { BookOpen, CircleHelp, Info, ListMusic, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SetBookLogo } from "@/components/brand/setbook-logo";
 import { Button } from "@/components/ui/button";
@@ -34,11 +28,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   if (immersive) return <>{children}</>;
   return (
     <div className="min-h-screen bg-slate-50 text-slate-950 dark:bg-slate-950 dark:text-slate-100">
-      <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur dark:border-slate-800 dark:bg-slate-950/95">
-        <div className="mx-auto flex min-h-16 max-w-7xl items-center gap-2 px-3 py-2 sm:gap-6 sm:px-6">
+      <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/92 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/92">
+        <div className="mx-auto flex min-h-16 max-w-[1440px] items-center gap-2 px-3 py-2 sm:gap-6 sm:px-6 lg:px-8">
           <Link
             href="/library"
-            className="shrink-0 text-slate-950 dark:text-white"
+            className="shrink-0 rounded-lg text-slate-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-4 dark:text-white dark:focus-visible:ring-offset-slate-950"
             aria-label="SetBook home"
           >
             <SetBookLogo compact />
@@ -49,10 +43,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 key={href}
                 href={href}
                 className={cn(
-                  "flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium",
+                  "flex items-center gap-2 rounded-[10px] px-3.5 py-2.5 text-sm font-semibold transition-colors",
                   pathname.startsWith(href)
-                    ? "bg-slate-100 text-slate-950 dark:bg-slate-800 dark:text-white"
-                    : "text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white",
+                    ? "bg-slate-950 text-white shadow-sm dark:bg-white dark:text-slate-950"
+                    : "text-slate-500 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white",
                 )}
               >
                 <Icon size={17} />
@@ -72,14 +66,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       </header>
       <main>{children}</main>
-      <nav className="fixed inset-x-0 bottom-0 z-30 flex border-t border-slate-200 bg-white p-2 pb-[max(.5rem,env(safe-area-inset-bottom))] dark:border-slate-800 dark:bg-slate-950 lg:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-30 flex border-t border-slate-200 bg-white/95 p-2 pb-[max(.5rem,env(safe-area-inset-bottom))] shadow-[0_-12px_32px_-24px_rgba(0,0,0,0.35)] backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/95 lg:hidden">
         {nav.map(({ href, label, icon: Icon }) => (
           <Link
             key={href}
             href={href}
             className={cn(
-              "flex min-h-12 min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-lg px-0.5 py-1 text-[10px] font-medium min-[390px]:text-xs",
-              pathname.startsWith(href) ? "text-indigo-600" : "text-slate-500",
+              "flex min-h-12 min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-[10px] px-0.5 py-1 text-[10px] font-semibold min-[390px]:text-xs",
+              pathname.startsWith(href)
+                ? "bg-slate-100 text-slate-950 dark:bg-slate-800 dark:text-white"
+                : "text-slate-500 dark:text-slate-400",
             )}
           >
             <Icon size={20} />

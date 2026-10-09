@@ -541,7 +541,7 @@ export function PerformanceView({
         onFocusCapture={autoHide.revealTemporarily}
         onPointerDownCapture={autoHide.revealTemporarily}
         className={cn(
-          "sticky top-0 z-20 border-b border-slate-200 bg-white/95 px-2 py-2 backdrop-blur transition-transform duration-200 motion-reduce:transition-none dark:border-slate-800 dark:bg-slate-950/95 sm:px-4",
+          "sticky top-0 z-20 border-b border-slate-200 bg-white/92 px-2 py-2 shadow-[0_10px_30px_-28px_rgba(0,0,0,0.45)] backdrop-blur-xl transition-transform duration-200 motion-reduce:transition-none dark:border-slate-800 dark:bg-slate-950/92 sm:px-4",
         )}
       >
         <div
@@ -564,7 +564,7 @@ export function PerformanceView({
             </Button>
           )}
           <div className="min-w-0 flex-1">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
+            <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-indigo-600 dark:text-indigo-400">
               {singleSong
                 ? "Song view"
                 : publicMode
@@ -614,9 +614,9 @@ export function PerformanceView({
               </Dialog.Trigger>
               <Dialog.Portal>
                 <Dialog.Overlay className="fixed inset-0 z-40 bg-slate-950/50 backdrop-blur-[1px]" />
-                <Dialog.Content className="fixed inset-y-0 right-0 z-50 w-[min(88vw,22rem)] overflow-y-auto border-l border-slate-200 bg-white p-4 shadow-2xl outline-none dark:border-slate-800 dark:bg-slate-950">
-                  <div className="mb-5 flex min-h-11 items-center justify-between gap-3">
-                    <Dialog.Title className="text-lg font-bold">
+                <Dialog.Content className="fixed inset-y-0 right-0 z-50 w-[min(90vw,24rem)] overflow-y-auto rounded-none border-y-0 border-r-0 border-l border-slate-200 bg-white p-4 shadow-2xl outline-none sm:p-5 dark:border-slate-800 dark:bg-slate-950">
+                  <div className="mb-5 flex min-h-11 items-center justify-between gap-3 border-b border-slate-200 pb-4 dark:border-slate-800">
+                    <Dialog.Title className="text-lg font-semibold tracking-[-0.02em]">
                       Performance menu
                     </Dialog.Title>
                     <Dialog.Close asChild>
@@ -631,7 +631,7 @@ export function PerformanceView({
                     </Dialog.Close>
                   </div>
 
-                  <label className="mb-4 block rounded-lg border border-slate-200 p-3 text-sm font-semibold dark:border-slate-800">
+                  <label className="mb-4 block rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm font-semibold dark:border-slate-800 dark:bg-slate-900">
                     Theme
                     <select
                       aria-label="Performance theme"
@@ -647,7 +647,7 @@ export function PerformanceView({
                     </select>
                   </label>
 
-                  <section className="mb-4 rounded-lg border border-slate-200 p-3 dark:border-slate-800">
+                  <section className="mb-4 rounded-xl border border-slate-200 p-3 dark:border-slate-800">
                     <h2 className="mb-3 text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">
                       Font &amp; Typography
                     </h2>
@@ -663,7 +663,7 @@ export function PerformanceView({
                     />
                   </section>
 
-                  <div className="mb-6 rounded-lg border border-slate-200 p-3 dark:border-slate-800">
+                  <div className="mb-6 rounded-xl border border-slate-200 p-3 dark:border-slate-800">
                     <button
                       className="flex min-h-11 w-full items-center justify-between gap-3 text-left font-semibold"
                       aria-pressed={showBandNotes}
@@ -698,7 +698,7 @@ export function PerformanceView({
                           selectSong(index);
                           setShowOrder(false);
                         }}
-                        className={`flex min-h-12 w-full items-center gap-3 rounded-lg p-3 text-left ${index === current ? "bg-indigo-100 text-indigo-950 dark:bg-indigo-500/20 dark:text-white" : "text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"}`}
+                        className={`flex min-h-12 w-full items-center gap-3 rounded-[10px] p-3 text-left ${index === current ? "bg-slate-950 text-white dark:bg-white dark:text-slate-950" : "text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"}`}
                       >
                         <span className="w-5 shrink-0 text-xs font-bold">
                           {index + 1}
@@ -769,25 +769,25 @@ export function PerformanceView({
       >
         <article
           data-performance-chart-article
-          className="min-w-0 px-3 py-5 min-[375px]:px-4 sm:px-8 sm:py-7 lg:px-12"
+          className="min-w-0 px-3 py-5 min-[375px]:px-4 sm:px-8 sm:py-8 lg:px-12"
         >
-          <div className="mb-5 border-b border-slate-200 pb-4 dark:border-slate-800 sm:mb-7 sm:flex sm:items-end sm:justify-between sm:gap-4">
+          <div className="mb-6 border-b border-slate-200 pb-5 dark:border-slate-800 sm:mb-8 sm:flex sm:items-end sm:justify-between sm:gap-4">
             <div className="min-w-0">
-              <h1 className="break-words text-2xl font-bold tracking-tight min-[375px]:text-3xl sm:text-4xl">
+              <h1 className="break-words text-2xl font-semibold tracking-[-0.04em] min-[375px]:text-3xl sm:text-4xl">
                 {song.title}
               </h1>
               <p className="mt-1 text-sm text-slate-500 dark:text-slate-400 sm:text-base">
                 {song.artist || "Unknown artist"}
               </p>
             </div>
-            <div className="mt-4 flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-slate-50 p-2 dark:border-slate-700 dark:bg-slate-900 sm:mt-0 sm:justify-start">
+            <div className="mt-4 flex items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50 p-2 shadow-sm dark:border-slate-700 dark:bg-slate-900 sm:mt-0 sm:justify-start">
               <div className="min-w-14 px-1 text-center">
                 <p className="text-[9px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">
                   Key
                 </p>
                 <p
                   aria-label="Current key"
-                  className="text-xl font-black text-indigo-700 dark:text-amber-200"
+                  className="font-mono text-xl font-bold text-indigo-700 dark:text-amber-200"
                 >
                   {currentKey}
                 </p>
@@ -842,7 +842,7 @@ export function PerformanceView({
           </div>
 
           {song.arrangementCue && (
-            <div className="mb-6 rounded-lg border-l-4 border-indigo-500 bg-indigo-50 px-4 py-3 dark:bg-indigo-500/10">
+            <div className="mb-6 rounded-r-xl border-l-2 border-indigo-500 bg-indigo-50 px-4 py-3 dark:bg-indigo-500/10">
               <p className="text-[10px] font-bold uppercase tracking-wider text-indigo-700 dark:text-indigo-300">
                 Arrangement cue
               </p>
@@ -855,7 +855,7 @@ export function PerformanceView({
           {showBandNotes && snapshot.notes && (
             <section
               aria-label="Band Notes"
-              className="mb-6 rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900"
+              className="mb-6 rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900"
             >
               <div className="mb-2 flex items-center justify-between gap-3">
                 <h2 className="text-xs font-bold uppercase tracking-[.16em] text-slate-600 dark:text-slate-300">
@@ -921,7 +921,7 @@ export function PerformanceView({
           data-visible={controlsVisible}
           onFocusCapture={autoHide.revealTemporarily}
           onPointerDownCapture={autoHide.revealTemporarily}
-          className="fixed inset-x-0 bottom-0 z-20 border-t border-slate-200 bg-white/95 p-2 pb-[max(.5rem,env(safe-area-inset-bottom))] backdrop-blur transition-transform duration-200 motion-reduce:transition-none dark:border-slate-800 dark:bg-slate-950/95 sm:p-3"
+          className="fixed inset-x-0 bottom-0 z-20 border-t border-slate-200 bg-white/92 p-2 pb-[max(.5rem,env(safe-area-inset-bottom))] shadow-[0_-12px_32px_-26px_rgba(0,0,0,0.45)] backdrop-blur-xl transition-transform duration-200 motion-reduce:transition-none dark:border-slate-800 dark:bg-slate-950/92 sm:p-3"
         >
           <div className="mx-auto flex max-w-3xl items-center gap-1.5 sm:gap-3">
             <Button

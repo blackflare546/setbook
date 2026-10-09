@@ -51,7 +51,7 @@ function OriginalDetectedKey({
   candidate: DetectedKeyCandidate;
 }) {
   return (
-    <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold dark:border-slate-800 dark:bg-slate-900">
+    <div className="rounded-[10px] border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm font-semibold text-indigo-950 dark:border-indigo-900 dark:bg-indigo-950/40 dark:text-indigo-100">
       Detected Key: {detectedKeyLabel(candidate)}
     </div>
   );
@@ -94,12 +94,12 @@ export function SongEditor({ songId }: { songId?: string }) {
     setSong((current) =>
       current
         ? {
-          ...current,
-          ...next,
-          sourceText: next.sections
-            ? sectionsToText(next.sections)
-            : current.sourceText,
-        }
+            ...current,
+            ...next,
+            sourceText: next.sections
+              ? sectionsToText(next.sections)
+              : current.sourceText,
+          }
         : current,
     );
   }
@@ -180,7 +180,7 @@ export function SongEditor({ songId }: { songId?: string }) {
 
   if (mode === "paste")
     return (
-      <div className="mx-auto max-w-4xl px-3 py-5 pb-28 min-[375px]:px-4 sm:px-6 sm:py-8 sm:pb-12 lg:py-12">
+      <div className="mx-auto max-w-5xl px-3 py-7 pb-28 min-[375px]:px-4 sm:px-6 sm:py-10 sm:pb-12 lg:px-8 lg:py-12">
         <FeedbackToast
           message={feedback?.message ?? null}
           tone={feedback?.tone}
@@ -193,20 +193,20 @@ export function SongEditor({ songId }: { songId?: string }) {
           <ArrowLeft size={17} />
           Back
         </Button>
-        <div className="mb-5 sm:mb-7">
-          <p className="mb-1 text-sm font-semibold text-indigo-600">
+        <div className="mb-7 border-b border-slate-200 pb-7 dark:border-slate-800">
+          <p className="mb-2 font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-indigo-600 dark:text-indigo-400">
             Smart Paste
           </p>
-          <h1 className="text-2xl font-bold tracking-tight min-[375px]:text-3xl">
+          <h1 className="text-3xl font-semibold leading-tight tracking-[-0.04em] min-[375px]:text-4xl">
             {songId ? "Edit song chart" : "Create a song chart"}
           </h1>
-          <p className="mt-2 max-w-2xl text-slate-500">
+          <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600 sm:text-base dark:text-slate-300">
             Paste the chord sheet you already have. SetBook recognizes chord
             rows, inline chords, and section labels—no special markup required.
           </p>
         </div>
         <Card className="overflow-hidden">
-          <div className="grid gap-4 border-b border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-4 border-b border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900 sm:grid-cols-2 sm:p-5 lg:grid-cols-4">
             <label className="text-xs font-bold uppercase tracking-wide text-slate-500">
               Title
               <Input
@@ -279,7 +279,8 @@ export function SongEditor({ songId }: { songId?: string }) {
                   {keyDetection.confidence === "ambiguous" &&
                     keyDetection.primary && (
                       <p className="text-sm font-semibold">
-                        Possible Keys: {[keyDetection.primary]
+                        Possible Keys:{" "}
+                        {[keyDetection.primary]
                           .concat(keyDetection.alternatives)
                           .map(detectedKeyLabel)
                           .join(" / ")}
@@ -325,28 +326,27 @@ export function SongEditor({ songId }: { songId?: string }) {
                 </Button>
               </div>
             </div>
-
           </div>
         </Card>
       </div>
     );
 
   return (
-    <div className="mx-auto max-w-6xl px-3 py-5 pb-24 min-[375px]:px-4 sm:px-6 sm:py-7">
+    <div className="mx-auto max-w-[1440px] px-3 py-7 pb-24 min-[375px]:px-4 sm:px-6 sm:py-10 lg:px-8 lg:py-12">
       <FeedbackToast
         message={feedback?.message ?? null}
         tone={feedback?.tone}
       />
-      <div className="mb-6 flex flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+      <div className="mb-7 flex flex-col items-stretch gap-3 border-b border-slate-200 pb-7 sm:flex-row sm:flex-wrap sm:items-center dark:border-slate-800">
         <Button variant="ghost" onClick={() => router.back()} className="-ml-3">
           <ArrowLeft size={17} />
           Back
         </Button>
         <div className="min-w-0 flex-1">
-          <p className="text-xs font-bold uppercase tracking-wider text-indigo-600">
+          <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-indigo-600 dark:text-indigo-400">
             Chart editor
           </p>
-          <h1 className="break-words text-2xl font-bold">
+          <h1 className="mt-1 break-words text-3xl font-semibold tracking-[-0.04em] sm:text-4xl">
             {song.title || "Untitled song"}
           </h1>
         </div>
@@ -365,9 +365,9 @@ export function SongEditor({ songId }: { songId?: string }) {
           </Button>
         </div>
       </div>
-      <div className="grid gap-5 lg:grid-cols-[280px_1fr]">
+      <div className="grid gap-5 lg:grid-cols-[320px_minmax(0,1fr)]">
         <div className="space-y-4">
-          <Card className="space-y-4 p-4">
+          <Card className="space-y-4 p-4 sm:p-5">
             <label className="block text-sm font-semibold">
               Title
               <Input
@@ -445,7 +445,7 @@ export function SongEditor({ songId }: { songId?: string }) {
         </div>
         <div className="space-y-4">
           {song.sections.map((section, sectionIndex) => (
-            <Card key={section.id} className="overflow-hidden">
+            <Card key={section.id} className="overflow-hidden shadow-none">
               <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-900">
                 <Music size={16} className="text-indigo-600" />
                 <Input
@@ -508,7 +508,7 @@ export function SongEditor({ songId }: { songId?: string }) {
                   </Button>
                 </div>
               </div>
-              <div className="space-y-3 p-4">
+              <div className="space-y-3 p-4 sm:p-5">
                 {section.lines.map((line) => (
                   <div
                     key={line.id}
@@ -529,23 +529,23 @@ export function SongEditor({ songId }: { songId?: string }) {
                                 sections: song.sections.map((s) =>
                                   s.id === section.id
                                     ? {
-                                      ...s,
-                                      lines: s.lines.map((l) =>
-                                        l.id === line.id
-                                          ? {
-                                            ...l,
-                                            chords: l.chords.map((c) =>
-                                              c.id === chord.id
-                                                ? {
-                                                  ...c,
-                                                  symbol: e.target.value,
-                                                }
-                                                : c,
-                                            ),
-                                          }
-                                          : l,
-                                      ),
-                                    }
+                                        ...s,
+                                        lines: s.lines.map((l) =>
+                                          l.id === line.id
+                                            ? {
+                                                ...l,
+                                                chords: l.chords.map((c) =>
+                                                  c.id === chord.id
+                                                    ? {
+                                                        ...c,
+                                                        symbol: e.target.value,
+                                                      }
+                                                    : c,
+                                                ),
+                                              }
+                                            : l,
+                                        ),
+                                      }
                                     : s,
                                 ),
                               })
@@ -562,25 +562,25 @@ export function SongEditor({ songId }: { songId?: string }) {
                                 sections: song.sections.map((s) =>
                                   s.id === section.id
                                     ? {
-                                      ...s,
-                                      lines: s.lines.map((l) =>
-                                        l.id === line.id
-                                          ? {
-                                            ...l,
-                                            chords: l.chords.map((c) =>
-                                              c.id === chord.id
-                                                ? {
-                                                  ...c,
-                                                  position: Number(
-                                                    e.target.value,
-                                                  ),
-                                                }
-                                                : c,
-                                            ),
-                                          }
-                                          : l,
-                                      ),
-                                    }
+                                        ...s,
+                                        lines: s.lines.map((l) =>
+                                          l.id === line.id
+                                            ? {
+                                                ...l,
+                                                chords: l.chords.map((c) =>
+                                                  c.id === chord.id
+                                                    ? {
+                                                        ...c,
+                                                        position: Number(
+                                                          e.target.value,
+                                                        ),
+                                                      }
+                                                    : c,
+                                                ),
+                                              }
+                                            : l,
+                                        ),
+                                      }
                                     : s,
                                 ),
                               })
@@ -594,18 +594,18 @@ export function SongEditor({ songId }: { songId?: string }) {
                                 sections: song.sections.map((s) =>
                                   s.id === section.id
                                     ? {
-                                      ...s,
-                                      lines: s.lines.map((l) =>
-                                        l.id === line.id
-                                          ? {
-                                            ...l,
-                                            chords: l.chords.filter(
-                                              (c) => c.id !== chord.id,
-                                            ),
-                                          }
-                                          : l,
-                                      ),
-                                    }
+                                        ...s,
+                                        lines: s.lines.map((l) =>
+                                          l.id === line.id
+                                            ? {
+                                                ...l,
+                                                chords: l.chords.filter(
+                                                  (c) => c.id !== chord.id,
+                                                ),
+                                              }
+                                            : l,
+                                        ),
+                                      }
                                     : s,
                                 ),
                               })
@@ -623,23 +623,23 @@ export function SongEditor({ songId }: { songId?: string }) {
                             sections: song.sections.map((s) =>
                               s.id === section.id
                                 ? {
-                                  ...s,
-                                  lines: s.lines.map((l) =>
-                                    l.id === line.id
-                                      ? {
-                                        ...l,
-                                        chords: [
-                                          ...l.chords,
-                                          {
-                                            id: newId(),
-                                            symbol: "G",
-                                            position: 0,
-                                          },
-                                        ],
-                                      }
-                                      : l,
-                                  ),
-                                }
+                                    ...s,
+                                    lines: s.lines.map((l) =>
+                                      l.id === line.id
+                                        ? {
+                                            ...l,
+                                            chords: [
+                                              ...l.chords,
+                                              {
+                                                id: newId(),
+                                                symbol: "G",
+                                                position: 0,
+                                              },
+                                            ],
+                                          }
+                                        : l,
+                                    ),
+                                  }
                                 : s,
                             ),
                           })
@@ -659,13 +659,13 @@ export function SongEditor({ songId }: { songId?: string }) {
                             sections: song.sections.map((s) =>
                               s.id === section.id
                                 ? {
-                                  ...s,
-                                  lines: s.lines.map((l) =>
-                                    l.id === line.id
-                                      ? { ...l, lyrics: e.target.value }
-                                      : l,
-                                  ),
-                                }
+                                    ...s,
+                                    lines: s.lines.map((l) =>
+                                      l.id === line.id
+                                        ? { ...l, lyrics: e.target.value }
+                                        : l,
+                                    ),
+                                  }
                                 : s,
                             ),
                           })
@@ -679,11 +679,11 @@ export function SongEditor({ songId }: { songId?: string }) {
                             sections: song.sections.map((s) =>
                               s.id === section.id
                                 ? {
-                                  ...s,
-                                  lines: s.lines.filter(
-                                    (l) => l.id !== line.id,
-                                  ),
-                                }
+                                    ...s,
+                                    lines: s.lines.filter(
+                                      (l) => l.id !== line.id,
+                                    ),
+                                  }
                                 : s,
                             ),
                           })
@@ -702,12 +702,12 @@ export function SongEditor({ songId }: { songId?: string }) {
                       sections: song.sections.map((s) =>
                         s.id === section.id
                           ? {
-                            ...s,
-                            lines: [
-                              ...s.lines,
-                              { id: newId(), lyrics: "", chords: [] },
-                            ],
-                          }
+                              ...s,
+                              lines: [
+                                ...s.lines,
+                                { id: newId(), lyrics: "", chords: [] },
+                              ],
+                            }
                           : s,
                       ),
                     })

@@ -26,6 +26,7 @@ import {
   sharedSetlistRepository,
 } from "@/data/repositories/shared-setlist-repository";
 import { QrScannerDialog } from "@/components/setlists/qr-scanner-dialog";
+import { PageHeader } from "@/components/ui/page-header";
 
 const sharedStatusStyles = {
   current:
@@ -181,24 +182,18 @@ export function SetlistList() {
   }
 
   return (
-    <div className="mx-auto max-w-6xl px-3 py-6 pb-24 min-[375px]:px-4 sm:px-6 sm:py-8 lg:py-10">
+    <div className="mx-auto max-w-[1440px] px-3 py-7 pb-24 min-[375px]:px-4 sm:px-6 sm:py-10 lg:px-8 lg:py-12">
       <FeedbackToast
         message={feedback?.message ?? null}
         tone={feedback?.tone}
       />
-      <div className="mb-7">
-        <p className="mb-1 text-sm font-semibold text-indigo-600">
-          Plan the show
-        </p>
-        <h1 className="text-2xl font-bold tracking-tight min-[375px]:text-3xl">
-          Setlists
-        </h1>
-        <p className="mt-1 text-slate-500">
-          Build your own setlists or open one shared by your team.
-        </p>
-      </div>
+      <PageHeader
+        eyebrow="Plan the show"
+        title="Setlists"
+        description="Build your own setlists or open one shared by your team."
+      />
 
-      <Card className="mb-5 flex flex-col gap-3 p-4 sm:flex-row">
+      <Card className="mb-6 flex flex-col gap-3 p-4 sm:flex-row sm:p-5">
         <Input
           placeholder="New setlist name…"
           value={name}
@@ -216,7 +211,7 @@ export function SetlistList() {
       </Card>
 
       {cards.length ? (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-flow-dense gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {cards.map((card) => {
             if (card.kind === "owned") {
               const { setlist } = card;
@@ -224,12 +219,12 @@ export function SetlistList() {
                 <Card
                   key={`owned-${setlist.id}`}
                   data-testid={`setlist-card-${setlist.id}`}
-                  className="group relative p-4"
+                  className="group relative p-4 transition-[border-color,box-shadow,transform] hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_18px_50px_-38px_rgba(0,0,0,0.55)] dark:hover:border-slate-700"
                 >
                   <Link
                     href={`/setlists/${setlist.id}`}
                     aria-label={`Open ${setlist.name}`}
-                    className="absolute inset-0 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-500"
+                    className="absolute inset-0 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-500"
                     onKeyDown={(event) => {
                       if (event.key === " ") {
                         event.preventDefault();
@@ -296,12 +291,12 @@ export function SetlistList() {
             return (
               <Card
                 key={`shared-${shared.publicToken}`}
-                className="group relative p-4"
+                className="group relative min-h-48 p-5 transition-[border-color,box-shadow,transform] hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_18px_50px_-38px_rgba(0,0,0,0.55)] dark:hover:border-slate-700"
               >
                 <Link
                   href={`/shared/${shared.publicToken}`}
                   aria-label={`Open shared setlist ${shared.snapshot.name}`}
-                  className="absolute inset-0 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-500"
+                  className="absolute inset-0 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-500"
                 />
                 <div className="pointer-events-none relative mb-3 flex items-start justify-between gap-3">
                   <span className="grid h-10 w-10 place-items-center rounded-lg bg-violet-50 text-violet-600 dark:bg-violet-950/50 dark:text-violet-300">
