@@ -42,6 +42,17 @@ export class SongRepository {
     await this.database.songs.add(copy);
     return copy;
   }
+  async saveTransfer(song: Song): Promise<Song> {
+    const saved = {
+      ...song,
+      sourceText: song.sourceText || sectionsToText(song.sections),
+      updatedAt: new Date().toISOString(),
+    };
+    await this.database.transaction("rw", this.database.songs, async () => {
+      await this.database.songs.put(saved);
+    });
+    return saved;
+  }
 }
 
 export const songRepository = new SongRepository();

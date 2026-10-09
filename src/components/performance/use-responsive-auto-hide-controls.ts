@@ -8,8 +8,7 @@ import {
   type RefObject,
 } from "react";
 
-const RESPONSIVE_QUERY =
-  "(max-width: 767px), (max-height: 500px) and (max-width: 932px)";
+const RESPONSIVE_QUERY = "all";
 const REVEAL_DURATION = 2000;
 const MEANINGFUL_SCROLL_DISTANCE = 8;
 const SCROLL_GESTURE_GAP = 160;

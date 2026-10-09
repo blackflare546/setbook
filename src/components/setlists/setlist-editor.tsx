@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import type { CSSProperties } from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import {
   closestCenter,
@@ -57,6 +57,9 @@ import { Input, Textarea } from "@/components/ui/input";
 import { FeedbackToast } from "@/components/ui/feedback-toast";
 import { KeySelector } from "@/components/ui/key-selector";
 import { formatMusicalKey } from "@/core/chords/keys";
+import { useProgressiveCollection } from "@/lib/hooks/use-progressive-collection";
+import { ProgressiveCollectionFooter } from "@/components/ui/progressive-collection-footer";
+import { ScrollToTopButton } from "@/components/ui/scroll-to-top-button";
 
 type SaveState = "idle" | "dirty" | "saving" | "saved" | "error";
 
@@ -219,7 +222,8 @@ function SortableSetlistEntry({
 
 export function SetlistEditor({ id }: { id: string }) {
   const [setlist, setSetlist] = useState<Setlist | null>(null);
-  const songs = useLiveQuery(() => songRepository.list(), []) ?? [];
+  const liveSongs = useLiveQuery(() => songRepository.list(), []);
+  const songs = useMemo(() => liveSongs ?? [], [liveSongs]);
   const [sharedBy, setSharedBy] = useState("");
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [publishing, setPublishing] = useState(false);
@@ -261,6 +265,13 @@ export function SetlistEditor({ id }: { id: string }) {
     }, 2500);
     return () => window.clearTimeout(timeout);
   }, [feedback]);
+  const matchingSongs = useMemo(() => {
+    const normalized = songQuery.trim().toLocaleLowerCase();
+    return songs.filter((song) =>
+      `${song.title} ${song.artist}`.toLocaleLowerCase().includes(normalized),
+    );
+  }, [songQuery, songs]);
+  const progressiveSongs = useProgressiveCollection(matchingSongs, songQuery);
   const songMap = new Map(songs.map((song) => [song.id, song]));
   if (!setlist)
     return (
@@ -388,11 +399,6 @@ export function SetlistEditor({ id }: { id: string }) {
     );
   }
 
-  const matchingSongs = songs.filter((song) =>
-    `${song.title} ${song.artist}`
-      .toLocaleLowerCase()
-      .includes(songQuery.trim().toLocaleLowerCase()),
-  );
   function handleDragStart(event: DragStartEvent) {
     const entryId = String(event.active.id);
     setDraggedEntryId(entryId);
@@ -543,33 +549,42 @@ export function SetlistEditor({ id }: { id: string }) {
               </label>
               <div className="mt-2 max-h-72 overflow-y-auto overscroll-contain">
                 {matchingSongs.length ? (
-                  matchingSongs.map((song) => (
-                    <button
-                      key={song.id}
-                      className="flex min-h-14 w-full flex-col justify-center rounded-lg px-3 py-2 text-left hover:bg-slate-100 dark:hover:bg-slate-800"
-                      onClick={() => {
-                        update({
-                          entries: [
-                            ...setlist.entries,
-                            {
-                              id: crypto.randomUUID(),
-                              songId: song.id,
-                              arrangementCue: "",
-                            },
-                          ],
-                        });
-                        setSongQuery("");
-                        setPickerOpen(false);
-                      }}
-                    >
-                      <span className="break-words font-semibold">
-                        {song.title}
-                      </span>
-                      <span className="text-sm text-slate-500 dark:text-slate-400">
-                        {song.artist || "Unknown artist"}
-                      </span>
-                    </button>
-                  ))
+                  <>
+                    {progressiveSongs.visibleItems.map((song) => (
+                      <button
+                        key={song.id}
+                        className="flex min-h-14 w-full flex-col justify-center rounded-lg px-3 py-2 text-left hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:hover:bg-slate-800"
+                        onClick={() => {
+                          update({
+                            entries: [
+                              ...setlist.entries,
+                              {
+                                id: crypto.randomUUID(),
+                                songId: song.id,
+                                arrangementCue: "",
+                              },
+                            ],
+                          });
+                          setSongQuery("");
+                          setPickerOpen(false);
+                        }}
+                      >
+                        <span className="break-words font-semibold">
+                          {song.title}
+                        </span>
+                        <span className="text-sm text-slate-500 dark:text-slate-400">
+                          {song.artist || "Unknown artist"}
+                        </span>
+                      </button>
+                    ))}
+                    <ProgressiveCollectionFooter
+                      visibleCount={progressiveSongs.visibleCount}
+                      totalCount={progressiveSongs.totalCount}
+                      hasMore={progressiveSongs.hasMore}
+                      sentinelRef={progressiveSongs.sentinelRef}
+                      onShowMore={progressiveSongs.showMore}
+                    />
+                  </>
                 ) : (
                   <p className="px-3 py-6 text-center text-sm text-slate-500">
                     No matching songs
@@ -798,6 +813,7 @@ export function SetlistEditor({ id }: { id: string }) {
           </Card>
         </aside>
       </div>
+      <ScrollToTopButton />
       <Dialog.Root
         open={Boolean(entryToRemove)}
         onOpenChange={(open) => !open && setEntryToRemove(null)}
