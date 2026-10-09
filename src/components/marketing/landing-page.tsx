@@ -8,6 +8,7 @@ import {
   BookOpen,
   Check,
   ChevronRight,
+  Coffee,
   ListMusic,
   Maximize2,
   Music2,
@@ -221,6 +222,15 @@ export function LandingPage() {
             >
               Workflow
             </a>
+            <a
+              href="https://buymeacoffee.com/glennmark"
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-[#d6aa00] bg-[#ffdd00] px-3 py-2 text-sm font-semibold text-[#111] shadow-sm transition-[background-color,border-color,transform] hover:border-[#bd9500] hover:bg-[#f2c900] active:translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5656d8] focus-visible:ring-offset-2"
+            >
+              <Coffee size={16} aria-hidden="true" />
+              Buy me a coffee
+            </a>
           </nav>
           <Button
             className="ml-auto h-11 rounded-lg bg-[#111] px-4 text-white hover:bg-[#2b2b2b] active:translate-y-px md:ml-3"
@@ -425,19 +435,30 @@ export function LandingPage() {
       </main>
 
       <footer className="border-t border-[#2f2f2f] bg-[#111] px-4 py-8 text-sm text-[#9ca3af] sm:px-6 lg:px-8">
-        <div className="mx-auto flex max-w-[1440px] flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mx-auto flex max-w-[1440px] flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <SetBookLogo className="text-white" />
-          <p>
-            Developed by:{" "}
+          <div className="flex flex-col gap-3 sm:items-end">
             <a
-              href="https://www.facebook.com/glennmark5466/"
+              href="https://buymeacoffee.com/glennmark"
               target="_blank"
               rel="noreferrer"
-              className="rounded-sm font-semibold text-white underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+              className="inline-flex min-h-11 items-center justify-center gap-2 self-start rounded-lg border border-[#d6aa00] bg-[#ffdd00] px-4 font-semibold text-[#111] shadow-sm transition-[background-color,border-color,transform] hover:border-[#bd9500] hover:bg-[#f2c900] active:translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#111] sm:self-end"
             >
-              Glenn Mark L. Flores
+              <Coffee size={17} aria-hidden="true" />
+              Buy me a coffee
             </a>
-          </p>
+            <p>
+              Developed by:{" "}
+              <a
+                href="https://www.facebook.com/glennmark5466/"
+                target="_blank"
+                rel="noreferrer"
+                className="rounded-sm font-semibold text-white underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+              >
+                Glenn Mark L. Flores
+              </a>
+            </p>
+          </div>
         </div>
       </footer>
     </div>

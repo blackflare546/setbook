@@ -28,6 +28,15 @@ for (const viewport of viewports) {
     ).toBeVisible();
     await expect(page.getByRole("button", { name: "Open App" })).toBeVisible();
     await expect(page.getByLabel("SetBook workspace preview")).toBeVisible();
+    const supportLinks = page.locator(
+      'a[href="https://buymeacoffee.com/glennmark"]',
+    );
+    await expect(supportLinks).toHaveCount(2);
+    await expect(supportLinks.first()).toHaveAttribute(
+      "href",
+      "https://buymeacoffee.com/glennmark",
+    );
+    await expect(supportLinks.first()).toHaveAttribute("target", "_blank");
     await expectNoPageOverflow(page);
 
     await page.getByRole("link", { name: "SetBook home" }).focus();
@@ -60,6 +69,20 @@ test("landing calls to action reach the benefits and app", async ({ page }) => {
   await expect(
     page.getByRole("heading", { name: "Song library" }),
   ).toBeVisible();
+  await expect(page.getByRole("link", { name: "Buy me a coffee" })).toHaveCount(
+    0,
+  );
+  await page.goto("/about");
+  const aboutSupport = page.getByRole("link", { name: "Buy me a coffee" });
+  await expect(aboutSupport).toBeVisible();
+  await expect(aboutSupport).toHaveAttribute(
+    "href",
+    "https://buymeacoffee.com/glennmark",
+  );
+  await expect(aboutSupport).toHaveAttribute("target", "_blank");
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(aboutSupport).toBeVisible();
+  await expectNoPageOverflow(page);
 });
 
 async function expectNoPageOverflow(page: Page) {
