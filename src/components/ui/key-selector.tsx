@@ -149,7 +149,7 @@ export function KeySelector({
             role="listbox"
             aria-label={`${ariaLabel} options`}
             data-side={position.side}
-            className="fixed z-[100] overflow-y-auto rounded-xl border border-slate-200 bg-white p-1.5 shadow-2xl dark:border-slate-700 dark:bg-slate-950"
+            className="fixed z-[100] overflow-y-auto rounded-xl border border-slate-200 bg-white p-1.5 shadow-2xl dark:border-slate-700 dark:bg-slate-900"
             style={{
               left: position.left,
               top: position.top ?? undefined,

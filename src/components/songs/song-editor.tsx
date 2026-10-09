@@ -518,7 +518,7 @@ export function SongEditor({ songId }: { songId?: string }) {
                       {line.chords.map((chord) => (
                         <div
                           key={chord.id}
-                          className="flex items-center rounded-md bg-amber-50 text-amber-900"
+                          className="flex items-center rounded-md bg-amber-50 text-amber-900 dark:bg-amber-950/60 dark:text-amber-200"
                         >
                           <input
                             aria-label="Chord symbol"

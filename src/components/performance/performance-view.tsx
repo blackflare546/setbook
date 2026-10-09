@@ -25,14 +25,22 @@ import {
   adjustChartFontScale,
   adjustChartLineHeight,
   CHART_LAYOUT_OPTIONS,
+  DARK_CHART_COLORS,
   DEFAULT_CHART_COLORS,
   DEFAULT_CHART_FONT_SETTINGS,
+  resolveChartColors,
   type ChartColorCategory,
   type ChartColors,
   type ChartFontCategory,
   type ChartLayout,
   type ChartFontSettings,
 } from "@/core/songs/chart-font-settings";
+import {
+  CHART_BACKGROUNDS,
+  contrastRatio,
+  getChartContrastOutline,
+  needsChartContrastSupport,
+} from "@/core/songs/chart-color-contrast";
 import { formatMusicalKey, transposeMusicalKey } from "@/core/chords/keys";
 import {
   semitoneDistance,
@@ -61,11 +69,13 @@ function ChartLine({
   semitones,
   fontSettings,
   colors,
+  chartBackground,
 }: {
   line: SongLine;
   semitones: number;
   fontSettings: ChartFontSettings;
   colors: ChartColors;
+  chartBackground: string;
 }) {
   const chords = [...line.chords]
     .sort((a, b) => a.position - b.position)
@@ -115,6 +125,10 @@ function ChartLine({
                 style={{
                   color: colors.chord,
                   fontSize: `${chordToLyricScale}em`,
+                  textShadow: getChartContrastOutline(
+                    colors.chord,
+                    chartBackground,
+                  ),
                 }}
               >
                 {chord.displaySymbol}
@@ -124,7 +138,11 @@ function ChartLine({
         </div>
         <div
           className="whitespace-pre"
-          style={{ color: colors.lyric, lineHeight: fontSettings.lineHeight }}
+          style={{
+            color: colors.lyric,
+            lineHeight: fontSettings.lineHeight,
+            textShadow: getChartContrastOutline(colors.lyric, chartBackground),
+          }}
         >
           {line.lyrics || " "}
         </div>
@@ -149,6 +167,7 @@ interface ChartAppearanceProps {
   settings: ChartFontSettings;
   colors: ChartColors;
   layout: ChartLayout;
+  resolvedTheme: "light" | "dark";
   onChange: (category: ChartFontCategory, change: number) => void;
   onColorChange: (category: ChartColorCategory, color: string) => void;
   onResetColors: () => void;
@@ -160,12 +179,14 @@ function ChartAppearancePanel({
   settings,
   colors,
   layout,
+  resolvedTheme,
   onChange,
   onColorChange,
   onResetColors,
   onLineHeightChange,
   onLayoutChange,
 }: ChartAppearanceProps) {
+  const chartBackground = CHART_BACKGROUNDS[resolvedTheme];
   return (
     <div className="space-y-3">
       {FONT_ROWS.map(({ category, label }) => {
@@ -256,29 +277,62 @@ function ChartAppearancePanel({
       </div>
       <div className="border-t border-slate-200 pt-3 dark:border-slate-800">
         <p className="mb-2 text-sm font-semibold">Colors</p>
+        {resolvedTheme === "dark" && (
+          <p
+            id="dark-chart-palette-note"
+            className="mb-2 text-xs leading-5 text-slate-500 dark:text-slate-300"
+          >
+            Dark mode colors are saved separately. Low-contrast choices use a
+            readable fallback without changing your saved color.
+          </p>
+        )}
         <div className="space-y-1 rounded-lg border border-slate-200 bg-slate-50 p-2 dark:border-slate-800 dark:bg-slate-900">
-          {COLOR_ROWS.map(({ category, label }) => (
-            <label
-              key={category}
-              className="flex min-h-10 items-center justify-between gap-3 rounded-md px-2 text-sm font-semibold"
-            >
-              <span>{label}</span>
-              <span className="flex items-center gap-2">
-                <input
-                  type="color"
-                  aria-label={`${label} color`}
-                  className="h-8 w-8 cursor-pointer rounded border border-slate-300 bg-white p-0.5 dark:border-slate-600 dark:bg-slate-800"
-                  value={colors[category]}
-                  onChange={(event) =>
-                    onColorChange(category, event.target.value.toUpperCase())
-                  }
-                />
-                <span className="w-[4.75rem] font-mono text-xs font-medium uppercase tabular-nums text-slate-600 dark:text-slate-300">
-                  {colors[category]}
-                </span>
-              </span>
-            </label>
-          ))}
+          {COLOR_ROWS.map(({ category, label }) => {
+            const needsSupport = needsChartContrastSupport(
+              colors[category],
+              chartBackground,
+            );
+            return (
+              <div key={category} className="rounded-md px-2 py-1">
+                <label className="flex min-h-10 items-center justify-between gap-3 text-sm font-semibold">
+                  <span>{label}</span>
+                  <span className="flex items-center gap-2">
+                    <input
+                      type="color"
+                      aria-label={`${label} color`}
+                      aria-describedby={
+                        resolvedTheme === "dark"
+                          ? "dark-chart-palette-note"
+                          : undefined
+                      }
+                      className="h-8 w-8 cursor-pointer rounded border border-slate-300 bg-white p-0.5 dark:border-slate-600 dark:bg-slate-800"
+                      value={colors[category]}
+                      onChange={(event) =>
+                        onColorChange(
+                          category,
+                          event.target.value.toUpperCase(),
+                        )
+                      }
+                    />
+                    <span className="w-[4.75rem] font-mono text-xs font-medium uppercase tabular-nums text-slate-600 dark:text-slate-300">
+                      {colors[category]}
+                    </span>
+                  </span>
+                </label>
+                {needsSupport && (
+                  <p className="pb-1 text-xs leading-5 text-amber-700 dark:text-amber-300">
+                    {contrastRatio(colors[category], chartBackground).toFixed(
+                      1,
+                    )}
+                    :1 contrast —{" "}
+                    {resolvedTheme === "dark"
+                      ? "a readable fallback is shown in dark mode."
+                      : "a readability outline is applied in light mode."}
+                  </p>
+                )}
+              </div>
+            );
+          })}
           <div className="pt-1 text-center">
             <Button
               type="button"
@@ -310,7 +364,7 @@ function ChartFontControls(props: ChartAppearanceProps) {
       </Dialog.Trigger>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-40 bg-slate-950/50 backdrop-blur-[1px]" />
-        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 max-h-[calc(100dvh-2rem)] w-[min(calc(100vw-2rem),24rem)] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-xl border border-slate-200 bg-white p-4 shadow-2xl outline-none dark:border-slate-800 dark:bg-slate-950">
+        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 max-h-[calc(100dvh-2rem)] w-[min(calc(100vw-2rem),24rem)] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-xl border border-slate-200 bg-white p-4 shadow-2xl outline-none dark:border-slate-700 dark:bg-slate-900">
           <div className="mb-4 flex min-h-11 items-center justify-between gap-3">
             <Dialog.Title className="text-lg font-bold">
               Font &amp; Typography
@@ -348,7 +402,7 @@ export function PerformanceView({
   publicToken?: string;
   singleSong?: boolean;
 }) {
-  const { theme, setTheme } = useTheme();
+  const { theme, resolvedTheme, setTheme } = useTheme();
   const [current, setCurrent] = useState(0);
   const [showOrder, setShowOrder] = useState(false);
   const [showBandNotes, setShowBandNotes] = useState(false);
@@ -362,6 +416,8 @@ export function PerformanceView({
   );
   const [chartColors, setChartColors] =
     useState<ChartColors>(DEFAULT_CHART_COLORS);
+  const [darkChartColors, setDarkChartColors] =
+    useState<ChartColors>(DARK_CHART_COLORS);
   const [chartLayout, setChartLayout] = useState<ChartLayout>("auto");
   const performanceRootRef = useRef<HTMLElement>(null);
   const chartScrollRef = useRef<HTMLDivElement>(null);
@@ -378,6 +434,7 @@ export function PerformanceView({
     void settingsRepository.get().then((settings) => {
       setFontSettings(settings.chartFontSettings);
       setChartColors(settings.chartColors);
+      setDarkChartColors(settings.darkChartColors);
       setChartLayout(settings.chartLayout);
     });
   }, []);
@@ -449,6 +506,14 @@ export function PerformanceView({
   }
 
   function changeChartColor(category: ChartColorCategory, color: string) {
+    if (resolvedTheme === "dark") {
+      setDarkChartColors((currentColors) => {
+        const next = { ...currentColors, [category]: color };
+        void settingsRepository.saveDarkChartColors(next);
+        return next;
+      });
+      return;
+    }
     setChartColors((currentColors) => {
       const next = { ...currentColors, [category]: color };
       void settingsRepository.saveChartColors(next);
@@ -457,6 +522,12 @@ export function PerformanceView({
   }
 
   function resetChartColors() {
+    if (resolvedTheme === "dark") {
+      const next = { ...DARK_CHART_COLORS };
+      setDarkChartColors(next);
+      void settingsRepository.saveDarkChartColors(next);
+      return;
+    }
     const next = { ...DEFAULT_CHART_COLORS };
     setChartColors(next);
     void settingsRepository.saveChartColors(next);
@@ -510,6 +581,13 @@ export function PerformanceView({
   const currentKey = baseKey
     ? formatMusicalKey(transposeMusicalKey(baseKey, transposeOffset))
     : "Not set";
+  const activeChartColors =
+    resolvedTheme === "dark" ? darkChartColors : chartColors;
+  const displayedChartColors = resolveChartColors(
+    chartColors,
+    darkChartColors,
+    resolvedTheme,
+  );
   const controlsVisible = !autoHide.responsive || autoHide.controlsVisible;
 
   return (
@@ -614,7 +692,7 @@ export function PerformanceView({
               </Dialog.Trigger>
               <Dialog.Portal>
                 <Dialog.Overlay className="fixed inset-0 z-40 bg-slate-950/50 backdrop-blur-[1px]" />
-                <Dialog.Content className="fixed inset-y-0 right-0 z-50 w-[min(90vw,24rem)] overflow-y-auto rounded-none border-y-0 border-r-0 border-l border-slate-200 bg-white p-4 shadow-2xl outline-none sm:p-5 dark:border-slate-800 dark:bg-slate-950">
+                <Dialog.Content className="fixed inset-y-0 right-0 z-50 w-[min(90vw,24rem)] overflow-y-auto rounded-none border-y-0 border-r-0 border-l border-slate-200 bg-white p-4 shadow-2xl outline-none sm:p-5 dark:border-slate-700 dark:bg-slate-900">
                   <div className="mb-5 flex min-h-11 items-center justify-between gap-3 border-b border-slate-200 pb-4 dark:border-slate-800">
                     <Dialog.Title className="text-lg font-semibold tracking-[-0.02em]">
                       Performance menu
@@ -653,8 +731,9 @@ export function PerformanceView({
                     </h2>
                     <ChartAppearancePanel
                       settings={fontSettings}
-                      colors={chartColors}
+                      colors={activeChartColors}
                       layout={chartLayout}
+                      resolvedTheme={resolvedTheme}
                       onChange={changeFontScale}
                       onColorChange={changeChartColor}
                       onResetColors={resetChartColors}
@@ -698,7 +777,7 @@ export function PerformanceView({
                           selectSong(index);
                           setShowOrder(false);
                         }}
-                        className={`flex min-h-12 w-full items-center gap-3 rounded-[10px] p-3 text-left ${index === current ? "bg-slate-950 text-white dark:bg-white dark:text-slate-950" : "text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"}`}
+                        className={`flex min-h-12 w-full items-center gap-3 rounded-[10px] p-3 text-left ${index === current ? "bg-slate-950 text-white dark:bg-slate-800 dark:text-slate-100" : "text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"}`}
                       >
                         <span className="w-5 shrink-0 text-xs font-bold">
                           {index + 1}
@@ -721,8 +800,9 @@ export function PerformanceView({
           {singleSong && (
             <ChartFontControls
               settings={fontSettings}
-              colors={chartColors}
+              colors={activeChartColors}
               layout={chartLayout}
+              resolvedTheme={resolvedTheme}
               onChange={changeFontScale}
               onColorChange={changeChartColor}
               onResetColors={resetChartColors}
@@ -890,10 +970,14 @@ export function PerformanceView({
                 className="mb-0 inline-block w-full min-w-0 break-inside-avoid"
               >
                 <h2
-                  className="mb-0 font-bold uppercase tracking-[.16em]"
+                  className="mb-0 font-bold uppercase tracking-[.16em] dark:tracking-[.08em]"
                   style={{
-                    color: chartColors.section,
+                    color: displayedChartColors.section,
                     fontSize: `${0.75 * (fontSettings.sectionScale / 100)}rem`,
+                    textShadow: getChartContrastOutline(
+                      displayedChartColors.section,
+                      CHART_BACKGROUNDS[resolvedTheme],
+                    ),
                   }}
                 >
                   {section.title}
@@ -905,7 +989,8 @@ export function PerformanceView({
                       line={line}
                       semitones={semitones}
                       fontSettings={fontSettings}
-                      colors={chartColors}
+                      colors={displayedChartColors}
+                      chartBackground={CHART_BACKGROUNDS[resolvedTheme]}
                     />
                   ))}
                 </div>

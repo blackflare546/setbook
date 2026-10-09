@@ -37,6 +37,35 @@ export const DEFAULT_CHART_COLORS: ChartColors = {
   lyric: "#020617",
 };
 
+export const DARK_CHART_COLORS: ChartColors = {
+  section: "#FFFFFF",
+  chord: "#93C5FD",
+  lyric: "#FFFFFF",
+};
+
+export function resolveChartColors(
+  lightColors: ChartColors,
+  darkColors: ChartColors,
+  theme: "light" | "dark",
+): ChartColors {
+  if (theme === "light") return lightColors;
+
+  return {
+    section: needsChartContrastSupport(
+      darkColors.section,
+      CHART_BACKGROUNDS.dark,
+    )
+      ? DARK_CHART_COLORS.section
+      : darkColors.section,
+    chord: needsChartContrastSupport(darkColors.chord, CHART_BACKGROUNDS.dark)
+      ? DARK_CHART_COLORS.chord
+      : darkColors.chord,
+    lyric: needsChartContrastSupport(darkColors.lyric, CHART_BACKGROUNDS.dark)
+      ? DARK_CHART_COLORS.lyric
+      : darkColors.lyric,
+  };
+}
+
 export const CHART_FONT_BOUNDS: Record<
   ChartFontCategory,
   { min: number; max: number }
@@ -69,3 +98,7 @@ export function adjustChartLineHeight(
     lineHeight: Math.min(2.5, Math.max(1, next)),
   };
 }
+import {
+  CHART_BACKGROUNDS,
+  needsChartContrastSupport,
+} from "./chart-color-contrast";

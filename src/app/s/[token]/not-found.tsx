@@ -12,7 +12,7 @@ export default function SharedNotFound() {
         <p className="mt-3 leading-6 text-slate-400">
           This link may be incorrect or the setlist is no longer published.
         </p>
-        <Button asChild className="mt-6 dark:bg-white dark:text-slate-950">
+        <Button asChild className="mt-6">
           <Link href="/">Open SetBook</Link>
         </Button>
       </div>

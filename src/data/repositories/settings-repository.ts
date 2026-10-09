@@ -1,5 +1,6 @@
 import type { AppSettings } from "@/core/setlists/types";
 import {
+  DARK_CHART_COLORS,
   DEFAULT_CHART_COLORS,
   DEFAULT_CHART_FONT_SETTINGS,
   type ChartColors,
@@ -14,6 +15,7 @@ const defaults: AppSettings = {
   performanceFontSize: 18,
   chartFontSettings: DEFAULT_CHART_FONT_SETTINGS,
   chartColors: DEFAULT_CHART_COLORS,
+  darkChartColors: DARK_CHART_COLORS,
   chartLayout: "auto",
   hasSeenLandingPage: false,
 };
@@ -43,6 +45,10 @@ export class SettingsRepository {
         ...DEFAULT_CHART_COLORS,
         ...stored?.chartColors,
       },
+      darkChartColors: {
+        ...DARK_CHART_COLORS,
+        ...stored?.darkChartColors,
+      },
     };
   }
   async save(settings: AppSettings): Promise<AppSettings> {
@@ -59,6 +65,11 @@ export class SettingsRepository {
   }
   async saveChartColors(chartColors: ChartColors): Promise<AppSettings> {
     return this.update({ chartColors });
+  }
+  async saveDarkChartColors(
+    darkChartColors: ChartColors,
+  ): Promise<AppSettings> {
+    return this.update({ darkChartColors });
   }
   async saveTheme(theme: AppSettings["theme"]): Promise<AppSettings> {
     return this.update({ theme });
