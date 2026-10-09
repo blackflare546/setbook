@@ -80,9 +80,11 @@ test("keeps Performance Key options accessible throughout a long desktop setlist
   ).toBeVisible();
   await page.keyboard.press("Escape");
 
-  await selectors.nth(17).evaluate((element) =>
-    element.scrollIntoView({ block: "end", behavior: "auto" }),
-  );
+  await selectors
+    .nth(17)
+    .evaluate((element) =>
+      element.scrollIntoView({ block: "end", behavior: "auto" }),
+    );
   await selectors.nth(17).click();
   const lastList = page.getByRole("listbox", {
     name: "Performance key options",
@@ -103,4 +105,10 @@ test("keeps Performance Key options accessible throughout a long desktop setlist
   await expect(selectors.nth(17)).toHaveValue(lastLabel);
   await expect(selectors.nth(0)).toHaveValue("E Minor");
   await expect(selectors.nth(1)).toHaveValue("G Major");
+
+  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+  const backToTop = page.getByRole("button", { name: "Back to top" });
+  await expect(backToTop).toBeVisible();
+  await backToTop.click();
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeLessThan(2);
 });

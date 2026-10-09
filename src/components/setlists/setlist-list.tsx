@@ -6,11 +6,13 @@ import { useRouter } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
 import * as Dialog from "@radix-ui/react-dialog";
 import {
+  ArrowDownAZ,
   CalendarDays,
   CloudDownload,
   Copy,
   ListMusic,
   Plus,
+  Search,
   Share2,
   Trash2,
 } from "lucide-react";
@@ -24,6 +26,9 @@ import { deletePublishedSetlistByToken } from "@/lib/sharing/published-client";
 import { sharedSetlistRepository } from "@/data/repositories/shared-setlist-repository";
 import { QrScannerDialog } from "@/components/setlists/qr-scanner-dialog";
 import { PageHeader } from "@/components/ui/page-header";
+import { useProgressiveCollection } from "@/lib/hooks/use-progressive-collection";
+import { ProgressiveCollectionFooter } from "@/components/ui/progressive-collection-footer";
+import { ScrollToTopButton } from "@/components/ui/scroll-to-top-button";
 
 const sharedStatusStyles = {
   current:
@@ -57,6 +62,8 @@ export function SetlistList() {
     () => sharedSetlistsQuery ?? [],
     [sharedSetlistsQuery],
   );
+  const [query, setQuery] = useState("");
+  const [sort, setSort] = useState<"updated" | "name">("updated");
   const [name, setName] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deletingSetlist, setDeletingSetlist] = useState<Setlist | null>(null);
@@ -68,22 +75,39 @@ export function SetlistList() {
     tone: "success" | "error";
   } | null>(null);
 
-  const cards = useMemo<SetlistCard[]>(
-    () =>
-      [
-        ...setlists.map((setlist): SetlistCard => ({
-          kind: "owned",
-          sortAt: setlist.updatedAt,
-          setlist,
-        })),
-        ...sharedSetlists.map((shared): SetlistCard => ({
-          kind: "shared",
-          sortAt: shared.snapshot.publishedAt,
-          shared,
-        })),
-      ].sort((left, right) => right.sortAt.localeCompare(left.sortAt)),
-    [setlists, sharedSetlists],
-  );
+  const cards = useMemo<SetlistCard[]>(() => {
+    const normalizedQuery = query.trim().toLocaleLowerCase();
+    const found = [
+      ...setlists.map((setlist): SetlistCard => ({
+        kind: "owned",
+        sortAt: setlist.updatedAt,
+        setlist,
+      })),
+      ...sharedSetlists.map((shared): SetlistCard => ({
+        kind: "shared",
+        sortAt: shared.snapshot.publishedAt,
+        shared,
+      })),
+    ].filter((card) => {
+      if (!normalizedQuery) return true;
+      const value =
+        card.kind === "owned"
+          ? `${card.setlist.name} ${card.setlist.venue}`
+          : `${card.shared.snapshot.name} ${card.shared.snapshot.venue} ${card.shared.snapshot.version === 2 ? (card.shared.snapshot.sharedBy ?? "") : ""}`;
+      return value.toLocaleLowerCase().includes(normalizedQuery);
+    });
+    return found.toSorted((left, right) => {
+      if (sort === "updated") return right.sortAt.localeCompare(left.sortAt);
+      const leftName =
+        left.kind === "owned" ? left.setlist.name : left.shared.snapshot.name;
+      const rightName =
+        right.kind === "owned"
+          ? right.setlist.name
+          : right.shared.snapshot.name;
+      return leftName.localeCompare(rightName);
+    });
+  }, [query, setlists, sharedSetlists, sort]);
+  const progressive = useProgressiveCollection(cards, `${query}\u0000${sort}`);
 
   useEffect(() => {
     if (!feedback || feedback.tone !== "success") return;
@@ -203,9 +227,32 @@ export function SetlistList() {
         <QrScannerDialog />
       </Card>
 
+      <Card className="mb-6 flex flex-col gap-3 p-3 sm:flex-row sm:p-4">
+        <label className="relative flex-1">
+          <Search
+            className="absolute left-3 top-2.5 text-slate-400"
+            size={18}
+          />
+          <Input
+            className="pl-10"
+            placeholder="Search setlists, venue, or owner…"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+          />
+        </label>
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={() => setSort(sort === "updated" ? "name" : "updated")}
+        >
+          <ArrowDownAZ size={17} />
+          {sort === "updated" ? "Recent first" : "Name A–Z"}
+        </Button>
+      </Card>
+
       {cards.length ? (
         <div className="grid grid-flow-dense gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {cards.map((card) => {
+          {progressive.visibleItems.map((card) => {
             if (card.kind === "owned") {
               const { setlist } = card;
               return (
@@ -359,6 +406,14 @@ export function SetlistList() {
           </div>
         </Card>
       )}
+      <ProgressiveCollectionFooter
+        visibleCount={progressive.visibleCount}
+        totalCount={progressive.totalCount}
+        hasMore={progressive.hasMore}
+        sentinelRef={progressive.sentinelRef}
+        onShowMore={progressive.showMore}
+      />
+      <ScrollToTopButton />
 
       <Dialog.Root
         open={Boolean(unfollowing)}

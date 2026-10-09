@@ -24,7 +24,16 @@ const sections = [
   },
   {
     title: "Song Library",
-    body: "Search by title or artist, then open a song to read it. Use the song actions to edit, duplicate, or delete a chart.",
+    body: "Search by title, artist, or tag, then open a song to read it. Lists load progressively as you scroll, while search still checks the whole library. Use the song actions to edit, duplicate, share, or delete a chart.",
+  },
+  {
+    title: "Sharing one song offline",
+    steps: [
+      "Choose Show QR from a song or its Library actions.",
+      "On the receiving device, choose Scan song QR in the Song Library and scan with the camera or upload the QR image.",
+      "Review the song before importing it. SetBook skips exact duplicates and asks before replacing or keeping a changed match.",
+    ],
+    note: "The song is stored inside the QR and is not uploaded. If a chart is too large for one QR, download the single-song SetBook file and import it from the same scanner. Back up and Restore backup remain full-library tools.",
   },
   {
     title: "Creating a setlist",
