@@ -3,6 +3,7 @@ import {
   BlobPreconditionFailedError,
   del,
   get,
+  head,
   put,
 } from "@vercel/blob";
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
@@ -148,9 +149,14 @@ export async function readSharedRecord(
   token: string,
 ): Promise<StoredSharedRecord | null> {
   if (usesBlobStorage()) {
+    const pathname = recordBlobPath(token);
+    let metadata;
     let result;
     try {
-      result = await get(recordBlobPath(token), { access: "public" });
+      metadata = await head(pathname);
+      const versionedUrl = new URL(metadata.url);
+      versionedUrl.searchParams.set("setbook-etag", metadata.etag);
+      result = await get(versionedUrl.toString(), { access: "public" });
     } catch (error) {
       if (error instanceof BlobNotFoundError) return null;
       throw error;
@@ -159,7 +165,7 @@ export async function readSharedRecord(
     const body = await new Response(result.stream).text();
     return {
       record: sharedSetlistRecordSchema.parse(JSON.parse(body)),
-      etag: result.blob.etag,
+      etag: result.blob.etag || metadata.etag,
     };
   }
   try {

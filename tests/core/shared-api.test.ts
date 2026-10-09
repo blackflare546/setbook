@@ -106,12 +106,48 @@ describe("shared setlist owner access", () => {
     expect(updated.status).toBe(200);
     const updateResult = await updated.json();
 
+    const updatedAgain = await updateShare(
+      new Request(`http://localhost/api/published-setlists/${created.token}`, {
+        method: "PATCH",
+        headers: {
+          "content-type": "application/json",
+          authorization: `Bearer ${created.ownerCapability}`,
+        },
+        body: JSON.stringify({
+          snapshot: { ...snapshot(), name: "Immediate second update" },
+          expectedRevision: 2,
+          expectedEtag: updateResult.etag,
+        }),
+      }),
+      context,
+    );
+    expect(updatedAgain.status).toBe(200);
+    const secondUpdateResult = await updatedAgain.json();
+    expect(secondUpdateResult.revision).toBe(3);
+
+    const genuinelyStaleUpdate = await updateShare(
+      new Request(`http://localhost/api/published-setlists/${created.token}`, {
+        method: "PATCH",
+        headers: {
+          "content-type": "application/json",
+          authorization: `Bearer ${created.ownerCapability}`,
+        },
+        body: JSON.stringify({
+          snapshot: { ...snapshot(), name: "Stale update" },
+          expectedRevision: 1,
+          expectedEtag: created.etag,
+        }),
+      }),
+      context,
+    );
+    expect(genuinelyStaleUpdate.status).toBe(409);
+
     const nonOwnerDelete = await deleteShare(
       new Request(`http://localhost/api/published-setlists/${created.token}`, {
         method: "DELETE",
         headers: {
           authorization: "Bearer former-editor-capability",
-          "if-match": updateResult.etag,
+          "if-match": secondUpdateResult.etag,
         },
       }),
       context,
@@ -138,8 +174,8 @@ describe("shared setlist owner access", () => {
         },
         body: JSON.stringify({
           snapshot: snapshot(),
-          expectedRevision: 2,
-          expectedEtag: updateResult.etag,
+          expectedRevision: 3,
+          expectedEtag: secondUpdateResult.etag,
         }),
       }),
       context,

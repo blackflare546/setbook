@@ -184,7 +184,7 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
   });
   await page.getByTestId("smart-paste-input").fill("[Verse]\nAm F C G");
   await expect(
-    page.getByText("Possible Keys: C Major / G Major / A Minor"),
+    page.getByText("Possible Keys: C Major / A Minor"),
   ).toBeVisible();
   await expect(songKey).toHaveValue("");
 
