@@ -65,6 +65,10 @@ const MINOR_FAMILY: Array<[number, HarmonicQuality]> = [
   [10, "major"],
 ];
 
+// Repeating the same two-chord loop adds confidence, but it must not outweigh
+// the rest of the song's harmonic vocabulary indefinitely.
+const MAX_FULL_CADENCE_REPETITIONS = 3;
+
 function harmonicQuality(quality: string): HarmonicQuality {
   if (["dim", "dim7", "°", "m7b5", "ø"].includes(quality)) return "diminished";
   if (/^(?:m(?!aj)|min|minor)/.test(quality)) return "minor";
@@ -167,6 +171,10 @@ function scoreKey(
       familyMatch: matchesFamily(key.mode, degree, quality),
     };
   });
+  let dominantTonicCadences = 0;
+  let minorDominantTonicCadences = 0;
+  let predominantTonicCadences = 0;
+  let twoFiveOneCadences = 0;
 
   for (const observation of analyzed) {
     if (!observation.familyMatch) {
@@ -189,7 +197,12 @@ function scoreKey(
     }
   }
 
-  if (analyzed.every((observation) => observation.familyMatch)) score += 5;
+  if (analyzed.every((observation) => observation.familyMatch)) {
+    // A chart whose complete chord vocabulary agrees with a key is powerful
+    // evidence. Scale the bonus with the available evidence, but cap it so a
+    // long chart does not win by length alone.
+    score += Math.min(80, analyzed.length * 2);
+  }
 
   for (let index = 1; index < analyzed.length; index += 1) {
     const previous = analyzed[index - 1];
@@ -201,21 +214,30 @@ function scoreKey(
     const predominantToTonic = previous.degree === 5 && resolvesToTonic;
 
     if (dominantToTonic && previous.quality === "major") {
-      score += 7;
-      if (current.phraseEnding) score += 7;
-      if (current.sectionEnding) score += 4;
+      dominantTonicCadences += 1;
+      if (dominantTonicCadences <= MAX_FULL_CADENCE_REPETITIONS) {
+        score += 7;
+        if (current.phraseEnding) score += 7;
+        if (current.sectionEnding) score += 4;
+      }
     } else if (
       dominantToTonic &&
       key.mode === "minor" &&
       previous.quality === "minor"
     ) {
-      score += 8;
-      if (current.phraseEnding) score += 2;
-      if (current.sectionEnding) score += 2;
+      minorDominantTonicCadences += 1;
+      if (minorDominantTonicCadences <= MAX_FULL_CADENCE_REPETITIONS) {
+        score += 8;
+        if (current.phraseEnding) score += 2;
+        if (current.sectionEnding) score += 2;
+      }
     }
 
     if (predominantToTonic && previous.quality === "major") {
-      score += current.phraseEnding ? 6 : 3;
+      predominantTonicCadences += 1;
+      if (predominantTonicCadences <= MAX_FULL_CADENCE_REPETITIONS) {
+        score += current.phraseEnding ? 6 : 3;
+      }
     }
 
     // ii - V is meaningful preparation, but is weaker than the resolution.
@@ -230,7 +252,8 @@ function scoreKey(
       resolvesToTonic &&
       previous.quality === "major"
     ) {
-      score += 8;
+      twoFiveOneCadences += 1;
+      if (twoFiveOneCadences <= MAX_FULL_CADENCE_REPETITIONS) score += 8;
     }
 
     // Common functional motion helps break otherwise equal family matches.

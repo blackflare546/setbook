@@ -65,6 +65,99 @@ C#m G#m E F# B`);
     });
   });
 
+  it("uses the complete diatonic vocabulary when repeated IV chords end phrases", () => {
+    const result = detectChart(`[Intro]
+D G D G
+[Verse]
+D                           G
+Every tribe will see Your glory
+D                   G
+Every nation bow before You
+D                           G
+All our treasure turned to ashes
+                D/F# G
+In the light of You
+[Pre-Chorus]
+G  D/F#   Em D
+As we're singing
+A                  Bm
+Holy is the Lord Almighty
+              A
+Only You are worthy
+              G
+Worthy of it all
+[Verse]
+D                           G
+Every tribe will see Your glory
+D                   G
+Every nation bow before You, ohh-oh-oh-ohh
+D                           G
+All our treasure turned to ashes
+                 D/F#       G
+In the light of You, oh, ohh-oh-oh-ohh
+[Pre-Chorus]
+G  D/F#   Em D
+As we're singing
+A                  Bm
+Holy is the Lord Almighty
+              A
+Only You are worthy
+              G
+Worthy of it all
+[Chorus]
+D
+Praise and glory
+D
+Honor and strength
+G
+Unto our God
+G
+Unto our God
+
+Bm
+Matchless, endless
+Bm
+Love unrestrained
+G
+This is our God
+G
+Every tribe sing
+[Bridge]
+D
+There is no one like our God
+G
+There is no one like our God
+
+D
+Wala kang katulad O Dios
+G
+Wala kang katulad O Dios
+
+[Chorus]
+D
+Praise and glory
+D
+Honor and strength
+G
+Unto our God
+G
+Unto our God
+
+Bm
+Matchless, endless
+Bm
+Love unrestrained
+G
+This is our God
+G
+Every tribe sing`);
+
+    expect(result).toMatchObject({
+      primary: { key: "D", mode: "major" },
+      confidence: "confident",
+    });
+  });
+
   it.each([
     ["G C G C", { key: "C", mode: "major" }],
     ["A D A D", { key: "D", mode: "major" }],
