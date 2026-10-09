@@ -26,21 +26,58 @@ The Vitest suite covers chord parsing, classification, inline and above-lyric po
 
 ## Public sharing
 
-In local development, published snapshots are stored as JSON files under `data/published-setlists/`. A Vercel deployment requires a **Public Vercel Blob store** because the deployment filesystem is read-only.
+In local development, shared records are JSON files under
+`data/published-setlists/`. Production uses one **Public Vercel Blob store**.
+Every new share is written to one predictable prefix:
 
-To configure it in the Vercel dashboard:
+```text
+setbook-shared-setlists/<public-token>.json
+```
 
-1. Open the deployed project and select **Storage**.
-2. Select **Create Database**, choose **Blob**, and continue.
-3. Choose **Public** access, name the store, and connect it to this project.
-4. Include **Production** and any Preview environments that should support sharing.
-5. Confirm the project now has Blob credentials under **Settings → Environment Variables**. New OIDC connections provide `BLOB_STORE_ID` and Vercel-managed authentication; older connections provide `BLOB_READ_WRITE_TOKEN`.
-6. Redeploy the project. Environment-variable changes do not affect an existing deployment.
+`setbook-shared-setlists/` is not a real directory and must not be created in
+the dashboard. Vercel Blob treats slashes in a pathname as virtual folders, so
+the first successful publish creates the prefix automatically.
 
-Also set `SHARE_CAPABILITY_SECRET` to a long random server-only value. It is
-used to derive opaque Blob paths and capability verifiers. Never expose this
-value through a `NEXT_PUBLIC_` variable or rotate it without a migration,
-because existing v2 shares depend on it.
+### Clean Vercel setup
+
+Use these steps when replacing the Blob store completely:
+
+1. In the Vercel project, disconnect the old Blob store. If the old store will
+   not be used again, delete it from **Storage**.
+2. Open **Project → Settings → Environment Variables** and remove stale,
+   manually added `BLOB_STORE_ID` or `BLOB_READ_WRITE_TOKEN` values belonging
+   to the old store. Do not copy a store ID into `BLOB_READ_WRITE_TOKEN`; they
+   are different credential types.
+3. Open **Project → Storage → Create Database → Blob**.
+4. Choose **Public** access. A clear store name such as
+   `setbook-public-sharing` is recommended, but the store name does not control
+   the `setbook-shared-setlists/` pathname used by the app.
+5. Connect the store to this SetBook project and enable **Production**. Enable
+   **Preview** too if preview deployments should publish setlists.
+6. Confirm the connection created `BLOB_STORE_ID`. Current Vercel connections
+   use short-lived OIDC authentication automatically. An older token-based
+   connection may instead provide `BLOB_READ_WRITE_TOKEN`. SetBook supports
+   either configuration; do not create both manually.
+7. Add a server-only environment variable named `SHARE_CAPABILITY_SECRET` for
+   every environment that can publish. Generate it locally with:
+
+   ```bash
+   openssl rand -base64 48
+   ```
+
+   Paste only the generated value into Vercel. Never prefix the name with
+   `NEXT_PUBLIC_`, commit it, or change it while existing shares still need to
+   be updated.
+
+8. Redeploy the project after connecting the store and adding the secret. An
+   existing deployment does not receive newly configured environment values.
+9. Publish a setlist. The Blob browser should now show a JSON object under
+   `setbook-shared-setlists/`; no manual folder creation is required.
+
+If a local setlist still refers to a file deleted from a previous Blob store,
+SetBook automatically creates a replacement record and saves the new public
+link the next time **Publish** is selected. Deleted old public links cannot be
+restored without their original JSON objects.
 
 For local Blob testing, link the project and pull its development environment:
 
@@ -49,7 +86,24 @@ vercel link
 vercel env pull .env.local
 ```
 
-Do not expose either Blob credential through a `NEXT_PUBLIC_` variable. If no Blob store is connected in production, the publishing API returns a clear `503` configuration error instead of attempting to write to Vercel's filesystem.
+Do not expose Blob credentials through a `NEXT_PUBLIC_` variable. Do not edit
+the values pulled by Vercel or set `BLOB_READ_WRITE_TOKEN` equal to
+`BLOB_STORE_ID`.
+
+### Troubleshooting publishing
+
+- `503 Public sharing is not configured`: the deployment is missing the Blob
+  connection or `SHARE_CAPABILITY_SECRET`. Correct the Production environment
+  variables and redeploy.
+- `502 Shared setlist storage is unavailable`: the credentials point to the
+  wrong/deleted store, the store is not Public, or the project is not connected
+  to that store.
+- `409 Someone updated this setlist`: reload the setlist before updating it.
+- A missing old JSON record is recovered by creating a new share and URL.
+
+Vercel documentation: [Blob setup and SDK](https://vercel.com/docs/vercel-blob/using-blob-sdk),
+[folders and pathnames](https://vercel.com/docs/vercel-blob#folders-and-slashes),
+and [OIDC authentication](https://vercel.com/changelog/vercel-blob-now-supports-oidc-authentication).
 
 The sharing API is intentionally small:
 
@@ -60,12 +114,9 @@ The sharing API is intentionally small:
 - `DELETE /api/published-setlists/:token`
 - `POST /api/published-setlists/:token/access`
 
-Public reads remain account-free and read-only. Updates require an active owner
-or editor capability; access changes and deletion require the owner capability.
-Capabilities are carried in authorization headers, while revision numbers and
-Blob ETags provide optimistic concurrency protection. Existing v1 URLs remain
-readable but are frozen; their owners create a replacement secure share on the
-next publish.
+Public reads remain account-free and read-only. Updates and deletion require
+the owner capability. Capabilities are carried in authorization headers, while
+revision numbers and Blob ETags provide optimistic concurrency protection.
 
 ## Structure
 

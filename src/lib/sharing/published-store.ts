@@ -3,15 +3,13 @@ import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { mkdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import {
-  publishedSnapshotSchema,
   sharedSetlistRecordSchema,
   type PublishedSnapshot,
   type SharedSetlistRecord,
 } from "@/lib/validation/schemas";
 
 const directory = path.join(process.cwd(), "data", "published-setlists");
-const legacyBlobPath = (token: string) => `published-setlists/${token}.json`;
-const legacyLocalPath = (token: string) => path.join(directory, `${token}.json`);
+export const SHARED_SETLIST_BLOB_PREFIX = "setbook-shared-setlists";
 const shouldUseBlob = () =>
   Boolean(process.env.BLOB_READ_WRITE_TOKEN || process.env.BLOB_STORE_ID);
 const isVercelRuntime = () =>
@@ -40,14 +38,10 @@ function serverSecret(): string {
   return "setbook-local-development-capability-secret";
 }
 
-function recordKey(token: string): string {
-  return createHmac("sha256", serverSecret()).update(`record:${token}`).digest("hex");
-}
-
-const recordBlobPath = (token: string) =>
-  `shared-setlists-v2/${recordKey(token)}.json`;
+export const recordBlobPath = (token: string) =>
+  `${SHARED_SETLIST_BLOB_PREFIX}/${token}.json`;
 const recordLocalPath = (token: string) =>
-  path.join(directory, `v2-${recordKey(token)}.json`);
+  path.join(directory, `${token}.json`);
 
 function usesBlobStorage(): boolean {
   if (shouldUseBlob()) return true;
@@ -74,7 +68,8 @@ export function publishedStoreErrorResponse(error: unknown): {
     error instanceof BlobPreconditionFailedError
   )
     return {
-      error: "Someone updated this setlist. Load the latest version before saving.",
+      error:
+        "Someone updated this setlist. Load the latest version before saving.",
       status: 409,
     };
   return {
@@ -191,7 +186,8 @@ export async function replaceSharedRecord(
     if (isMissingLocalFile(error)) throw new SharedRecordConflictError();
     throw error;
   }
-  if (localEtag(current) !== expectedEtag) throw new SharedRecordConflictError();
+  if (localEtag(current) !== expectedEtag)
+    throw new SharedRecordConflictError();
   const temporary = `${pathname}.${crypto.randomUUID()}.tmp`;
   await writeFile(temporary, body, "utf8");
   await rename(temporary, pathname);
@@ -220,51 +216,5 @@ export async function deleteSharedRecord(
 export async function readPublishedSnapshot(
   token: string,
 ): Promise<PublishedSnapshot | null> {
-  const v2 = await readSharedRecord(token);
-  if (v2) return v2.record.snapshot;
-  if (usesBlobStorage()) {
-    const result = await get(legacyBlobPath(token), { access: "public" });
-    if (!result || result.statusCode !== 200 || !result.stream) return null;
-    return publishedSnapshotSchema.parse(
-      JSON.parse(await new Response(result.stream).text()),
-    );
-  }
-  try {
-    return publishedSnapshotSchema.parse(
-      JSON.parse(await readFile(legacyLocalPath(token), "utf8")),
-    );
-  } catch (error) {
-    if (isMissingLocalFile(error)) return null;
-    throw error;
-  }
-}
-
-// Retained for legacy fixtures. New API mutations use v2 records.
-export async function savePublishedSnapshot(
-  token: string,
-  snapshot: PublishedSnapshot,
-): Promise<void> {
-  const body = JSON.stringify(publishedSnapshotSchema.parse(snapshot));
-  if (usesBlobStorage()) {
-    await put(legacyBlobPath(token), body, {
-      access: "public",
-      addRandomSuffix: false,
-      allowOverwrite: true,
-      contentType: "application/json",
-      cacheControlMaxAge: 60,
-    });
-    return;
-  }
-  await mkdir(directory, { recursive: true });
-  await writeFile(legacyLocalPath(token), body, "utf8");
-}
-
-export async function deletePublishedSnapshot(token: string): Promise<void> {
-  try {
-    if (usesBlobStorage()) await del(legacyBlobPath(token));
-    else await unlink(legacyLocalPath(token));
-  } catch (error) {
-    if (isMissingLocalFile(error)) return;
-    throw error;
-  }
+  return (await readSharedRecord(token))?.record.snapshot ?? null;
 }

@@ -6,11 +6,20 @@ import {
   capabilityMatches,
   capabilityVerifier,
   createCapability,
+  recordBlobPath,
+  SHARED_SETLIST_BLOB_PREFIX,
 } from "@/lib/sharing/published-store";
 
 afterEach(() => vi.unstubAllEnvs());
 
 describe("published setlist storage configuration", () => {
+  it("uses one clear Blob prefix without requiring a manual folder", () => {
+    expect(SHARED_SETLIST_BLOB_PREFIX).toBe("setbook-shared-setlists");
+    expect(recordBlobPath("publicToken123")).toBe(
+      "setbook-shared-setlists/publicToken123.json",
+    );
+  });
+
   it("verifies high-entropy capabilities without storing the raw value", () => {
     const capability = createCapability();
     const verifier = capabilityVerifier(capability);

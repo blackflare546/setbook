@@ -5,7 +5,6 @@ import {
   capabilityMatches,
   deleteSharedRecord,
   publishedStoreErrorResponse,
-  readPublishedSnapshot,
   readSharedRecord,
   replaceSharedRecord,
 } from "@/lib/sharing/published-store";
@@ -43,15 +42,10 @@ export async function GET(
         },
         { headers: { ETag: stored.etag, "Cache-Control": "no-store" } },
       );
-    const snapshot = await readPublishedSnapshot(token);
-    return snapshot
-      ? NextResponse.json(snapshot, {
-          headers: { "Cache-Control": "public, max-age=60" },
-        })
-      : NextResponse.json(
-          { error: "Shared setlist not found" },
-          { status: 404 },
-        );
+    return NextResponse.json(
+      { error: "Shared setlist not found" },
+      { status: 404 },
+    );
   } catch (error) {
     console.error("Unable to read shared setlist", error);
     const failure = publishedStoreErrorResponse(error);
@@ -80,9 +74,10 @@ async function update(
     if (!stored)
       return NextResponse.json(
         {
-          error: "Legacy shared setlists are read-only. Upgrade sharing first.",
+          error:
+            "The previous shared setlist file no longer exists. Publish again to create a new link.",
         },
-        { status: 409 },
+        { status: 404 },
       );
     const capability = bearer(request);
     if (!capabilityMatches(capability, stored.record.ownerVerifier))
@@ -137,11 +132,7 @@ export async function DELETE(
     return NextResponse.json({ error: "Invalid token" }, { status: 400 });
   try {
     const stored = await readSharedRecord(token);
-    if (!stored)
-      return NextResponse.json(
-        { error: "Legacy shared setlists are read-only." },
-        { status: 409 },
-      );
+    if (!stored) return new NextResponse(null, { status: 204 });
     if (!capabilityMatches(bearer(request), stored.record.ownerVerifier))
       return NextResponse.json(
         { error: "Owner access required" },
