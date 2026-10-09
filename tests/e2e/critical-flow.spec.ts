@@ -464,6 +464,16 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
   ).toBeVisible();
   await page.getByLabel("Performance theme").selectOption("dark");
   await expect(page.locator("html")).toHaveClass(/dark/);
+  await expect(
+    page.getByText(/readability outline is applied in dark mode/i).first(),
+  ).toBeVisible();
+  await expect(page.getByRole("dialog")).toHaveCSS(
+    "background-color",
+    "rgb(32, 38, 46)",
+  );
+  await expect(
+    page.getByText("How great is our God, sing with me,").first(),
+  ).toHaveCSS("text-shadow", /rgba\(248, 250, 252/);
   await page.getByRole("button", { name: /Band Notes/ }).click();
   await expect(page.getByRole("region", { name: "Band Notes" })).toContainText(
     "Guitar enters on Chorus",
@@ -621,6 +631,11 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
     publishedSnapshot.songs.every((song: { links?: unknown }) => !song.links),
   ).toBe(true);
   await page.goto(firstShareUrl!);
+  await expect(page.locator("html")).toHaveClass(/dark/);
+  await expect(page.locator("body")).toHaveCSS(
+    "background-color",
+    "rgb(18, 22, 27)",
+  );
   await expect(page.getByText("Shared setlist")).toBeVisible();
   await expect(
     page.getByRole("link", { name: "Open in SetBook" }),

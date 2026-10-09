@@ -32,6 +32,22 @@ the existing indigo-and-coral SetBook mark remains the identity anchor.
   active states, and small signals—not as large background fields.
 - Maintain WCAG AA contrast for text and controls in every state.
 
+### Dark theme
+
+- Use a layered charcoal palette rather than pure black: `#12161B` for the
+  canvas, `#1A1F26` for primary surfaces, and `#20262E` for elevated surfaces.
+- Use `#F3F5F7` for primary text, `#B8C0CB` for secondary text, and no darker
+  than `#9EA8B5` for meaningful metadata on the dark canvas.
+- Use `#343C47` for quiet boundaries and `#4B5664` for emphasized borders,
+  input edges, and active control boundaries.
+- Reserve brighter indigo for focus, selection, and primary actions. Selected
+  navigation uses a tonal surface instead of a white inversion.
+- Dialogs, menus, popovers, and toasts use an elevated surface and visible
+  border; inputs remain darker than their containing card.
+- Preserve saved chart colors. When a chart color falls below 4.5:1 against
+  the active canvas, show a warning and add a subtle text outline that does not
+  affect chord or lyric positioning.
+
 ## Spacing and layout
 
 - Base spacing unit: 8px. Common gaps are 16px, card padding is 24px, and major

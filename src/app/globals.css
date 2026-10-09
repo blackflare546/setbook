@@ -53,16 +53,28 @@ body {
 }
 
 .dark body {
-  --background: #111111;
-  --foreground: #f4f4f5;
-  --setbook-canvas: #111111;
-  --setbook-surface: #18181b;
-  --setbook-surface-muted: #27272a;
-  --setbook-border: #343438;
-  --setbook-border-strong: #52525b;
-  --setbook-text: #f4f4f5;
-  --setbook-text-muted: #d1d5db;
-  --setbook-accent-soft: #24244f;
+  --background: #12161b;
+  --foreground: #f3f5f7;
+  --setbook-canvas: #12161b;
+  --setbook-surface: #1a1f26;
+  --setbook-surface-muted: #242a33;
+  --setbook-surface-elevated: #20262e;
+  --setbook-input: #151a20;
+  --setbook-border: #343c47;
+  --setbook-border-strong: #4b5664;
+  --setbook-text: #f3f5f7;
+  --setbook-text-muted: #b8c0cb;
+  --setbook-text-subtle: #9ea8b5;
+  --setbook-accent-soft: #252852;
+  --setbook-chart-background: #12161b;
+  --color-slate-300: #d4d9df;
+  --color-slate-400: #b8c0cb;
+  --color-slate-500: #9ea8b5;
+  --color-slate-600: #758190;
+  --color-slate-700: #4b5664;
+  --color-slate-800: #343c47;
+  --color-slate-900: #20262e;
+  --color-slate-950: #12161b;
   background: var(--background);
   color: var(--foreground);
 }
@@ -79,6 +91,11 @@ a {
 
 ::placeholder {
   color: #9ca3af;
+}
+
+.dark ::placeholder {
+  color: #929daa;
+  opacity: 1;
 }
 
 [role="dialog"] {
@@ -105,6 +122,11 @@ a {
 ::selection {
   background: #d6d6ff;
   color: #1d1d48;
+}
+
+.dark ::selection {
+  background: #5656d8;
+  color: #f8fafc;
 }
 
 @media (max-width: 767px), (max-height: 500px) and (max-width: 932px) {

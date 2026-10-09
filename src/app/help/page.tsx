@@ -90,7 +90,7 @@ export default function HelpPage() {
                       key={step}
                       className="flex gap-3 text-sm leading-6 text-slate-600 dark:text-slate-300"
                     >
-                      <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-slate-950 font-mono text-[10px] font-semibold text-white dark:bg-white dark:text-slate-950">
+                      <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-slate-950 font-mono text-[10px] font-semibold text-white dark:bg-slate-800 dark:text-slate-100">
                         {index + 1}
                       </span>
                       <span>{step}</span>
