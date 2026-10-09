@@ -44,9 +44,12 @@ the existing indigo-and-coral SetBook mark remains the identity anchor.
   navigation uses a tonal surface instead of a white inversion.
 - Dialogs, menus, popovers, and toasts use an elevated surface and visible
   border; inputs remain darker than their containing card.
-- Preserve saved chart colors. When a chart color falls below 4.5:1 against
-  the active canvas, show a warning and add a subtle text outline that does not
-  affect chord or lyric positioning.
+- Preserve separate saved chart colors for light and dark mode. New dark
+  palettes default to white lyrics (`#FFFFFF`), soft sky-blue chords
+  (`#93C5FD`), and white section labels (`#FFFFFF`). If a customized
+  dark color falls below 4.5:1, render that category with its readable default
+  without overwriting the saved choice. Theme rendering must never change chord
+  positioning, wrapping, font scales, or line-height settings.
 
 ## Spacing and layout
 

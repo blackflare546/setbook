@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   adjustChartFontScale,
   adjustChartLineHeight,
+  DARK_CHART_COLORS,
   DEFAULT_CHART_COLORS,
   DEFAULT_CHART_FONT_SETTINGS,
+  resolveChartColors,
 } from "@/core/songs/chart-font-settings";
 
 describe("chart font settings", () => {
@@ -54,6 +56,26 @@ describe("chart font settings", () => {
       section: "#000000",
       chord: "#4338CA",
       lyric: "#020617",
+    });
+  });
+
+  it("uses the readable chart palette in dark mode without changing saved colors", () => {
+    const savedColors = {
+      section: "#112233",
+      chord: "#445566",
+      lyric: "#778899",
+    };
+
+    expect(resolveChartColors(savedColors, DARK_CHART_COLORS, "dark")).toEqual(
+      DARK_CHART_COLORS,
+    );
+    expect(resolveChartColors(savedColors, DARK_CHART_COLORS, "light")).toBe(
+      savedColors,
+    );
+    expect(savedColors).toEqual({
+      section: "#112233",
+      chord: "#445566",
+      lyric: "#778899",
     });
   });
 

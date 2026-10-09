@@ -465,15 +465,30 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
   await page.getByLabel("Performance theme").selectOption("dark");
   await expect(page.locator("html")).toHaveClass(/dark/);
   await expect(
-    page.getByText(/readability outline is applied in dark mode/i).first(),
+    page.getByText(
+      "Dark mode colors are saved separately. Low-contrast choices use a readable fallback without changing your saved color.",
+    ),
   ).toBeVisible();
+  await expect(page.getByLabel("Lyrics color")).toHaveValue("#ffffff");
+  await expect(page.getByLabel("Chords color")).toHaveValue("#93c5fd");
+  await expect(page.getByLabel("Sections color")).toHaveValue("#ffffff");
+  await expect(page.getByLabel("Lyrics color")).toBeEnabled();
   await expect(page.getByRole("dialog")).toHaveCSS(
     "background-color",
     "rgb(32, 38, 46)",
   );
+  const darkLyrics = page
+    .getByText("How great is our God, sing with me,")
+    .first();
+  await expect(darkLyrics).toHaveCSS("color", "rgb(255, 255, 255)");
+  await expect(darkLyrics).toHaveCSS("text-shadow", "none");
+  await expect(page.locator("[data-chord-position] > span").first()).toHaveCSS(
+    "color",
+    "rgb(147, 197, 253)",
+  );
   await expect(
-    page.getByText("How great is our God, sing with me,").first(),
-  ).toHaveCSS("text-shadow", /rgba\(248, 250, 252/);
+    page.locator("[data-performance-chart-article] h2").first(),
+  ).toHaveCSS("color", "rgb(255, 255, 255)");
   await page.getByRole("button", { name: /Band Notes/ }).click();
   await expect(page.getByRole("region", { name: "Band Notes" })).toContainText(
     "Guitar enters on Chorus",
@@ -583,6 +598,16 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
 
   await page.goto(songViewUrl);
   await expect(page.getByLabel("Current key")).toHaveText("G Major");
+  await expect(
+    page.getByText("How great is our God, sing with me,").first(),
+  ).toHaveCSS("color", "rgb(255, 255, 255)");
+  await expect(page.locator("[data-chord-position] > span").first()).toHaveCSS(
+    "color",
+    "rgb(147, 197, 253)",
+  );
+  await expect(
+    page.locator("[data-performance-chart-article] h2").first(),
+  ).toHaveCSS("color", "rgb(255, 255, 255)");
 
   await page.goto(setlistEditorUrl);
   await expect(page.getByText("Setlist saved")).toHaveCount(0);
@@ -775,6 +800,17 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
         route === firstShareUrl
       ) {
         await expect(page.getByLabel("Current key")).toBeVisible();
+        await expect(
+          page
+            .locator('[data-testid="chart-line"] > div.whitespace-pre')
+            .first(),
+        ).toHaveCSS("color", "rgb(255, 255, 255)");
+        await expect(
+          page.locator("[data-chord-position] > span").first(),
+        ).toHaveCSS("color", "rgb(147, 197, 253)");
+        await expect(
+          page.locator("[data-performance-chart-article] h2").first(),
+        ).toHaveCSS("color", "rgb(255, 255, 255)");
       }
       await expectNoPageOverflow(page);
     }

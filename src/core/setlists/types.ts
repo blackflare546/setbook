@@ -46,6 +46,7 @@ export interface AppSettings {
   performanceFontSize: number;
   chartFontSettings: ChartFontSettings;
   chartColors: ChartColors;
+  darkChartColors: ChartColors;
   chartLayout: ChartLayout;
   hasSeenLandingPage: boolean;
 }

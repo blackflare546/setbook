@@ -25,8 +25,10 @@ import {
   adjustChartFontScale,
   adjustChartLineHeight,
   CHART_LAYOUT_OPTIONS,
+  DARK_CHART_COLORS,
   DEFAULT_CHART_COLORS,
   DEFAULT_CHART_FONT_SETTINGS,
+  resolveChartColors,
   type ChartColorCategory,
   type ChartColors,
   type ChartFontCategory,
@@ -275,6 +277,15 @@ function ChartAppearancePanel({
       </div>
       <div className="border-t border-slate-200 pt-3 dark:border-slate-800">
         <p className="mb-2 text-sm font-semibold">Colors</p>
+        {resolvedTheme === "dark" && (
+          <p
+            id="dark-chart-palette-note"
+            className="mb-2 text-xs leading-5 text-slate-500 dark:text-slate-300"
+          >
+            Dark mode colors are saved separately. Low-contrast choices use a
+            readable fallback without changing your saved color.
+          </p>
+        )}
         <div className="space-y-1 rounded-lg border border-slate-200 bg-slate-50 p-2 dark:border-slate-800 dark:bg-slate-900">
           {COLOR_ROWS.map(({ category, label }) => {
             const needsSupport = needsChartContrastSupport(
@@ -289,6 +300,11 @@ function ChartAppearancePanel({
                     <input
                       type="color"
                       aria-label={`${label} color`}
+                      aria-describedby={
+                        resolvedTheme === "dark"
+                          ? "dark-chart-palette-note"
+                          : undefined
+                      }
                       className="h-8 w-8 cursor-pointer rounded border border-slate-300 bg-white p-0.5 dark:border-slate-600 dark:bg-slate-800"
                       value={colors[category]}
                       onChange={(event) =>
@@ -308,8 +324,10 @@ function ChartAppearancePanel({
                     {contrastRatio(colors[category], chartBackground).toFixed(
                       1,
                     )}
-                    :1 contrast — a readability outline is applied in{" "}
-                    {resolvedTheme} mode.
+                    :1 contrast —{" "}
+                    {resolvedTheme === "dark"
+                      ? "a readable fallback is shown in dark mode."
+                      : "a readability outline is applied in light mode."}
                   </p>
                 )}
               </div>
@@ -398,6 +416,8 @@ export function PerformanceView({
   );
   const [chartColors, setChartColors] =
     useState<ChartColors>(DEFAULT_CHART_COLORS);
+  const [darkChartColors, setDarkChartColors] =
+    useState<ChartColors>(DARK_CHART_COLORS);
   const [chartLayout, setChartLayout] = useState<ChartLayout>("auto");
   const performanceRootRef = useRef<HTMLElement>(null);
   const chartScrollRef = useRef<HTMLDivElement>(null);
@@ -414,6 +434,7 @@ export function PerformanceView({
     void settingsRepository.get().then((settings) => {
       setFontSettings(settings.chartFontSettings);
       setChartColors(settings.chartColors);
+      setDarkChartColors(settings.darkChartColors);
       setChartLayout(settings.chartLayout);
     });
   }, []);
@@ -485,6 +506,14 @@ export function PerformanceView({
   }
 
   function changeChartColor(category: ChartColorCategory, color: string) {
+    if (resolvedTheme === "dark") {
+      setDarkChartColors((currentColors) => {
+        const next = { ...currentColors, [category]: color };
+        void settingsRepository.saveDarkChartColors(next);
+        return next;
+      });
+      return;
+    }
     setChartColors((currentColors) => {
       const next = { ...currentColors, [category]: color };
       void settingsRepository.saveChartColors(next);
@@ -493,6 +522,12 @@ export function PerformanceView({
   }
 
   function resetChartColors() {
+    if (resolvedTheme === "dark") {
+      const next = { ...DARK_CHART_COLORS };
+      setDarkChartColors(next);
+      void settingsRepository.saveDarkChartColors(next);
+      return;
+    }
     const next = { ...DEFAULT_CHART_COLORS };
     setChartColors(next);
     void settingsRepository.saveChartColors(next);
@@ -546,6 +581,13 @@ export function PerformanceView({
   const currentKey = baseKey
     ? formatMusicalKey(transposeMusicalKey(baseKey, transposeOffset))
     : "Not set";
+  const activeChartColors =
+    resolvedTheme === "dark" ? darkChartColors : chartColors;
+  const displayedChartColors = resolveChartColors(
+    chartColors,
+    darkChartColors,
+    resolvedTheme,
+  );
   const controlsVisible = !autoHide.responsive || autoHide.controlsVisible;
 
   return (
@@ -689,7 +731,7 @@ export function PerformanceView({
                     </h2>
                     <ChartAppearancePanel
                       settings={fontSettings}
-                      colors={chartColors}
+                      colors={activeChartColors}
                       layout={chartLayout}
                       resolvedTheme={resolvedTheme}
                       onChange={changeFontScale}
@@ -758,7 +800,7 @@ export function PerformanceView({
           {singleSong && (
             <ChartFontControls
               settings={fontSettings}
-              colors={chartColors}
+              colors={activeChartColors}
               layout={chartLayout}
               resolvedTheme={resolvedTheme}
               onChange={changeFontScale}
@@ -928,12 +970,12 @@ export function PerformanceView({
                 className="mb-0 inline-block w-full min-w-0 break-inside-avoid"
               >
                 <h2
-                  className="mb-0 font-bold uppercase tracking-[.16em]"
+                  className="mb-0 font-bold uppercase tracking-[.16em] dark:tracking-[.08em]"
                   style={{
-                    color: chartColors.section,
+                    color: displayedChartColors.section,
                     fontSize: `${0.75 * (fontSettings.sectionScale / 100)}rem`,
                     textShadow: getChartContrastOutline(
-                      chartColors.section,
+                      displayedChartColors.section,
                       CHART_BACKGROUNDS[resolvedTheme],
                     ),
                   }}
@@ -947,7 +989,7 @@ export function PerformanceView({
                       line={line}
                       semitones={semitones}
                       fontSettings={fontSettings}
-                      colors={chartColors}
+                      colors={displayedChartColors}
                       chartBackground={CHART_BACKGROUNDS[resolvedTheme]}
                     />
                   ))}
