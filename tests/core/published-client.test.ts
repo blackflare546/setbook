@@ -1,5 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
-import { publishSharedSetlist } from "@/lib/sharing/published-client";
+import {
+  deletePublishedSetlistByToken,
+  publishSharedSetlist,
+} from "@/lib/sharing/published-client";
 import type { PublishedSnapshotV2 } from "@/lib/validation/schemas";
 
 const snapshot: PublishedSnapshotV2 = {
@@ -116,5 +119,25 @@ describe("publishing shared setlists", () => {
       publishSharedSetlist(snapshot, binding, request),
     ).rejects.toThrow("Owner access required");
     expect(request).toHaveBeenCalledOnce();
+  });
+});
+
+describe("deleting shared setlists", () => {
+  it("uses owner authorization without a stale ETag precondition", async () => {
+    const request = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(new Response(null, { status: 204 }));
+
+    await expect(
+      deletePublishedSetlistByToken("publicToken", "ownerCapability", request),
+    ).resolves.toBeUndefined();
+
+    expect(request).toHaveBeenCalledWith(
+      "/api/published-setlists/publicToken",
+      {
+        method: "DELETE",
+        headers: { authorization: "Bearer ownerCapability" },
+      },
+    );
   });
 });

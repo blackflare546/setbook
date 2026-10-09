@@ -21,10 +21,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { FeedbackToast } from "@/components/ui/feedback-toast";
 import { deletePublishedSetlistByToken } from "@/lib/sharing/published-client";
-import {
-  fetchSharedSetlist,
-  sharedSetlistRepository,
-} from "@/data/repositories/shared-setlist-repository";
+import { sharedSetlistRepository } from "@/data/repositories/shared-setlist-repository";
 import { QrScannerDialog } from "@/components/setlists/qr-scanner-dialog";
 import { PageHeader } from "@/components/ui/page-header";
 
@@ -130,13 +127,9 @@ export function SetlistList() {
     setFeedback(null);
     try {
       if (setlist.shareBinding) {
-        const latest = await fetchSharedSetlist(
-          setlist.shareBinding.publicToken,
-        );
         await deletePublishedSetlistByToken(
           setlist.shareBinding.publicToken,
           setlist.shareBinding.ownerCapability,
-          latest.etag,
         );
       }
       await setlistRepository.delete(setlist.id);

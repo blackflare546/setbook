@@ -66,14 +66,13 @@ export async function publishSharedSetlist(
 export async function deletePublishedSetlistByToken(
   token: string,
   ownerCapability?: string,
-  etag?: string,
+  request: typeof fetch = fetch,
 ): Promise<void> {
-  const response = await fetch(`/api/published-setlists/${token}`, {
+  const response = await request(`/api/published-setlists/${token}`, {
     method: "DELETE",
-    headers:
-      ownerCapability && etag
-        ? { authorization: `Bearer ${ownerCapability}`, "if-match": etag }
-        : undefined,
+    headers: ownerCapability
+      ? { authorization: `Bearer ${ownerCapability}` }
+      : undefined,
   });
   const result = await response.json().catch(() => null);
   if (!response.ok) {

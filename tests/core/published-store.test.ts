@@ -1,3 +1,4 @@
+import { BlobNotFoundError, del, get } from "@vercel/blob";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   PublishedStoreConfigurationError,
@@ -6,9 +7,16 @@ import {
   capabilityMatches,
   capabilityVerifier,
   createCapability,
+  deleteSharedRecord,
   recordBlobPath,
+  readSharedRecord,
   SHARED_SETLIST_BLOB_PREFIX,
 } from "@/lib/sharing/published-store";
+
+vi.mock("@vercel/blob", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@vercel/blob")>();
+  return { ...actual, del: vi.fn(), get: vi.fn() };
+});
 
 afterEach(() => vi.unstubAllEnvs());
 
@@ -46,5 +54,19 @@ describe("published setlist storage configuration", () => {
         "Public sharing is not configured. Connect a Vercel Blob store to this project and redeploy.",
       status: 503,
     });
+  });
+
+  it("treats an already-missing Blob as successfully deleted", async () => {
+    vi.stubEnv("BLOB_STORE_ID", "store_test");
+    vi.mocked(del).mockRejectedValueOnce(new BlobNotFoundError());
+
+    await expect(deleteSharedRecord("missingToken")).resolves.toBeUndefined();
+  });
+
+  it("treats a missing Blob read as a missing shared record", async () => {
+    vi.stubEnv("BLOB_STORE_ID", "store_test");
+    vi.mocked(get).mockRejectedValueOnce(new BlobNotFoundError());
+
+    await expect(readSharedRecord("missingToken")).resolves.toBeNull();
   });
 });

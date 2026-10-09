@@ -138,13 +138,7 @@ export async function DELETE(
         { error: "Owner access required" },
         { status: 403 },
       );
-    const expectedEtag = request.headers.get("if-match");
-    if (!expectedEtag || expectedEtag !== stored.etag)
-      return NextResponse.json(
-        { error: "Someone updated this setlist. Update before deleting." },
-        { status: 409 },
-      );
-    await deleteSharedRecord(token, expectedEtag);
+    await deleteSharedRecord(token);
     return new NextResponse(null, { status: 204 });
   } catch (error) {
     console.error("Unable to delete shared setlist", error);
