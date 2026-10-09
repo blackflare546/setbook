@@ -123,7 +123,6 @@ describe("shared setlist owner access", () => {
         method: "DELETE",
         headers: {
           authorization: `Bearer ${created.ownerCapability}`,
-          "if-match": updateResult.etag,
         },
       }),
       context,

@@ -51,7 +51,6 @@ import {
   deletePublishedSetlistByToken,
   publishSharedSetlist,
 } from "@/lib/sharing/published-client";
-import { fetchSharedSetlist } from "@/data/repositories/shared-setlist-repository";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input, Textarea } from "@/components/ui/input";
@@ -339,11 +338,9 @@ export function SetlistEditor({ id }: { id: string }) {
     setDeletingPublished(true);
     setFeedback(null);
     try {
-      const latest = await fetchSharedSetlist(binding.publicToken);
       await deletePublishedSetlistByToken(
         binding.publicToken,
         binding.ownerCapability,
-        latest.etag,
       );
 
       const unpublishedSetlist: Setlist = { ...currentSetlist };

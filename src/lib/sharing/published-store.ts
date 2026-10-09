@@ -1,4 +1,10 @@
-import { BlobPreconditionFailedError, del, get, put } from "@vercel/blob";
+import {
+  BlobNotFoundError,
+  BlobPreconditionFailedError,
+  del,
+  get,
+  put,
+} from "@vercel/blob";
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { mkdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -142,7 +148,13 @@ export async function readSharedRecord(
   token: string,
 ): Promise<StoredSharedRecord | null> {
   if (usesBlobStorage()) {
-    const result = await get(recordBlobPath(token), { access: "public" });
+    let result;
+    try {
+      result = await get(recordBlobPath(token), { access: "public" });
+    } catch (error) {
+      if (error instanceof BlobNotFoundError) return null;
+      throw error;
+    }
     if (!result || result.statusCode !== 200 || !result.stream) return null;
     const body = await new Response(result.stream).text();
     return {
@@ -194,18 +206,18 @@ export async function replaceSharedRecord(
   return localEtag(body);
 }
 
-export async function deleteSharedRecord(
-  token: string,
-  expectedEtag: string,
-): Promise<void> {
+export async function deleteSharedRecord(token: string): Promise<void> {
   if (usesBlobStorage()) {
-    await del(recordBlobPath(token), { ifMatch: expectedEtag });
+    try {
+      await del(recordBlobPath(token));
+    } catch (error) {
+      if (error instanceof BlobNotFoundError) return;
+      throw error;
+    }
     return;
   }
   const pathname = recordLocalPath(token);
   try {
-    const body = await readFile(pathname, "utf8");
-    if (localEtag(body) !== expectedEtag) throw new SharedRecordConflictError();
     await unlink(pathname);
   } catch (error) {
     if (isMissingLocalFile(error)) return;

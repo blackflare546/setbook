@@ -116,7 +116,9 @@ The sharing API is intentionally small:
 
 Public reads remain account-free and read-only. Updates and deletion require
 the owner capability. Capabilities are carried in authorization headers, while
-revision numbers and Blob ETags provide optimistic concurrency protection.
+revision numbers and Blob ETags provide optimistic concurrency protection for
+updates. Owner-authorized deletion is idempotent: an already-deleted remote
+record is treated as successfully removed.
 
 ## Structure
 
