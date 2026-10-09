@@ -25,8 +25,8 @@ export function ScrollToTopButton() {
     <Button
       type="button"
       size="icon"
-      variant="primary"
-      className="fixed bottom-24 right-4 z-20 h-12 w-12 rounded-full border border-white/20 shadow-xl sm:right-6 lg:bottom-6 lg:right-8"
+      variant="secondary"
+      className="fixed bottom-24 right-4 z-20 h-11 w-11 rounded-full shadow-lg sm:right-6 lg:bottom-6 lg:right-8"
       aria-label="Back to top"
       title="Back to top"
       onClick={() => {
