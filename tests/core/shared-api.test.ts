@@ -129,5 +129,30 @@ describe("shared setlist owner access", () => {
       context,
     );
     expect(deleted.status).toBe(204);
+
+    const missingUpdate = await updateShare(
+      new Request(`http://localhost/api/published-setlists/${created.token}`, {
+        method: "PATCH",
+        headers: {
+          "content-type": "application/json",
+          authorization: `Bearer ${created.ownerCapability}`,
+        },
+        body: JSON.stringify({
+          snapshot: snapshot(),
+          expectedRevision: 2,
+          expectedEtag: updateResult.etag,
+        }),
+      }),
+      context,
+    );
+    expect(missingUpdate.status).toBe(404);
+
+    const repeatedDelete = await deleteShare(
+      new Request(`http://localhost/api/published-setlists/${created.token}`, {
+        method: "DELETE",
+      }),
+      context,
+    );
+    expect(repeatedDelete.status).toBe(204);
   });
 });

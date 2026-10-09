@@ -47,7 +47,10 @@ import { reorderEntries } from "@/core/setlists/operations";
 import { setlistRepository } from "@/data/repositories/setlist-repository";
 import { songRepository } from "@/data/repositories/song-repository";
 import { createPublishedSnapshot } from "@/lib/sharing/snapshot";
-import { deletePublishedSetlistByToken } from "@/lib/sharing/published-client";
+import {
+  deletePublishedSetlistByToken,
+  publishSharedSetlist,
+} from "@/lib/sharing/published-client";
 import { fetchSharedSetlist } from "@/data/repositories/shared-setlist-repository";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -297,38 +300,10 @@ export function SetlistEditor({ id }: { id: string }) {
         sharedBy,
       });
       const binding = currentSetlist.shareBinding;
-      const response = await fetch(
-        binding
-          ? `/api/published-setlists/${binding.publicToken}`
-          : "/api/published-setlists",
-        binding
-          ? {
-              method: "PATCH",
-              headers: {
-                "content-type": "application/json",
-                authorization: `Bearer ${binding.ownerCapability}`,
-              },
-              body: JSON.stringify({
-                snapshot,
-                expectedRevision: binding.revision,
-                expectedEtag: binding.etag,
-              }),
-            }
-          : {
-              method: "POST",
-              headers: { "content-type": "application/json" },
-              body: JSON.stringify({ snapshot }),
-            },
-      );
-      const result = await response.json().catch(() => null);
-      if (!response.ok || !result?.token)
-        throw new Error(
-          result?.error ??
-            `Unable to publish setlist (server returned ${response.status}).`,
-        );
+      const result = await publishSharedSetlist(snapshot, binding);
       const nextBinding = {
         publicToken: result.token,
-        ownerCapability: binding?.ownerCapability ?? result.ownerCapability,
+        ownerCapability: result.ownerCapability,
         revision: result.revision,
         etag: result.etag,
         sharedBy: sharedBy.trim() || undefined,
@@ -341,7 +316,11 @@ export function SetlistEditor({ id }: { id: string }) {
       setSetlist(saved);
       setSaveState("idle");
       setFeedback({
-        message: binding ? "Shared setlist updated" : "Setlist shared",
+        message: result.createdReplacement
+          ? "Setlist shared with a new link"
+          : binding
+            ? "Shared setlist updated"
+            : "Setlist shared",
         tone: "success",
       });
     } catch (error) {

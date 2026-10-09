@@ -973,7 +973,7 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
   const repeatedDeleteResponse = await page.request.delete(
     `/api/published-setlists/${firstShareUrl!.split("/").at(-1)}`,
   );
-  expect(repeatedDeleteResponse.status()).toBe(409);
+  expect(repeatedDeleteResponse.status()).toBe(204);
   await page.goto(firstShareUrl!);
   await expect(
     page.getByRole("heading", { name: "Setlist not found" }),
