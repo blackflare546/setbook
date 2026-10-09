@@ -9,8 +9,8 @@
 
 The upstream repository calls the skill `gpt-taste`; use that exact name even
 when a request refers to it as `gpt-tasteskill`. Invoke it for substantial
-landing-page or visual redesign work, read the installed `SKILL.md` in full, and
-produce its required design plan before UI implementation.
+product, landing-page, or visual redesign work, read the installed `SKILL.md` in
+full, and produce its required design plan before UI implementation.
 
 Apply the skill selectively: preserve its wide headings, deliberate AIDA flow,
 dense intentional layouts, button contrast, and anti-template checks. The

@@ -193,23 +193,25 @@ export function SharedSetlistView({ token }: { token: string }) {
 
   if (!snapshot)
     return (
-      <div className="p-12 text-center text-slate-500">
+      <div className="grid min-h-[60dvh] place-items-center px-4 text-center text-sm text-slate-500">
         {busy ? "Opening shared setlist…" : "Shared setlist unavailable"}
       </div>
     );
 
   return (
-    <div className="mx-auto max-w-5xl px-3 py-6 pb-24 sm:px-6 sm:py-8">
+    <div className="mx-auto max-w-6xl px-3 py-7 pb-24 min-[375px]:px-4 sm:px-6 sm:py-10 lg:px-8 lg:py-12">
       <FeedbackToast
         message={feedback?.message ?? null}
         tone={feedback?.tone}
       />
-      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-start">
+      <div className="mb-8 flex flex-col gap-5 border-b border-slate-200 pb-7 sm:flex-row sm:items-end dark:border-slate-800">
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-indigo-600">
+          <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-indigo-600 dark:text-indigo-400">
             Shared setlist · Read only · Revision {followed?.revision ?? 1}
           </p>
-          <h1 className="break-words text-3xl font-bold">{snapshot.name}</h1>
+          <h1 className="mt-2 break-words text-3xl font-semibold tracking-[-0.04em] sm:text-4xl">
+            {snapshot.name}
+          </h1>
           {snapshot.version === 2 && snapshot.sharedBy && (
             <p className="mt-1 text-sm text-slate-500">
               Shared by {snapshot.sharedBy}
@@ -227,7 +229,10 @@ export function SharedSetlistView({ token }: { token: string }) {
               <CloudDownload size={16} /> {busy ? "Updating…" : "Update"}
             </Button>
           )}
-          <Button asChild>
+          <Button
+            asChild
+            className="bg-indigo-600 text-white hover:bg-indigo-700 dark:bg-indigo-600 dark:text-white dark:hover:bg-indigo-500"
+          >
             <Link href={`/s/${token}`}>
               <Play size={16} /> Perform
             </Link>
@@ -235,7 +240,7 @@ export function SharedSetlistView({ token }: { token: string }) {
         </div>
       </div>
 
-      <div className="space-y-3">
+      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
         {snapshot.songs.map((song, index) => {
           const identity = song.sharedSongId ?? song.entryId;
           const imported = importedSongs.get(identity);
@@ -244,7 +249,10 @@ export function SharedSetlistView({ token }: { token: string }) {
             Boolean(song.contentHash) &&
             imported?.sharedSource?.contentHash !== song.contentHash;
           return (
-            <Card key={song.entryId} className="p-4">
+            <div
+              key={song.entryId}
+              className={`p-4 sm:p-5 ${index ? "border-t border-slate-200 dark:border-slate-800" : ""}`}
+            >
               <div className="flex items-start gap-3">
                 <span className="mt-1 text-sm font-bold text-slate-400">
                   {index + 1}
@@ -292,7 +300,7 @@ export function SharedSetlistView({ token }: { token: string }) {
                   {importingSongId === identity ? "Importing…" : "Import"}
                 </Button>
               </div>
-            </Card>
+            </div>
           );
         })}
       </div>

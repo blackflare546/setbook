@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { FeedbackToast } from "@/components/ui/feedback-toast";
+import { PageHeader } from "@/components/ui/page-header";
 import { formatMusicalKey } from "@/core/chords/keys";
 import type { Song } from "@/core/songs/types";
 
@@ -177,51 +178,49 @@ export function SongLibrary() {
 
   return (
     <div
-      className="mx-auto max-w-7xl px-3 py-6 pb-32 min-[375px]:px-4 sm:px-6 sm:py-8 md:pb-40 lg:py-10 lg:pb-32"
+      className="mx-auto max-w-[1440px] px-3 py-7 pb-32 min-[375px]:px-4 sm:px-6 sm:py-10 md:pb-40 lg:px-8 lg:py-12 lg:pb-32"
       data-testid="song-library"
     >
       <FeedbackToast
         message={feedback?.message ?? null}
         tone={feedback?.tone}
       />
-      <div className="mb-7 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
-        <div>
-          <p className="mb-1 text-sm font-semibold text-indigo-600">
-            Your repertoire
-          </p>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-950 min-[375px]:text-3xl dark:text-white">
-            Song library
-          </h1>
-          <p className="mt-1 text-slate-500">
+      <PageHeader
+        eyebrow="Your repertoire"
+        title="Song library"
+        description={
+          <>
             {songs.length} {songs.length === 1 ? "song" : "songs"}, available
             offline on this device
-          </p>
-        </div>
-        <div className="grid grid-cols-2 gap-2 sm:flex">
-          <input
-            ref={importRef}
-            className="hidden"
-            type="file"
-            accept="application/json"
-            onChange={(event) => void restore(event.target.files?.[0])}
-          />
-          <Button
-            variant="secondary"
-            onClick={() => importRef.current?.click()}
-          >
-            <Upload size={16} />
-            Import
-          </Button>
-          <Button variant="secondary" onClick={() => void backup()}>
-            <Download size={16} />
-            Export
-          </Button>
-          <Button asChild className="col-span-2 sm:col-span-1">
-            <Link href="/songs/new">Add song</Link>
-          </Button>
-        </div>
-      </div>
-      <Card className="mb-4 flex flex-col gap-3 p-3 sm:flex-row">
+          </>
+        }
+        actions={
+          <div className="grid grid-cols-2 gap-2 sm:flex">
+            <input
+              ref={importRef}
+              className="hidden"
+              type="file"
+              accept="application/json"
+              onChange={(event) => void restore(event.target.files?.[0])}
+            />
+            <Button
+              variant="secondary"
+              onClick={() => importRef.current?.click()}
+            >
+              <Upload size={16} />
+              Import
+            </Button>
+            <Button variant="secondary" onClick={() => void backup()}>
+              <Download size={16} />
+              Export
+            </Button>
+            <Button asChild className="col-span-2 sm:col-span-1">
+              <Link href="/songs/new">Add song</Link>
+            </Button>
+          </div>
+        }
+      />
+      <Card className="mb-5 flex flex-col gap-3 p-3 sm:flex-row sm:p-4">
         <label className="relative flex-1">
           <Search
             className="absolute left-3 top-2.5 text-slate-400"
@@ -243,14 +242,14 @@ export function SongLibrary() {
         </Button>
       </Card>
       {filtered.length ? (
-        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.03),0_12px_32px_-28px_rgba(0,0,0,0.35)] dark:border-slate-800 dark:bg-slate-900 dark:shadow-none">
           {filtered.map((song, index) => (
             <div
               key={song.id}
               data-testid={`song-row-${song.id}`}
-              className={`group flex min-w-0 items-center gap-3 p-4 sm:gap-4 ${index ? "border-t border-slate-100 dark:border-slate-800" : ""}`}
+              className={`group flex min-w-0 items-center gap-3 p-4 transition-colors hover:bg-slate-50 sm:gap-4 sm:px-5 dark:hover:bg-slate-800/50 ${index ? "border-t border-slate-100 dark:border-slate-800" : ""}`}
             >
-              <div className="hidden h-10 w-10 place-items-center rounded-lg bg-indigo-50 text-indigo-600 sm:grid">
+              <div className="hidden h-10 w-10 place-items-center rounded-[10px] border border-indigo-100 bg-indigo-50 text-indigo-600 sm:grid dark:border-indigo-900 dark:bg-indigo-950/50">
                 <FileMusic size={19} />
               </div>
               <Link href={`/songs/${song.id}`} className="min-w-0 flex-1">

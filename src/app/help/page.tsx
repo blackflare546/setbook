@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { BookOpenCheck } from "lucide-react";
+import { PageHeader } from "@/components/ui/page-header";
 
 export const metadata: Metadata = { title: "Help" };
 
@@ -55,23 +57,27 @@ const sections = [
 
 export default function HelpPage() {
   return (
-    <main className="px-4 py-10 pb-28 sm:px-6 sm:py-14 lg:pb-14">
-      <div className="mx-auto max-w-4xl">
-        <p className="text-sm font-bold uppercase tracking-[.18em] text-indigo-600 dark:text-indigo-400">
-          Help
-        </p>
-        <h1 className="mt-2 text-4xl font-black tracking-tight">
-          How to use SetBook
-        </h1>
-        <p className="mt-4 max-w-2xl text-lg leading-8 text-slate-600 dark:text-slate-300">
-          A practical guide to getting your charts ready for rehearsal and the
-          stage.
-        </p>
+    <main className="px-4 py-8 pb-28 sm:px-6 sm:py-10 lg:px-8 lg:py-12 lg:pb-16">
+      <div className="mx-auto max-w-5xl">
+        <PageHeader
+          title="How to use SetBook"
+          description="A practical guide to getting your charts ready for rehearsal and the stage."
+          actions={
+            <span className="grid h-12 w-12 place-items-center rounded-xl border border-indigo-100 bg-indigo-50 text-indigo-600 dark:border-indigo-900 dark:bg-indigo-950/50 dark:text-indigo-300">
+              <BookOpenCheck size={22} aria-hidden="true" />
+            </span>
+          }
+        />
 
-        <div className="mt-10 divide-y divide-slate-200 border-y border-slate-200 dark:divide-slate-800 dark:border-slate-800">
+        <div className="grid border-y border-slate-200 md:grid-cols-2 dark:border-slate-800">
           {sections.map((section) => (
-            <section key={section.title} className="py-7">
-              <h2 className="text-xl font-bold">{section.title}</h2>
+            <section
+              key={section.title}
+              className="border-b border-slate-200 py-7 md:px-7 md:[&:nth-child(odd)]:border-r dark:border-slate-800"
+            >
+              <h2 className="text-lg font-semibold tracking-[-0.02em] text-slate-950 dark:text-white">
+                {section.title}
+              </h2>
               {section.body && (
                 <p className="mt-3 max-w-3xl leading-7 text-slate-600 dark:text-slate-300">
                   {section.body}
@@ -82,9 +88,9 @@ export default function HelpPage() {
                   {section.steps.map((step, index) => (
                     <li
                       key={step}
-                      className="flex gap-3 leading-7 text-slate-600 dark:text-slate-300"
+                      className="flex gap-3 text-sm leading-6 text-slate-600 dark:text-slate-300"
                     >
-                      <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-indigo-100 text-xs font-bold text-indigo-800 dark:bg-indigo-500/20 dark:text-indigo-300">
+                      <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-slate-950 font-mono text-[10px] font-semibold text-white dark:bg-white dark:text-slate-950">
                         {index + 1}
                       </span>
                       <span>{step}</span>
@@ -93,7 +99,7 @@ export default function HelpPage() {
                 </ol>
               )}
               {section.note && (
-                <p className="mt-4 border-l-4 border-indigo-500 bg-indigo-50 px-4 py-3 text-sm text-indigo-950 dark:bg-indigo-500/10 dark:text-indigo-100">
+                <p className="mt-4 rounded-r-lg border-l-2 border-indigo-500 bg-indigo-50 px-4 py-3 text-sm leading-6 text-indigo-950 dark:bg-indigo-500/10 dark:text-indigo-100">
                   {section.note}
                 </p>
               )}

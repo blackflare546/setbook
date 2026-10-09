@@ -18,16 +18,25 @@ export function SongViewer({ id }: { id: string }) {
 
   if (state.loading)
     return (
-      <div className="grid min-h-dvh place-items-center bg-white text-slate-500 dark:bg-slate-950 dark:text-slate-400">
-        Loading song…
+      <div className="grid min-h-dvh place-items-center bg-white px-4 text-center dark:bg-slate-950">
+        <div>
+          <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-indigo-600 dark:text-indigo-400">
+            Song view
+          </p>
+          <p className="mt-2 text-sm font-medium text-slate-500 dark:text-slate-400">
+            Loading song…
+          </p>
+        </div>
       </div>
     );
   if (!state.song)
     return (
       <div className="grid min-h-dvh place-items-center bg-white px-4 text-center dark:bg-slate-950">
-        <div>
-          <h1 className="text-xl font-bold">Song not found</h1>
-          <p className="mt-2 text-sm text-slate-500">
+        <div className="max-w-sm">
+          <h1 className="text-2xl font-semibold tracking-[-0.03em]">
+            Song not found
+          </h1>
+          <p className="mt-3 text-sm leading-6 text-slate-500 dark:text-slate-400">
             It may have been removed from this device.
           </p>
         </div>

@@ -462,10 +462,12 @@ export function SetlistEditor({ id }: { id: string }) {
           </Link>
         </Button>
         <div className="min-w-0 flex-1">
-          <p className="text-xs font-bold uppercase tracking-wider text-indigo-600">
+          <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-indigo-600 dark:text-indigo-400">
             Setlist editor
           </p>
-          <h1 className="break-words text-2xl font-bold">{setlist.name}</h1>
+          <h1 className="mt-1 break-words text-2xl font-semibold tracking-[-0.03em]">
+            {setlist.name}
+          </h1>
         </div>
         <div className="grid grid-cols-2 gap-2 sm:flex">
           <Button

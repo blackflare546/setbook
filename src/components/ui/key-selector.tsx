@@ -52,19 +52,13 @@ export function KeySelector({
           0,
           window.innerHeight - rect.bottom - LIST_GAP - VIEWPORT_PADDING,
         );
-        const spaceAbove = Math.max(
-          0,
-          rect.top - LIST_GAP - VIEWPORT_PADDING,
-        );
-        const openAbove =
-          spaceBelow < desiredHeight && spaceAbove > spaceBelow;
+        const spaceAbove = Math.max(0, rect.top - LIST_GAP - VIEWPORT_PADDING);
+        const openAbove = spaceBelow < desiredHeight && spaceAbove > spaceBelow;
         const availableSpace = openAbove ? spaceAbove : spaceBelow;
         setPosition({
           left: rect.left,
           top: openAbove ? null : rect.bottom + LIST_GAP,
-          bottom: openAbove
-            ? window.innerHeight - rect.top + LIST_GAP
-            : null,
+          bottom: openAbove ? window.innerHeight - rect.top + LIST_GAP : null,
           width: rect.width,
           maxHeight: Math.min(LIST_MAX_HEIGHT, availableSpace),
           side: openAbove ? "top" : "bottom",
@@ -114,7 +108,7 @@ export function KeySelector({
             ? `${listId}-option-${activeIndex}`
             : undefined
         }
-        className="h-11 w-full min-w-0 rounded-lg border border-slate-300 bg-white px-3 pr-10 text-base font-medium normal-case text-slate-950 outline-none placeholder:text-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:focus:ring-indigo-950 sm:h-10 sm:text-sm"
+        className="h-11 w-full min-w-0 rounded-[10px] border border-slate-300 bg-white px-3.5 pr-10 text-base font-medium normal-case text-slate-950 shadow-[0_1px_2px_rgba(0,0,0,0.03)] outline-none placeholder:text-slate-400 hover:border-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:hover:border-slate-600 dark:focus:ring-indigo-950 sm:h-10 sm:text-sm"
         placeholder="Search key..."
         value={open ? query : selected ? selected.label : ""}
         onFocus={() => setOpen(true)}
@@ -155,7 +149,7 @@ export function KeySelector({
             role="listbox"
             aria-label={`${ariaLabel} options`}
             data-side={position.side}
-            className="fixed z-[100] overflow-y-auto rounded-lg border border-slate-200 bg-white p-1 shadow-xl dark:border-slate-700 dark:bg-slate-950"
+            className="fixed z-[100] overflow-y-auto rounded-xl border border-slate-200 bg-white p-1.5 shadow-2xl dark:border-slate-700 dark:bg-slate-950"
             style={{
               left: position.left,
               top: position.top ?? undefined,
