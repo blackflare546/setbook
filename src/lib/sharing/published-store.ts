@@ -75,8 +75,7 @@ export function publishedStoreErrorResponse(error: unknown): {
     error instanceof BlobPreconditionFailedError
   )
     return {
-      error:
-        "Someone updated this setlist. Load the latest version before saving.",
+      error: "The setlist changed while it was being saved. Please try again.",
       status: 409,
     };
   return {
@@ -165,7 +164,10 @@ export async function readSharedRecord(
     const body = await new Response(result.stream).text();
     return {
       record: sharedSetlistRecordSchema.parse(JSON.parse(body)),
-      etag: result.blob.etag || metadata.etag,
+      // `head` is the authoritative metadata API and its ETag is suitable for
+      // conditional writes. The public download response may quote it
+      // differently depending on the CDN path.
+      etag: metadata.etag,
     };
   }
   try {
