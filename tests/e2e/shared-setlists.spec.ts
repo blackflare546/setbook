@@ -36,6 +36,19 @@ test("uses one setlist grid and applies shared updates explicitly", async ({
   await expect(
     page.getByRole("link", { name: "Open in SetBook" }),
   ).toBeVisible();
+  const publicHeader = page.locator("[data-auto-hide-header]");
+  const publicPagination = page.locator("[data-auto-hide-pagination]");
+  await expect(publicHeader).toHaveAttribute("data-visible", "true");
+  await expect(publicPagination).toHaveAttribute("data-visible", "true");
+  await expect(publicHeader).toHaveAttribute("data-visible", "false", {
+    timeout: 2_500,
+  });
+  await expect(publicPagination).toHaveAttribute("data-visible", "false");
+  await page
+    .locator("[data-performance-chart-scroll]")
+    .click({ position: { x: 30, y: 300 } });
+  await expect(publicHeader).toHaveAttribute("data-visible", "true");
+  await expect(publicPagination).toHaveAttribute("data-visible", "true");
   await expect(
     page.getByRole("button", { name: "Import all songs" }),
   ).toHaveCount(0);

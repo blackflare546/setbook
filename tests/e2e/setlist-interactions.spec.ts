@@ -345,7 +345,7 @@ test("dragging reorders complete entries and persists only after Save", async ({
   await expectEntryOrder(page, ["Alpha Song", "Bravo Song", "Charlie Song"]);
 });
 
-test("mobile performance reveals controls for meaningful scrolls and taps", async ({
+test("performance controls auto-hide and reveal at every viewport size", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
@@ -479,16 +479,21 @@ test("mobile performance reveals controls for meaningful scrolls and taps", asyn
   for (const viewport of [
     { width: 768, height: 1024 },
     { width: 1024, height: 768 },
+    { width: 1280, height: 720 },
   ]) {
     await page.setViewportSize(viewport);
-    await expect(header).toHaveAttribute("data-visible", "true");
-    await expect(pagination).toHaveAttribute("data-visible", "true");
-    await expect(page.getByLabel("Open performance menu")).toBeVisible();
+    await expect
+      .poll(() => scroller.evaluate((element) => element.clientHeight))
+      .toBe(viewport.height);
     await expect
       .poll(() =>
         scroller.evaluate((element) => getComputedStyle(element).overflowY),
       )
-      .toBe("visible");
+      .toBe("auto");
+    await scroller.click({ position: { x: 20, y: 300 } });
+    await expect(header).toHaveAttribute("data-visible", "true");
+    await expect(pagination).toHaveAttribute("data-visible", "true");
+    await expect(page.getByLabel("Open performance menu")).toBeVisible();
     await expect
       .poll(() =>
         page.evaluate(
@@ -498,18 +503,9 @@ test("mobile performance reveals controls for meaningful scrolls and taps", asyn
         ),
       )
       .toBe(true);
+    await expect(header).toHaveAttribute("data-visible", "false", {
+      timeout: 2_500,
+    });
+    await expect(pagination).toHaveAttribute("data-visible", "false");
   }
-
-  await page.setViewportSize({ width: 1280, height: 720 });
-  await expect(header).toHaveAttribute("data-visible", "true");
-  await expect(pagination).toHaveAttribute("data-visible", "true");
-  await expect
-    .poll(() =>
-      page.evaluate(
-        () =>
-          document.documentElement.scrollWidth <=
-          document.documentElement.clientWidth + 1,
-      ),
-    )
-    .toBe(true);
 });
