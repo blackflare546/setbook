@@ -85,18 +85,10 @@ async function update(
         { error: "Owner access required" },
         { status: 403 },
       );
-    if (
-      parsed.data.expectedRevision !== stored.record.revision ||
-      parsed.data.expectedEtag !== stored.etag
-    )
-      return NextResponse.json(
-        {
-          error:
-            "Someone updated this setlist. Load the latest version before saving.",
-        },
-        { status: 409 },
-      );
     const now = new Date().toISOString();
+    // Public shares are read-only and only the owner capability can update
+    // them. Advance from the authoritative server revision so stale metadata
+    // in the owner's browser cannot permanently block publishing.
     const revision = stored.record.revision + 1;
     const etag = await replaceSharedRecord(
       {
@@ -108,6 +100,8 @@ async function update(
         createdAt: stored.record.createdAt,
         updatedAt: now,
       },
+      // Use the authoritative metadata ETag read by the server. Upload and
+      // public-download responses can serialize the same ETag differently.
       stored.etag,
     );
     return NextResponse.json({ token, revision, etag, updatedAt: now });
