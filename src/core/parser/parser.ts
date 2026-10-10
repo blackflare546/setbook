@@ -61,6 +61,11 @@ function parseCompactLine(
   if (position < 0) return null;
   const match = parseChordPrefix(line.slice(position));
   if (!match) return null;
+  const firstLyricToken = match.rest.match(/^\S+/u)?.[0] ?? "";
+  // Avoid splitting all-caps lyric words such as DAKILANG into D + AKILANG.
+  if (firstLyricToken.length > 1 && !/\p{Ll}/u.test(firstLyricToken)) {
+    return null;
+  }
   return { chord: match.symbol, lyrics: match.rest, position };
 }
 
