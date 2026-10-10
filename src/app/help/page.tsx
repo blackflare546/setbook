@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { BookOpenCheck, MessageSquareText } from "lucide-react";
 import { FeedbackForm } from "@/components/help/feedback-form";
 import { PageHeader } from "@/components/ui/page-header";
+import { TutorialControls } from "@/components/help/tutorial-controls";
 
 export const metadata: Metadata = { title: "Help" };
 
@@ -116,6 +117,8 @@ export default function HelpPage() {
             </section>
           ))}
         </div>
+
+        <TutorialControls />
 
         <section
           className="scroll-mt-24 py-16 sm:py-20"

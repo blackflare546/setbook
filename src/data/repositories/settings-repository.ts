@@ -8,6 +8,7 @@ import {
   type ChartFontSettings,
 } from "@/core/songs/chart-font-settings";
 import { db, type SongbookDatabase } from "@/data/db/songbook-db";
+import type { TutorialId } from "@/core/tutorials/types";
 
 const defaults: AppSettings = {
   id: "app",
@@ -18,6 +19,7 @@ const defaults: AppSettings = {
   darkChartColors: DARK_CHART_COLORS,
   chartLayout: "auto",
   hasSeenLandingPage: false,
+  tutorialVersions: {},
 };
 
 export class SettingsRepository {
@@ -49,6 +51,7 @@ export class SettingsRepository {
         ...DARK_CHART_COLORS,
         ...stored?.darkChartColors,
       },
+      tutorialVersions: { ...stored?.tutorialVersions },
     };
   }
   async save(settings: AppSettings): Promise<AppSettings> {
@@ -76,6 +79,27 @@ export class SettingsRepository {
   }
   async markLandingPageSeen(): Promise<AppSettings> {
     return this.update({ hasSeenLandingPage: true });
+  }
+  async markTutorialSeen(
+    tutorialId: TutorialId,
+    version: number,
+  ): Promise<AppSettings> {
+    const current = await this.get();
+    return this.update({
+      tutorialVersions: {
+        ...current.tutorialVersions,
+        [tutorialId]: version,
+      },
+    });
+  }
+  async resetTutorial(tutorialId: TutorialId): Promise<AppSettings> {
+    const current = await this.get();
+    const tutorialVersions = { ...current.tutorialVersions };
+    delete tutorialVersions[tutorialId];
+    return this.update({ tutorialVersions });
+  }
+  async resetAllTutorials(): Promise<AppSettings> {
+    return this.update({ tutorialVersions: {} });
   }
 }
 export const settingsRepository = new SettingsRepository();

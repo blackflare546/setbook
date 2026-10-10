@@ -3,6 +3,7 @@ import type {
   ChartFontSettings,
   ChartLayout,
 } from "@/core/songs/chart-font-settings";
+import type { TutorialVersions } from "@/core/tutorials/types";
 
 export interface SetlistSongEntry {
   id: string;
@@ -49,4 +50,5 @@ export interface AppSettings {
   darkChartColors: ChartColors;
   chartLayout: ChartLayout;
   hasSeenLandingPage: boolean;
+  tutorialVersions: TutorialVersions;
 }

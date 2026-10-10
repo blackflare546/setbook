@@ -41,6 +41,15 @@ const backupSchema = z.object({
         .default(DARK_CHART_COLORS),
       chartLayout: z.enum(["auto", "one", "two"]).default("auto"),
       hasSeenLandingPage: z.boolean().default(false),
+      tutorialVersions: z
+        .object({
+          library: z.number().int().nonnegative().optional(),
+          "song-editor": z.number().int().nonnegative().optional(),
+          setlists: z.number().int().nonnegative().optional(),
+          "setlist-editor": z.number().int().nonnegative().optional(),
+          performance: z.number().int().nonnegative().optional(),
+        })
+        .default({}),
     }),
   ),
 });

@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, tutorialSettings } from "./fixtures";
 
 test("keeps Performance Key options accessible throughout a long desktop setlist", async ({
   page,
@@ -43,7 +43,7 @@ test("keeps Performance Key options accessible throughout a long desktop setlist
         updatedAt: now,
       },
     ],
-    settings: [],
+    settings: [tutorialSettings],
   };
   const restoredDialog = page.waitForEvent("dialog");
   await page.locator('input[type="file"]').setInputFiles({

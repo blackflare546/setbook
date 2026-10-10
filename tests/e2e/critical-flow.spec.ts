@@ -1,4 +1,4 @@
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, type Page } from "./fixtures";
 
 test.setTimeout(120_000);
 
@@ -730,11 +730,15 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
   await expect(page.getByLabel("Enter fullscreen")).toBeVisible();
   await expect(page.locator("html")).toHaveClass(/dark/);
   await expect(page.getByText("Count four, quiet verse")).toBeVisible();
-  await page
-    .locator("[data-performance-chart-scroll]")
-    .click({ position: { x: 20, y: 300 } });
+  const sharedPerformanceScroller = page.locator(
+    "[data-performance-chart-scroll]",
+  );
+  await sharedPerformanceScroller.click({ position: { x: 20, y: 300 } });
   await expect(page.getByText("1 of 2")).toBeVisible();
-  await page.getByLabel("Open performance menu").click();
+  if (!(await performanceMenu.isVisible())) {
+    await sharedPerformanceScroller.click({ position: { x: 20, y: 300 } });
+  }
+  await performanceMenu.click();
   await expect(
     page.getByText("Font & Typography", { exact: true }),
   ).toBeVisible();

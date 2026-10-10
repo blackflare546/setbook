@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, tutorialSettings, type Page } from "./fixtures";
 
 const setlistId = "sortable-setlist";
 
@@ -71,7 +71,7 @@ async function restoreSetlistFixture(page: Page) {
         updatedAt: now,
       },
     ],
-    settings: [],
+    settings: [tutorialSettings],
   };
 
   await page.goto("/library");

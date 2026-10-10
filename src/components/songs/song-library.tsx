@@ -31,6 +31,7 @@ import { SongQrImportDialog } from "@/components/songs/song-qr-import-dialog";
 import { useProgressiveCollection } from "@/lib/hooks/use-progressive-collection";
 import { ProgressiveCollectionFooter } from "@/components/ui/progressive-collection-footer";
 import { ScrollToTopButton } from "@/components/ui/scroll-to-top-button";
+import { AreaTutorial } from "@/components/tutorials/area-tutorial";
 
 function SongActions({
   song,
@@ -216,21 +217,26 @@ export function SongLibrary() {
       className="mx-auto max-w-[1440px] px-3 py-7 pb-32 min-[375px]:px-4 sm:px-6 sm:py-10 md:pb-40 lg:px-8 lg:py-12 lg:pb-32"
       data-testid="song-library"
     >
+      <AreaTutorial id="library" ready={liveSongs !== undefined} />
       <FeedbackToast
         message={feedback?.message ?? null}
         tone={feedback?.tone}
       />
-      <PageHeader
-        eyebrow="Your repertoire"
-        title="Song library"
-        description={
-          <>
-            {songs.length} {songs.length === 1 ? "song" : "songs"}, available
-            offline on this device
-          </>
-        }
-        actions={
-          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:justify-end">
+      <div data-tour="library-header">
+        <PageHeader
+          eyebrow="Your repertoire"
+          title="Song library"
+          description={
+            <>
+              {songs.length} {songs.length === 1 ? "song" : "songs"}, available
+              offline on this device
+            </>
+          }
+          actions={
+            <div
+              data-tour="library-actions"
+              className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:justify-end"
+            >
             <input
               ref={importRef}
               className="hidden"
@@ -257,10 +263,14 @@ export function SongLibrary() {
             <Button asChild>
               <Link href="/songs/new">Add song</Link>
             </Button>
-          </div>
-        }
-      />
-      <Card className="mb-5 flex flex-col gap-3 p-3 sm:flex-row sm:p-4">
+            </div>
+          }
+        />
+      </div>
+      <Card
+        data-tour="library-search"
+        className="mb-5 flex flex-col gap-3 p-3 sm:flex-row sm:p-4"
+      >
         <label className="relative flex-1">
           <Search
             className="absolute left-3 top-2.5 text-slate-400"
@@ -281,7 +291,8 @@ export function SongLibrary() {
           {sort === "updated" ? "Recently edited" : "Title A–Z"}
         </Button>
       </Card>
-      {filtered.length ? (
+      <div data-tour="library-collection">
+        {filtered.length ? (
         <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.03),0_12px_32px_-28px_rgba(0,0,0,0.35)] dark:border-slate-800 dark:bg-slate-900 dark:shadow-none">
           {progressive.visibleItems.map((song, index) => (
             <div
@@ -308,7 +319,7 @@ export function SongLibrary() {
             </div>
           ))}
         </div>
-      ) : (
+        ) : (
         <Card className="grid min-h-80 place-items-center p-8 text-center">
           <div>
             <span className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-300">
@@ -329,7 +340,8 @@ export function SongLibrary() {
             )}
           </div>
         </Card>
-      )}
+        )}
+      </div>
       <ProgressiveCollectionFooter
         visibleCount={progressive.visibleCount}
         totalCount={progressive.totalCount}

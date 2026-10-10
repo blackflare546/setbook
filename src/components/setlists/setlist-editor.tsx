@@ -60,6 +60,7 @@ import { formatMusicalKey } from "@/core/chords/keys";
 import { useProgressiveCollection } from "@/lib/hooks/use-progressive-collection";
 import { ProgressiveCollectionFooter } from "@/components/ui/progressive-collection-footer";
 import { ScrollToTopButton } from "@/components/ui/scroll-to-top-button";
+import { AreaTutorial } from "@/components/tutorials/area-tutorial";
 
 type SaveState = "idle" | "dirty" | "saving" | "saved" | "error";
 
@@ -105,6 +106,7 @@ function SortableSetlistEntry({
         isDragging ? "z-10 opacity-60 shadow-lg" : ""
       }`}
     >
+      <AreaTutorial id="setlist-editor" />
       {dropEdge && (
         <div
           aria-hidden="true"
@@ -432,7 +434,10 @@ export function SetlistEditor({ id }: { id: string }) {
         message={feedback?.message ?? null}
         tone={feedback?.tone}
       />
-      <div className="mb-6 flex flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+      <div
+        data-tour="setlist-editor-header"
+        className="mb-6 flex flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:items-center"
+      >
         <Button
           asChild
           variant="ghost"
@@ -482,7 +487,7 @@ export function SetlistEditor({ id }: { id: string }) {
       </div>
       <div className="grid gap-5 lg:grid-cols-[1fr_310px]">
         <div className="space-y-4">
-          <Card className="p-4">
+          <Card data-tour="setlist-editor-details" className="p-4">
             <div className="grid gap-3 sm:grid-cols-3">
               <label className="text-sm font-semibold">
                 Name
@@ -513,7 +518,10 @@ export function SetlistEditor({ id }: { id: string }) {
               </label>
             </div>
           </Card>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div
+            data-tour="setlist-editor-order"
+            className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between"
+          >
             <div>
               <h2 className="text-lg font-bold">Running order</h2>
               <p className="text-sm text-slate-500">
@@ -645,7 +653,7 @@ export function SetlistEditor({ id }: { id: string }) {
           )}
         </div>
         <aside className="space-y-4">
-          <Card className="p-4">
+          <Card data-tour="setlist-editor-notes" className="p-4">
             <h2 className="mb-3 font-bold">Setlist & band notes</h2>
             <Textarea
               className="min-h-36"
@@ -654,7 +662,7 @@ export function SetlistEditor({ id }: { id: string }) {
               onChange={(e) => update({ notes: e.target.value })}
             />
           </Card>
-          <Card className="p-4">
+          <Card data-tour="setlist-editor-share" className="p-4">
             <div className="mb-3 flex items-center gap-2">
               <Share2 className="text-indigo-600" size={18} />
               <h2 className="font-bold">Share Setlist</h2>

@@ -51,6 +51,7 @@ import { Button } from "@/components/ui/button";
 import { settingsRepository } from "@/data/repositories/settings-repository";
 import { useTheme } from "@/components/theme/theme-provider";
 import { cn } from "@/lib/utils";
+import { AreaTutorial } from "@/components/tutorials/area-tutorial";
 import { useResponsiveAutoHideControls } from "./use-responsive-auto-hide-controls";
 
 function withoutTrailingBlankLines(lines: SongLine[]): SongLine[] {
@@ -602,12 +603,14 @@ export function PerformanceView({
         "min-h-dvh pb-24",
       )}
     >
+      {!singleSong && !publicMode && <AreaTutorial id="performance" />}
       {!singleSong && autoHide.responsive && autoHide.controlsVisible && (
         <Button
           size="icon"
           variant="secondary"
           className="fixed left-[max(.5rem,env(safe-area-inset-left))] top-[max(.5rem,env(safe-area-inset-top))] z-30 h-11 w-11 shadow-md"
           aria-label="Open performance menu"
+          data-tour="performance-menu"
           onClick={() => {
             autoHide.revealTemporarily();
             setShowOrder(true);
@@ -684,6 +687,7 @@ export function PerformanceView({
                   size="icon"
                   variant="ghost"
                   data-desktop-performance-menu-trigger
+                  data-tour="performance-menu"
                   className="order-first h-11 w-11"
                   aria-label={
                     autoHide.responsive ? undefined : "Open performance menu"
@@ -819,6 +823,7 @@ export function PerformanceView({
             variant="ghost"
             className="hidden h-11 w-11 sm:inline-flex"
             aria-label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+            data-tour="performance-fullscreen"
             title={
               fullscreenAvailable
                 ? isFullscreen
@@ -853,6 +858,7 @@ export function PerformanceView({
       >
         <article
           data-performance-chart-article
+          data-tour="performance-chart"
           className="min-w-0 px-3 py-5 min-[375px]:px-4 sm:px-8 sm:py-8 lg:px-12"
         >
           <div className="mb-6 border-b border-slate-200 pb-5 dark:border-slate-800 sm:mb-8 sm:flex sm:items-end sm:justify-between sm:gap-4">
@@ -864,7 +870,10 @@ export function PerformanceView({
                 {song.artist || "Unknown artist"}
               </p>
             </div>
-            <div className="mt-4 flex items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50 p-2 shadow-sm dark:border-slate-700 dark:bg-slate-900 sm:mt-0 sm:justify-start">
+            <div
+              data-tour="performance-key"
+              className="mt-4 flex items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50 p-2 shadow-sm dark:border-slate-700 dark:bg-slate-900 sm:mt-0 sm:justify-start"
+            >
               <div className="min-w-14 px-1 text-center">
                 <p className="text-[9px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">
                   Key
@@ -1007,6 +1016,7 @@ export function PerformanceView({
       {!singleSong && (
         <footer
           data-auto-hide-pagination
+          data-tour="performance-navigation"
           data-visible={controlsVisible}
           onFocusCapture={autoHide.revealTemporarily}
           onPointerDownCapture={autoHide.revealTemporarily}

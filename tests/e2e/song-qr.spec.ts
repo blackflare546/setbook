@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, tutorialSettings, type Page } from "./fixtures";
 import { randomBytes } from "node:crypto";
 import QRCode from "qrcode";
 import {
@@ -155,7 +155,7 @@ test("offers a single-song file when the chart is too large for one QR", async (
       },
     ],
     setlists: [],
-    settings: [],
+    settings: [tutorialSettings],
   };
 
   await page.goto("/library");

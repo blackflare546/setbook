@@ -29,6 +29,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { useProgressiveCollection } from "@/lib/hooks/use-progressive-collection";
 import { ProgressiveCollectionFooter } from "@/components/ui/progressive-collection-footer";
 import { ScrollToTopButton } from "@/components/ui/scroll-to-top-button";
+import { AreaTutorial } from "@/components/tutorials/area-tutorial";
 
 const sharedStatusStyles = {
   current:
@@ -200,17 +201,26 @@ export function SetlistList() {
 
   return (
     <div className="mx-auto max-w-[1440px] px-3 py-7 pb-24 min-[375px]:px-4 sm:px-6 sm:py-10 lg:px-8 lg:py-12">
+      <AreaTutorial
+        id="setlists"
+        ready={setlistsQuery !== undefined && sharedSetlistsQuery !== undefined}
+      />
       <FeedbackToast
         message={feedback?.message ?? null}
         tone={feedback?.tone}
       />
-      <PageHeader
-        eyebrow="Plan the show"
-        title="Setlists"
-        description="Build your own setlists or open one shared by your team."
-      />
+      <div data-tour="setlists-header">
+        <PageHeader
+          eyebrow="Plan the show"
+          title="Setlists"
+          description="Build your own setlists or open one shared by your team."
+        />
+      </div>
 
-      <Card className="mb-6 flex flex-col gap-3 p-4 sm:flex-row sm:p-5">
+      <Card
+        data-tour="setlists-create"
+        className="mb-6 flex flex-col gap-3 p-4 sm:flex-row sm:p-5"
+      >
         <Input
           placeholder="New setlist name…"
           value={name}
@@ -227,7 +237,10 @@ export function SetlistList() {
         <QrScannerDialog />
       </Card>
 
-      <Card className="mb-6 flex flex-col gap-3 p-3 sm:flex-row sm:p-4">
+      <Card
+        data-tour="setlists-search"
+        className="mb-6 flex flex-col gap-3 p-3 sm:flex-row sm:p-4"
+      >
         <label className="relative flex-1">
           <Search
             className="absolute left-3 top-2.5 text-slate-400"
@@ -250,7 +263,8 @@ export function SetlistList() {
         </Button>
       </Card>
 
-      {cards.length ? (
+      <div data-tour="setlists-collection">
+        {cards.length ? (
         <div className="grid grid-flow-dense gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {progressive.visibleItems.map((card) => {
             if (card.kind === "owned") {
@@ -395,7 +409,7 @@ export function SetlistList() {
             );
           })}
         </div>
-      ) : (
+        ) : (
         <Card className="grid min-h-72 place-items-center p-8 text-center">
           <div>
             <ListMusic className="mx-auto mb-3 text-indigo-500" size={34} />
@@ -405,7 +419,8 @@ export function SetlistList() {
             </p>
           </div>
         </Card>
-      )}
+        )}
+      </div>
       <ProgressiveCollectionFooter
         visibleCount={progressive.visibleCount}
         totalCount={progressive.totalCount}
