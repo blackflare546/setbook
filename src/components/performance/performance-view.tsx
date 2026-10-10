@@ -409,6 +409,7 @@ export function PerformanceView({
   const { theme, resolvedTheme, setTheme } = useTheme();
   const [current, setCurrent] = useState(0);
   const [showOrder, setShowOrder] = useState(false);
+  const [tutorialActive, setTutorialActive] = useState(false);
   const [showBandNotes, setShowBandNotes] = useState(false);
   const [transposeOffsets, setTransposeOffsets] = useState<
     Record<string, number>
@@ -592,7 +593,8 @@ export function PerformanceView({
     darkChartColors,
     resolvedTheme,
   );
-  const controlsVisible = !autoHide.responsive || autoHide.controlsVisible;
+  const controlsVisible =
+    tutorialActive || !autoHide.responsive || autoHide.controlsVisible;
 
   return (
     <main
@@ -603,8 +605,13 @@ export function PerformanceView({
         "min-h-dvh pb-24",
       )}
     >
-      {!singleSong && !publicMode && <AreaTutorial id="performance" />}
-      {!singleSong && autoHide.responsive && autoHide.controlsVisible && (
+      {!singleSong && !publicMode && (
+        <AreaTutorial
+          id="performance"
+          onActiveChange={setTutorialActive}
+        />
+      )}
+      {!singleSong && autoHide.responsive && controlsVisible && (
         <Button
           size="icon"
           variant="secondary"

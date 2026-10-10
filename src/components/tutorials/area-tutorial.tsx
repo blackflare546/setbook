@@ -200,9 +200,11 @@ const steps: Record<TutorialId, DriveStep[]> = {
 export function AreaTutorial({
   id,
   ready = true,
+  onActiveChange,
 }: {
   id: TutorialId;
   ready?: boolean;
+  onActiveChange?: (active: boolean) => void;
 }) {
   useEffect(() => {
     if (!ready) return;
@@ -247,12 +249,15 @@ export function AreaTutorial({
           stageRadius: 12,
           popoverClass: "setbook-tutorial",
           onDestroyed: () => {
+            onActiveChange?.(false);
             void settingsRepository.markTutorialSeen(id, version);
           },
         });
         destroy = () => driverObject.destroy();
+        onActiveChange?.(true);
         driverObject.drive();
       } catch {
+        onActiveChange?.(false);
         // Tutorials are progressive enhancement; the underlying screen must work.
       }
     }
@@ -261,8 +266,9 @@ export function AreaTutorial({
     return () => {
       cancelled = true;
       destroy?.();
+      onActiveChange?.(false);
     };
-  }, [id, ready]);
+  }, [id, onActiveChange, ready]);
 
   return null;
 }

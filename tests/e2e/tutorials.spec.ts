@@ -176,7 +176,29 @@ test("starts each contextual tutorial when its area becomes ready", async ({
   await page.keyboard.press("Escape");
 
   await page.goto("/performance/tutorial-setlist");
-  await expect(page.locator(".driver-popover")).toContainText(
-    "Performance controls",
-  );
+  const performanceTutorial = page.locator(".driver-popover");
+  await expect(performanceTutorial).toContainText("Performance controls");
+  const performanceHeader = page.locator("[data-auto-hide-header]");
+  const performanceNavigation = page.locator("[data-auto-hide-pagination]");
+  await expect(performanceHeader).toHaveAttribute("data-visible", "true");
+  await expect(performanceNavigation).toHaveAttribute("data-visible", "true");
+  await expect(page.getByLabel("Open performance menu")).toBeVisible();
+  await page.waitForTimeout(2_300);
+  await expect(performanceHeader).toHaveAttribute("data-visible", "true");
+  await expect(performanceNavigation).toHaveAttribute("data-visible", "true");
+  await expect(page.getByLabel("Open performance menu")).toBeVisible();
+});
+
+test("starts the Setlist Editor tutorial before the running order has songs", async ({
+  page,
+}) => {
+  await page.goto("/setlists");
+  await expect(page.locator(".driver-popover")).toBeVisible();
+  await page.keyboard.press("Escape");
+
+  await page.getByPlaceholder("New setlist name…").fill("Empty Tutorial Set");
+  await page.getByRole("button", { name: "Create setlist" }).click();
+
+  await expect(page.getByText("0 songs")).toBeVisible();
+  await expect(page.locator(".driver-popover")).toContainText("Build the set");
 });

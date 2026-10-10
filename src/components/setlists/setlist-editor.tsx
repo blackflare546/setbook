@@ -106,7 +106,6 @@ function SortableSetlistEntry({
         isDragging ? "z-10 opacity-60 shadow-lg" : ""
       }`}
     >
-      <AreaTutorial id="setlist-editor" />
       {dropEdge && (
         <div
           aria-hidden="true"
@@ -430,6 +429,7 @@ export function SetlistEditor({ id }: { id: string }) {
       data-testid="setlist-editor"
       className="mx-auto max-w-6xl px-3 py-5 pb-24 min-[375px]:px-4 sm:px-6 sm:py-7 md:pb-40 lg:pb-32"
     >
+      <AreaTutorial id="setlist-editor" />
       <FeedbackToast
         message={feedback?.message ?? null}
         tone={feedback?.tone}
