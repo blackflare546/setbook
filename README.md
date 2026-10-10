@@ -82,6 +82,11 @@ Use these steps when replacing the Blob store completely:
    `NEXT_PUBLIC_`, commit it, or change it while existing shares still need to
    be updated.
 
+   Add another random server-only value named `CRON_SECRET`. Vercel sends it as
+   a bearer token when invoking cleanup. Set
+   `PUBLISHED_SETLIST_RETENTION_DAYS` to a positive integer to override the
+   default 30-day publication lifetime.
+
 8. Redeploy the project after connecting the store and adding the secret. An
    existing deployment does not receive newly configured environment values.
 9. Publish a setlist. The Blob browser should now show a JSON object under
@@ -125,13 +130,38 @@ The sharing API is intentionally small:
 - `PATCH /api/published-setlists/:token`
 - `PUT /api/published-setlists/:token` (deprecated authenticated alias)
 - `DELETE /api/published-setlists/:token`
-- `POST /api/published-setlists/:token/access`
+- `POST /api/published-setlists/:token/extend`
+- `GET /api/cron/published-setlists-cleanup` (Vercel Cron only)
 
 Public reads remain account-free and read-only. Updates and deletion require
 the owner capability. Capabilities are carried in authorization headers, while
 revision numbers and Blob ETags provide optimistic concurrency protection for
 updates. Owner-authorized deletion is idempotent: an already-deleted remote
 record is treated as successfully removed.
+
+### Publication expiration and cleanup
+
+New v2 shares expire 30 days after they are published, updated, or explicitly
+extended by the owning browser. The sharing panel and public view show the
+expiration date in a readable format. The owner extension action appears
+during the final five days and remains available after expiration until cleanup
+revokes the record. Existing records without lifecycle metadata remain
+non-expiring until their owner next updates or extends them. Legacy v1
+snapshots also remain non-expiring because they have no owner capability that
+can safely authorize lifecycle changes.
+
+The production deployment registers a daily Vercel Cron job from
+`vercel.json`. Its route requires `CRON_SECRET`, scans at most 100 managed
+records per run, and stores only a pagination cursor in the existing Blob
+store. Cleanup conditionally revokes each expired record before removing any
+matching legacy snapshot and the v2 record. Failed deletions leave the public
+link revoked and can be retried safely. Only exact, validated SetBook record
+paths are eligible; unrelated Blob objects are never deleted.
+
+Clearing IndexedDB cannot notify the server. A share whose owner clears browser
+data remains until its existing expiration. A grandfathered or legacy-only
+link cannot be identified as abandoned automatically and must be removed
+administratively if necessary.
 
 ## Structure
 

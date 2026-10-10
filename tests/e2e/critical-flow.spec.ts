@@ -623,6 +623,12 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
   });
   const shareLink = page.getByRole("link", { name: "Open public link" });
   await expect(shareLink).toBeVisible();
+  await expect(
+    page.getByText(/Link expires [A-Z][a-z]+ \d{2}, \d{4}/),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Extend expiration" }),
+  ).toHaveCount(0);
   await page.getByRole("button", { name: "QR code" }).click();
   const qrDialog = page.getByRole("dialog", {
     name: "Public setlist QR code",
@@ -658,6 +664,9 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
     publishedSnapshot.songs.every((song: { links?: unknown }) => !song.links),
   ).toBe(true);
   await page.goto(firstShareUrl!);
+  await expect(
+    page.getByText(/Link available through [A-Z][a-z]+ \d{2}, \d{4}/),
+  ).toHaveCount(0);
   await expect(page.locator("html")).toHaveClass(/dark/);
   await expect(page.locator("body")).toHaveCSS(
     "background-color",

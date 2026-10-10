@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   deletePublishedSetlistByToken,
+  extendPublishedSetlist,
   publishSharedSetlist,
 } from "@/lib/sharing/published-client";
 import type { PublishedSnapshotV2 } from "@/lib/validation/schemas";
@@ -36,6 +37,7 @@ describe("publishing shared setlists", () => {
           ownerCapability: "newOwnerCapability",
           revision: 1,
           etag: '"new-etag"',
+          expiresAt: "2026-11-08T00:00:00.000Z",
         },
         201,
       ),
@@ -48,6 +50,7 @@ describe("publishing shared setlists", () => {
       ownerCapability: "newOwnerCapability",
       revision: 1,
       etag: '"new-etag"',
+      expiresAt: "2026-11-08T00:00:00.000Z",
       createdReplacement: false,
     });
     expect(request).toHaveBeenCalledOnce();
@@ -60,6 +63,7 @@ describe("publishing shared setlists", () => {
         token: binding.publicToken,
         revision: 4,
         etag: '"updated-etag"',
+        expiresAt: "2026-11-08T00:00:00.000Z",
       }),
     );
 
@@ -70,6 +74,7 @@ describe("publishing shared setlists", () => {
       ownerCapability: binding.ownerCapability,
       revision: 4,
       etag: '"updated-etag"',
+      expiresAt: "2026-11-08T00:00:00.000Z",
       createdReplacement: false,
     });
     expect(request).toHaveBeenCalledOnce();
@@ -89,6 +94,7 @@ describe("publishing shared setlists", () => {
             ownerCapability: "replacementCapability",
             revision: 1,
             etag: '"replacement-etag"',
+            expiresAt: "2026-11-08T00:00:00.000Z",
           },
           201,
         ),
@@ -101,6 +107,7 @@ describe("publishing shared setlists", () => {
       ownerCapability: "replacementCapability",
       revision: 1,
       etag: '"replacement-etag"',
+      expiresAt: "2026-11-08T00:00:00.000Z",
       createdReplacement: true,
     });
     expect(request).toHaveBeenCalledTimes(2);
@@ -119,6 +126,33 @@ describe("publishing shared setlists", () => {
       publishSharedSetlist(snapshot, binding, request),
     ).rejects.toThrow("Owner access required");
     expect(request).toHaveBeenCalledOnce();
+  });
+});
+
+describe("extending shared setlists", () => {
+  it("uses the owner capability and returns updated lifecycle metadata", async () => {
+    const request = vi.fn<typeof fetch>().mockResolvedValue(
+      jsonResponse({
+        revision: 3,
+        etag: '"extended-etag"',
+        expiresAt: "2026-11-08T00:00:00.000Z",
+      }),
+    );
+
+    await expect(
+      extendPublishedSetlist("publicToken", "ownerCapability", request),
+    ).resolves.toEqual({
+      revision: 3,
+      etag: '"extended-etag"',
+      expiresAt: "2026-11-08T00:00:00.000Z",
+    });
+    expect(request).toHaveBeenCalledWith(
+      "/api/published-setlists/publicToken/extend",
+      {
+        method: "POST",
+        headers: { authorization: "Bearer ownerCapability" },
+      },
+    );
   });
 });
 

@@ -3,10 +3,13 @@ import { z } from "zod";
 import { publishedSnapshotV2Schema } from "@/lib/validation/schemas";
 import {
   capabilityMatches,
-  deleteSharedRecord,
+  isPublicationAvailable,
+  publicationExpiration,
   publishedStoreErrorResponse,
+  readPublishedPublication,
   readSharedRecord,
   replaceSharedRecord,
+  revokeAndDeleteSharedRecord,
 } from "@/lib/sharing/published-store";
 
 const updateSchema = z.object({
@@ -33,7 +36,7 @@ export async function GET(
     return NextResponse.json({ error: "Invalid token" }, { status: 400 });
   try {
     const stored = await readSharedRecord(token);
-    if (stored)
+    if (stored && isPublicationAvailable(stored.record))
       return NextResponse.json(
         {
           ...stored.record.snapshot,
@@ -42,10 +45,20 @@ export async function GET(
         },
         { headers: { ETag: stored.etag, "Cache-Control": "no-store" } },
       );
-    return NextResponse.json(
-      { error: "Shared setlist not found" },
-      { status: 404 },
-    );
+    if (stored)
+      return NextResponse.json(
+        { error: "Shared setlist not found" },
+        { status: 404 },
+      );
+    const publication = await readPublishedPublication(token);
+    return publication
+      ? NextResponse.json(publication.snapshot, {
+          headers: { "Cache-Control": "public, max-age=60" },
+        })
+      : NextResponse.json(
+          { error: "Shared setlist not found" },
+          { status: 404 },
+        );
   } catch (error) {
     console.error("Unable to read shared setlist", error);
     const failure = publishedStoreErrorResponse(error);
@@ -79,6 +92,14 @@ async function update(
         },
         { status: 404 },
       );
+    if (stored.record.status === "revoked")
+      return NextResponse.json(
+        {
+          error:
+            "The previous shared setlist is no longer available. Publish again to create a new link.",
+        },
+        { status: 404 },
+      );
     const capability = bearer(request);
     if (!capabilityMatches(capability, stored.record.ownerVerifier))
       return NextResponse.json(
@@ -86,25 +107,35 @@ async function update(
         { status: 403 },
       );
     const now = new Date().toISOString();
+    const expiresAt = publicationExpiration(new Date(now));
     // Public shares are read-only and only the owner capability can update
     // them. Advance from the authoritative server revision so stale metadata
     // in the owner's browser cannot permanently block publishing.
     const revision = stored.record.revision + 1;
-    const etag = await replaceSharedRecord(
+    const replaced = await replaceSharedRecord(
+      stored,
       {
         schemaVersion: 2,
         publicToken: stored.record.publicToken,
         revision,
         snapshot: { ...parsed.data.snapshot, publishedAt: now },
         ownerVerifier: stored.record.ownerVerifier,
+        accessMode: stored.record.accessMode,
+        editorVerifier: stored.record.editorVerifier,
+        status: "active",
+        lastConfirmedAt: now,
+        expiresAt,
         createdAt: stored.record.createdAt,
         updatedAt: now,
       },
-      // Use the authoritative metadata ETag read by the server. Upload and
-      // public-download responses can serialize the same ETag differently.
-      stored.etag,
     );
-    return NextResponse.json({ token, revision, etag, updatedAt: now });
+    return NextResponse.json({
+      token,
+      revision,
+      etag: replaced.etag,
+      updatedAt: now,
+      expiresAt,
+    });
   } catch (error) {
     console.error("Unable to update shared setlist", error);
     const failure = publishedStoreErrorResponse(error);
@@ -116,6 +147,7 @@ async function update(
 }
 
 export const PATCH = update;
+export const PUT = update;
 
 export async function DELETE(
   request: Request,
@@ -126,13 +158,24 @@ export async function DELETE(
     return NextResponse.json({ error: "Invalid token" }, { status: 400 });
   try {
     const stored = await readSharedRecord(token);
-    if (!stored) return new NextResponse(null, { status: 204 });
+    if (!stored) {
+      const legacy = await readPublishedPublication(token);
+      if (legacy)
+        return NextResponse.json(
+          {
+            error:
+              "Legacy shared setlists cannot be deleted because they do not have an owner capability.",
+          },
+          { status: 409 },
+        );
+      return new NextResponse(null, { status: 204 });
+    }
     if (!capabilityMatches(bearer(request), stored.record.ownerVerifier))
       return NextResponse.json(
         { error: "Owner access required" },
         { status: 403 },
       );
-    await deleteSharedRecord(token);
+    await revokeAndDeleteSharedRecord(stored);
     return new NextResponse(null, { status: 204 });
   } catch (error) {
     console.error("Unable to delete shared setlist", error);

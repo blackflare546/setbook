@@ -1,10 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { POST as createShare } from "@/app/api/published-setlists/route";
 import {
   DELETE as deleteShare,
   GET as getShare,
   PATCH as updateShare,
 } from "@/app/api/published-setlists/[token]/route";
+import { POST as extendShare } from "@/app/api/published-setlists/[token]/extend/route";
 import { createPublishedSnapshot } from "@/lib/sharing/snapshot";
 
 function snapshot() {
@@ -45,6 +46,8 @@ function snapshot() {
   );
 }
 
+afterEach(() => vi.useRealTimers());
+
 describe("shared setlist owner access", () => {
   it("keeps public reads redacted and permits only the owner to update or delete", async () => {
     const createdResponse = await createShare(
@@ -57,6 +60,7 @@ describe("shared setlist owner access", () => {
     expect(createdResponse.status).toBe(201);
     const created = await createdResponse.json();
     expect(created.ownerCapability).toBeTruthy();
+    expect(created.expiresAt).toBeTruthy();
     expect(created.editorCapability).toBeUndefined();
     expect(created.recoveryUrl).toBeUndefined();
     const context = { params: Promise.resolve({ token: created.token }) };
@@ -70,6 +74,36 @@ describe("shared setlist owner access", () => {
     expect(publicBody.editorCapability).toBeUndefined();
     expect(publicBody.accessMode).toBeUndefined();
     expect(publicBody.revision).toBe(1);
+    expect(publicBody.expiresAt).toBeUndefined();
+
+    const deniedExtend = await extendShare(
+      new Request(
+        `http://localhost/api/published-setlists/${created.token}/extend`,
+        {
+          method: "POST",
+          headers: { authorization: "Bearer former-editor-capability" },
+        },
+      ),
+      context,
+    );
+    expect(deniedExtend.status).toBe(403);
+
+    const extended = await extendShare(
+      new Request(
+        `http://localhost/api/published-setlists/${created.token}/extend`,
+        {
+          method: "POST",
+          headers: {
+            authorization: `Bearer ${created.ownerCapability}`,
+          },
+        },
+      ),
+      context,
+    );
+    expect(extended.status).toBe(200);
+    const extendedBody = await extended.json();
+    expect(extendedBody.revision).toBe(1);
+    expect(extendedBody.expiresAt).toBeTruthy();
 
     const denied = await updateShare(
       new Request(`http://localhost/api/published-setlists/${created.token}`, {
@@ -194,5 +228,60 @@ describe("shared setlist owner access", () => {
       context,
     );
     expect(repeatedDelete.status).toBe(204);
+  });
+
+  it("hides an expired publication and lets its owner extend it before cleanup", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
+    const createdResponse = await createShare(
+      new Request("http://localhost/api/published-setlists", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ snapshot: snapshot() }),
+      }),
+    );
+    const created = await createdResponse.json();
+    const context = { params: Promise.resolve({ token: created.token }) };
+
+    vi.setSystemTime(new Date("2026-02-01T00:00:00.000Z"));
+    const expired = await getShare(
+      new Request(`http://localhost/api/published-setlists/${created.token}`),
+      context,
+    );
+    expect(expired.status).toBe(404);
+
+    const extended = await extendShare(
+      new Request(
+        `http://localhost/api/published-setlists/${created.token}/extend`,
+        {
+          method: "POST",
+          headers: {
+            authorization: `Bearer ${created.ownerCapability}`,
+          },
+        },
+      ),
+      context,
+    );
+    expect(extended.status).toBe(200);
+    const extension = await extended.json();
+    expect(extension.revision).toBe(1);
+    expect(extension.expiresAt).toBe("2026-03-03T00:00:00.000Z");
+
+    const restored = await getShare(
+      new Request(`http://localhost/api/published-setlists/${created.token}`),
+      context,
+    );
+    expect(restored.status).toBe(200);
+
+    const deleted = await deleteShare(
+      new Request(`http://localhost/api/published-setlists/${created.token}`, {
+        method: "DELETE",
+        headers: {
+          authorization: `Bearer ${created.ownerCapability}`,
+        },
+      }),
+      context,
+    );
+    expect(deleted.status).toBe(204);
   });
 });

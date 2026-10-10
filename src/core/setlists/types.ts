@@ -25,6 +25,7 @@ export interface Setlist {
     ownerCapability: string;
     revision: number;
     etag: string;
+    expiresAt?: string;
     sharedBy?: string;
   };
   createdAt: string;
@@ -36,6 +37,7 @@ export interface FollowedSharedSetlist {
   snapshot: import("@/lib/validation/schemas").PublishedSnapshot;
   revision: number;
   etag: string;
+  expiresAt?: string;
   status: "current" | "update-available" | "offline" | "unavailable";
   followedAt: string;
   lastCheckedAt: string;
