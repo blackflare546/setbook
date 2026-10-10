@@ -123,6 +123,14 @@ describe("line classification", () => {
     expect(classifyLine("[Chorus] ")).toBe("section"));
   it("recognizes chord-only rows", () =>
     expect(classifyLine("G  D/F#  Em7  Cadd9")).toBe("chords"));
+  it.each([
+    "Dm G C C - Dm - Em",
+    "Dm G C C – Dm – Em",
+    "Dm G C C — Dm — Em",
+    "| Dm | G | C |",
+  ])("recognizes chord rows with arrangement separators: %s", (line) =>
+    expect(classifyLine(line)).toBe("chords"),
+  );
   it("does not misclassify normal lyrics", () =>
     expect(classifyLine("A garden by the sea")).toBe("lyrics"));
   it("recognizes inline chords", () =>
@@ -149,6 +157,8 @@ describe("line classification", () => {
     "As I am",
     "Be still",
     "Can you hear",
+    "DAKILANG DIOS AT PANGINOON",
+    "ANG NGALAN MO AY LUWALHATIIN",
     "Garden song",
   ])("keeps ordinary lyric text as lyrics: %s", (line) =>
     expect(classifyLine(line)).toBe("lyrics"),
@@ -331,7 +341,48 @@ describe("song parsing", () => {
     expect(firstVerse.lines[0].chords[1].position).toBeGreaterThan(0);
     expect(song.sourceText).toBe(HOW_GREAT_IS_OUR_GOD);
   });
+
+  it("does not consume chord-like initials from uppercase lyric rows", () => {
+    const [verse] = parseText(DAKILANG_DIOS);
+    const lyricLines = verse.lines.filter((line) => line.lyrics);
+
+    expect(lyricLines.map((line) => line.lyrics)).toContain(
+      "DAKILANG DIOS AT PANGINOON",
+    );
+    expect(lyricLines.map((line) => line.lyrics)).toContain(
+      "ANG NGALAN MO AY LUWALHATIIN",
+    );
+    expect(
+      lyricLines.find((line) => line.lyrics.startsWith("DAKILANG"))?.chords,
+    ).toHaveLength(4);
+    expect(
+      lyricLines.find((line) => line.lyrics.startsWith("MAGHARI"))?.chords.map(
+        (chord) => chord.symbol,
+      ),
+    ).toEqual(["Dm", "G", "C", "C", "Dm", "Em"]);
+  });
 });
+
+const DAKILANG_DIOS = `Verse:
+    C       F          C
+HALINA’T PURIHIN ANG DIOS
+     C              F           C
+PAGPAPALA NIYA SA ‘TIN LUBOS LUBOS
+Am        Em
+MAKAPANGYARIHAN
+        Em          Am
+SIYA SA ATIN NAGMAMAHAL
+     Dm      D7        G
+HALINA’T SIYA'Y PASALAMATAN.
+
+    F    G/F  Em      Am
+DAKILANG DIOS AT PANGINOON
+    Dm   G       C          C – Dm – Em
+MAGHARI KA SA LAHAT NG PANAHON
+      F     G  Em       Am
+ANG NGALAN MO AY LUWALHATIIN
+Dm           G            C
+IKAW LAMANG ANG SASAMBAHIN`;
 
 const HOW_GREAT_IS_OUR_GOD = `How Great is our God,
 
