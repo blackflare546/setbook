@@ -231,7 +231,10 @@ export function SongEditor({ songId }: { songId?: string }) {
                 onChange={(e) => update({ artist: e.target.value })}
               />
             </label>
-            <label className="text-xs font-bold uppercase tracking-wide text-slate-500">
+            <label
+              data-tour="song-editor-key"
+              className="text-xs font-bold uppercase tracking-wide text-slate-500"
+            >
               Key
               <KeySelector
                 ariaLabel="Song key"

@@ -91,9 +91,14 @@ test("starts each contextual tutorial when its area becomes ready", async ({
   page,
 }) => {
   await page.goto("/songs/new");
-  await expect(page.locator(".driver-popover")).toContainText(
-    "Create a song chart",
-  );
+  const songTutorial = page.locator(".driver-popover");
+  await expect(songTutorial).toContainText("Create a song chart");
+  await songTutorial.getByRole("button", { name: "Next" }).click();
+  await expect(songTutorial).toContainText("Add the essentials");
+  await expect(songTutorial).toContainText("title and artist");
+  await songTutorial.getByRole("button", { name: "Next" }).click();
+  await expect(songTutorial).toContainText("Automatic key detection");
+  await expect(songTutorial).toContainText("suggests the song's likely key");
   await page.keyboard.press("Escape");
 
   await page.goto("/library");

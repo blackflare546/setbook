@@ -57,7 +57,15 @@ const steps: Record<TutorialId, DriveStep[]> = {
       popover: {
         title: "Add the essentials",
         description:
-          "Give the song a title and artist, then confirm its key and optional capo.",
+          "Give the song a title and artist, then add any other details you already know.",
+      },
+    },
+    {
+      element: '[data-tour="song-editor-key"]',
+      popover: {
+        title: "Automatic key detection",
+        description:
+          "SetBook analyzes the chords you paste and suggests the song's likely key automatically. You can keep the suggestion or choose a different Song Key.",
       },
     },
     {
