@@ -123,6 +123,14 @@ describe("line classification", () => {
     expect(classifyLine("[Chorus] ")).toBe("section"));
   it("recognizes chord-only rows", () =>
     expect(classifyLine("G  D/F#  Em7  Cadd9")).toBe("chords"));
+  it.each([
+    "Dm G C C - Dm - Em",
+    "Dm G C C – Dm – Em",
+    "Dm G C C — Dm — Em",
+    "| Dm | G | C |",
+  ])("recognizes chord rows with arrangement separators: %s", (line) =>
+    expect(classifyLine(line)).toBe("chords"),
+  );
   it("does not misclassify normal lyrics", () =>
     expect(classifyLine("A garden by the sea")).toBe("lyrics"));
   it("recognizes inline chords", () =>
@@ -347,6 +355,11 @@ describe("song parsing", () => {
     expect(
       lyricLines.find((line) => line.lyrics.startsWith("DAKILANG"))?.chords,
     ).toHaveLength(4);
+    expect(
+      lyricLines.find((line) => line.lyrics.startsWith("MAGHARI"))?.chords.map(
+        (chord) => chord.symbol,
+      ),
+    ).toEqual(["Dm", "G", "C", "C", "Dm", "Em"]);
   });
 });
 

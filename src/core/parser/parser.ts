@@ -84,11 +84,17 @@ function splitTokens(line: string): string[] {
   return line.trim().split(/\s+/).filter(Boolean);
 }
 
+function chordTokens(line: string): string[] {
+  return splitTokens(line)
+    .map(cleanChordToken)
+    .filter((token) => token && !/^[-–—]+$/u.test(token));
+}
+
 export function classifyLine(line: string): LineKind {
   if (!line.trim()) return "blank";
   if (parseSectionHeading(line)) return "section";
   if (hasInlineChord(line)) return "inline";
-  const tokens = splitTokens(line).map(cleanChordToken);
+  const tokens = chordTokens(line);
   const chordCount = tokens.filter(isChord).length;
   if (tokens.length > 0 && chordCount === tokens.length) return "chords";
   if (parseCompactLine(line)) return "compact";
