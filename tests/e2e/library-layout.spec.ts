@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, tutorialSettings, type Page } from "./fixtures";
 
 const layouts = [
   { name: "mobile", width: 390, height: 844, minimumPadding: 128 },
@@ -77,7 +77,7 @@ async function restoreLargeCollection(page: Page) {
         exportedAt: now,
         songs,
         setlists,
-        settings: [],
+        settings: [tutorialSettings],
       }),
     ),
   });

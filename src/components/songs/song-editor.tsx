@@ -27,6 +27,7 @@ import { Card } from "@/components/ui/card";
 import { Input, Textarea } from "@/components/ui/input";
 import { FeedbackToast } from "@/components/ui/feedback-toast";
 import { KeySelector } from "@/components/ui/key-selector";
+import { AreaTutorial } from "@/components/tutorials/area-tutorial";
 
 const example = `[Verse 1]\nG                 D\nI found a love for me\nEm                           C\nDarling, just dive right in\n\n[Chorus]\n[G]Take me into your [D]loving arms`;
 
@@ -181,6 +182,7 @@ export function SongEditor({ songId }: { songId?: string }) {
   if (mode === "paste")
     return (
       <div className="mx-auto max-w-5xl px-3 py-7 pb-28 min-[375px]:px-4 sm:px-6 sm:py-10 sm:pb-12 lg:px-8 lg:py-12">
+        <AreaTutorial id="song-editor" />
         <FeedbackToast
           message={feedback?.message ?? null}
           tone={feedback?.tone}
@@ -193,7 +195,10 @@ export function SongEditor({ songId }: { songId?: string }) {
           <ArrowLeft size={17} />
           Back
         </Button>
-        <div className="mb-7 border-b border-slate-200 pb-7 dark:border-slate-800">
+        <div
+          data-tour="song-editor-header"
+          className="mb-7 border-b border-slate-200 pb-7 dark:border-slate-800"
+        >
           <p className="mb-2 font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-indigo-600 dark:text-indigo-400">
             Smart Paste
           </p>
@@ -206,7 +211,10 @@ export function SongEditor({ songId }: { songId?: string }) {
           </p>
         </div>
         <Card className="overflow-hidden">
-          <div className="grid gap-4 border-b border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900 sm:grid-cols-2 sm:p-5 lg:grid-cols-4">
+          <div
+            data-tour="song-editor-metadata"
+            className="grid gap-4 border-b border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900 sm:grid-cols-2 sm:p-5 lg:grid-cols-4"
+          >
             <label className="text-xs font-bold uppercase tracking-wide text-slate-500">
               Title
               <Input
@@ -223,7 +231,10 @@ export function SongEditor({ songId }: { songId?: string }) {
                 onChange={(e) => update({ artist: e.target.value })}
               />
             </label>
-            <label className="text-xs font-bold uppercase tracking-wide text-slate-500">
+            <label
+              data-tour="song-editor-key"
+              className="text-xs font-bold uppercase tracking-wide text-slate-500"
+            >
               Key
               <KeySelector
                 ariaLabel="Song key"
@@ -263,6 +274,7 @@ export function SongEditor({ songId }: { songId?: string }) {
             </label>
             <Textarea
               data-testid="smart-paste-input"
+              data-tour="song-editor-paste"
               wrap="off"
               className="min-h-[50dvh] resize-y overflow-auto whitespace-pre font-mono leading-7 sm:min-h-[360px]"
               placeholder={example}
@@ -300,7 +312,10 @@ export function SongEditor({ songId }: { songId?: string }) {
                 Your text stays in this browser. Parsing happens entirely on
                 this device.
               </p>
-              <div className="grid grid-cols-1 gap-3 sm:flex sm:flex-wrap sm:justify-end">
+              <div
+                data-tour="song-editor-actions"
+                className="grid grid-cols-1 gap-3 sm:flex sm:flex-wrap sm:justify-end"
+              >
                 <Button
                   data-testid="parse-song"
                   variant="secondary"

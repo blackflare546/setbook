@@ -48,6 +48,36 @@ describe("settings theme defaults", () => {
     });
   });
 
+  it("defaults tutorial versions and updates them without changing other settings", async () => {
+    await expect(repository.get()).resolves.toMatchObject({
+      tutorialVersions: {},
+      theme: "light",
+    });
+
+    await repository.markTutorialSeen("library", 1);
+    await repository.markTutorialSeen("performance", 2);
+
+    await expect(repository.get()).resolves.toMatchObject({
+      tutorialVersions: { library: 1, performance: 2 },
+      theme: "light",
+    });
+  });
+
+  it("resets one tutorial or all tutorials", async () => {
+    await repository.markTutorialSeen("library", 1);
+    await repository.markTutorialSeen("setlists", 1);
+
+    await repository.resetTutorial("library");
+    await expect(repository.get()).resolves.toMatchObject({
+      tutorialVersions: { setlists: 1 },
+    });
+
+    await repository.resetAllTutorials();
+    await expect(repository.get()).resolves.toMatchObject({
+      tutorialVersions: {},
+    });
+  });
+
   it("persists dark chart colors without changing light chart colors", async () => {
     const settings = await repository.get();
     const darkChartColors = { ...settings.darkChartColors, chord: "#BFDBFE" };

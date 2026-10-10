@@ -1,3 +1,4 @@
+@import "driver.js/dist/driver.css";
 @import "tailwindcss";
 @custom-variant dark (&:where(.dark, .dark *));
 
@@ -127,6 +128,80 @@ a {
 .dark ::selection {
   background: #5656d8;
   color: #f8fafc;
+}
+
+.driver-popover.setbook-tutorial {
+  max-width: min(22rem, calc(100vw - 2rem));
+  border: 1px solid var(--setbook-border);
+  border-radius: 16px;
+  background: var(--setbook-surface);
+  color: var(--setbook-text);
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  box-shadow: 0 24px 70px -24px rgb(0 0 0 / 0.55);
+  padding: 18px;
+}
+
+.driver-popover.setbook-tutorial .driver-popover-title {
+  color: var(--setbook-text);
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.35;
+  letter-spacing: -0.02em;
+}
+
+.driver-popover.setbook-tutorial .driver-popover-description {
+  color: var(--setbook-text-muted);
+  font-size: 0.875rem;
+  line-height: 1.55;
+}
+
+.driver-popover.setbook-tutorial .driver-popover-progress-text {
+  color: var(--setbook-text-muted);
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 0.6875rem;
+  font-weight: 600;
+}
+
+.driver-popover.setbook-tutorial button {
+  min-height: 36px;
+  border: 1px solid var(--setbook-border-strong);
+  border-radius: 10px;
+  background: var(--setbook-surface);
+  color: var(--setbook-text);
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-shadow: none;
+}
+
+.driver-popover.setbook-tutorial .driver-popover-next-btn,
+.driver-popover.setbook-tutorial .driver-popover-done-btn {
+  border-color: #111111;
+  background: #111111;
+  color: #ffffff;
+}
+
+.dark .driver-popover.setbook-tutorial .driver-popover-next-btn,
+.dark .driver-popover.setbook-tutorial .driver-popover-done-btn {
+  border-color: #8b8bea;
+  background: #8b8bea;
+  color: #1d1d48;
+}
+
+.driver-popover.setbook-tutorial button:focus-visible {
+  outline: 2px solid var(--setbook-accent);
+  outline-offset: 2px;
+}
+
+.driver-popover.setbook-tutorial .driver-popover-close-btn {
+  min-height: 36px;
+  min-width: 36px;
+  border: 0;
+  color: var(--setbook-text-muted);
+}
+
+.driver-popover.setbook-tutorial .driver-popover-arrow {
+  border-color: var(--setbook-surface);
 }
 
 [data-performance-chart-scroll] [data-performance-scroll-container] {
