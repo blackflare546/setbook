@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { BookOpenCheck } from "lucide-react";
+import { BookOpenCheck, MessageSquareText } from "lucide-react";
+import { FeedbackForm } from "@/components/help/feedback-form";
 import { PageHeader } from "@/components/ui/page-header";
 
 export const metadata: Metadata = { title: "Help" };
@@ -115,6 +116,29 @@ export default function HelpPage() {
             </section>
           ))}
         </div>
+
+        <section
+          className="scroll-mt-24 py-16 sm:py-20"
+          aria-labelledby="feedback-heading"
+        >
+          <div className="mb-7 flex items-start gap-4">
+            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-indigo-100 bg-indigo-50 text-indigo-600 dark:border-indigo-900 dark:bg-indigo-950/50 dark:text-indigo-300">
+              <MessageSquareText size={22} aria-hidden="true" />
+            </span>
+            <div>
+              <h2
+                id="feedback-heading"
+                className="text-2xl font-semibold tracking-[-0.03em] text-slate-950 dark:text-white"
+              >
+                Help improve SetBook
+              </h2>
+              <p className="mt-2 max-w-2xl leading-7 text-slate-600 dark:text-slate-300">
+                Found a problem or have an idea? Share what is on your mind.
+              </p>
+            </div>
+          </div>
+          <FeedbackForm />
+        </section>
       </div>
     </main>
   );
