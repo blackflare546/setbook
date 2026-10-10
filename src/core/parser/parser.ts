@@ -162,7 +162,9 @@ function sectionInfo(title: string): { type: SectionType; title: string } {
 
 export function parseText(text: string): SongSection[] {
   const rows = text.replace(/\r\n/g, "\n").split("\n");
+  if (rows.at(-1) === "") rows.pop();
   const sections: SongSection[] = [];
+  let hasExplicitSection = false;
   let current: SongSection = {
     id: newId(),
     type: "verse",
@@ -181,6 +183,7 @@ export function parseText(text: string): SongSection[] {
       const heading = parseSectionHeading(line)!;
       const info = sectionInfo(heading.label);
       current = { id: newId(), ...info, lines: [] };
+      hasExplicitSection = true;
       if (heading.content) {
         current.lines.push(parseChordLine(heading.content, ""));
       }
@@ -207,8 +210,7 @@ export function parseText(text: string): SongSection[] {
       current.lines.push({ id: newId(), lyrics: line.trimEnd(), chords: [] });
     } else if (
       kind === "blank" &&
-      current.lines.length &&
-      current.lines.at(-1)?.lyrics !== ""
+      (current.lines.length || hasExplicitSection)
     ) {
       current.lines.push({ id: newId(), lyrics: "", chords: [] });
     }
@@ -284,5 +286,5 @@ export function sectionsToText(sections: SongSection[]): string {
       });
       return [`[${section.title}]`, ...lines].join("\n");
     })
-    .join("\n\n");
+    .join("\n");
 }

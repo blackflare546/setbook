@@ -54,18 +54,6 @@ import { cn } from "@/lib/utils";
 import { AreaTutorial } from "@/components/tutorials/area-tutorial";
 import { useResponsiveAutoHideControls } from "./use-responsive-auto-hide-controls";
 
-function withoutTrailingBlankLines(lines: SongLine[]): SongLine[] {
-  let end = lines.length;
-  while (
-    end > 0 &&
-    !lines[end - 1].lyrics &&
-    lines[end - 1].chords.length === 0
-  ) {
-    end -= 1;
-  }
-  return lines.slice(0, end);
-}
-
 function ChartLine({
   line,
   semitones,
@@ -109,45 +97,52 @@ function ChartLine({
           fontSize: `${fontSettings.lyricScale / 100}em`,
         }}
       >
-        <div
-          className="relative leading-none"
-          style={{
-            height: `${Math.max(fontSettings.lineHeight, 1.2 * chordToLyricScale)}em`,
-          }}
-        >
-          {chords.map((chord) => (
-            <span
-              key={chord.id}
-              data-chord-position={chord.position}
-              className="absolute"
-              style={{ left: `${chord.position}ch` }}
-            >
+        {chords.length > 0 && (
+          <div
+            className="relative leading-none"
+            style={{
+              height: `${Math.max(fontSettings.lineHeight, 1.2 * chordToLyricScale)}em`,
+            }}
+          >
+            {chords.map((chord) => (
               <span
-                className="font-extrabold"
-                style={{
-                  color: colors.chord,
-                  fontSize: `${chordToLyricScale}em`,
-                  textShadow: getChartContrastOutline(
-                    colors.chord,
-                    chartBackground,
-                  ),
-                }}
+                key={chord.id}
+                data-chord-position={chord.position}
+                className="absolute"
+                style={{ left: `${chord.position}ch` }}
               >
-                {chord.displaySymbol}
+                <span
+                  className="font-extrabold"
+                  style={{
+                    color: colors.chord,
+                    fontSize: `${chordToLyricScale}em`,
+                    textShadow: getChartContrastOutline(
+                      colors.chord,
+                      chartBackground,
+                    ),
+                  }}
+                >
+                  {chord.displaySymbol}
+                </span>
               </span>
-            </span>
-          ))}
-        </div>
-        <div
-          className="whitespace-pre"
-          style={{
-            color: colors.lyric,
-            lineHeight: fontSettings.lineHeight,
-            textShadow: getChartContrastOutline(colors.lyric, chartBackground),
-          }}
-        >
-          {line.lyrics || " "}
-        </div>
+            ))}
+          </div>
+        )}
+        {(line.lyrics || chords.length === 0) && (
+          <div
+            className="whitespace-pre"
+            style={{
+              color: colors.lyric,
+              lineHeight: fontSettings.lineHeight,
+              textShadow: getChartContrastOutline(
+                colors.lyric,
+                chartBackground,
+              ),
+            }}
+          >
+            {line.lyrics || " "}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -990,7 +985,7 @@ export function PerformanceView({
                 className="mb-0 inline-block w-full min-w-0 break-inside-avoid"
               >
                 <h2
-                  className="mb-0 font-bold uppercase tracking-[.16em] dark:tracking-[.08em]"
+                  className="mb-0 font-extrabold uppercase tracking-[.16em] dark:tracking-[.08em]"
                   style={{
                     color: displayedChartColors.section,
                     fontSize: `${0.75 * (fontSettings.sectionScale / 100)}rem`,
@@ -1003,7 +998,7 @@ export function PerformanceView({
                   {section.title}
                 </h2>
                 <div className="space-y-0 font-mono text-base leading-7 sm:text-xl sm:leading-8">
-                  {withoutTrailingBlankLines(section.lines).map((line) => (
+                  {section.lines.map((line) => (
                     <ChartLine
                       key={line.id}
                       line={line}
