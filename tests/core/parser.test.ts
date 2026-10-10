@@ -6,6 +6,7 @@ import {
   parseInlineLine,
   parseSong,
   parseText,
+  sectionsToText,
 } from "@/core/parser/parser";
 
 describe("chord parsing", () => {
@@ -360,6 +361,27 @@ describe("song parsing", () => {
         (chord) => chord.symbol,
       ),
     ).toEqual(["Dm", "G", "C", "C", "Dm", "Em"]);
+  });
+
+  it("preserves the exact number of blank rows between sections", () => {
+    const compact = parseText("VERSE\nG\nLine one\nCHORUS\nC\nLine two");
+    const spacious = parseText(
+      "VERSE\nG\nLine one\n\n\n\nCHORUS\nC\nLine two",
+    );
+
+    expect(
+      compact[0].lines.filter((line) => !line.lyrics && !line.chords.length),
+    ).toHaveLength(0);
+    expect(
+      spacious[0].lines.filter((line) => !line.lyrics && !line.chords.length),
+    ).toHaveLength(3);
+    expect(sectionsToText(compact)).toContain("Line one\n[CHORUS]");
+    expect(sectionsToText(spacious)).toContain("Line one\n\n\n\n[CHORUS]");
+    expect(
+      parseText("VERSE\nG\nLine one\n")[0].lines.filter(
+        (line) => !line.lyrics && !line.chords.length,
+      ),
+    ).toHaveLength(0);
   });
 });
 

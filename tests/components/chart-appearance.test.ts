@@ -56,6 +56,54 @@ afterEach(async () => {
 });
 
 describe("chart appearance settings", () => {
+  it("renders preserved blank rows and extra-bold section headings", async () => {
+    const spacedSnapshot = structuredClone(snapshot);
+    spacedSnapshot.songs[0].sections = [
+      {
+        id: "intro",
+        type: "intro",
+        title: "Intro",
+        lines: [
+          {
+            id: "intro-chords",
+            lyrics: "",
+            chords: [{ id: "intro-c", symbol: "C", position: 0 }],
+          },
+        ],
+      },
+      {
+        id: "verse",
+        type: "verse",
+        title: "Verse",
+        lines: [
+          { id: "verse-line", lyrics: "Verse line", chords: [] },
+          { id: "blank-1", lyrics: "", chords: [] },
+          { id: "blank-2", lyrics: "", chords: [] },
+        ],
+      },
+      {
+        id: "chorus",
+        type: "chorus",
+        title: "Chorus",
+        lines: [{ id: "chorus-line", lyrics: "Chorus line", chords: [] }],
+      },
+    ];
+
+    render(
+      React.createElement(PerformanceView, {
+        snapshot: spacedSnapshot,
+        singleSong: true,
+      }),
+    );
+
+    const chartLines = await screen.findAllByTestId("chart-line");
+    expect(chartLines).toHaveLength(5);
+    expect(chartLines[0].children).toHaveLength(1);
+    expect(screen.getByRole("heading", { name: "Verse" })).toHaveClass(
+      "font-extrabold",
+    );
+  });
+
   it.each([1, 0.9, 0.8, 0.7])(
     "keeps vertical chart overflow disabled at %s line height",
     async (lineHeight) => {
