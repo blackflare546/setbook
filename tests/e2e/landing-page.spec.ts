@@ -23,11 +23,28 @@ for (const viewport of viewports) {
 
     await expect(
       page.getByRole("heading", {
-        name: "One place for your songs and chord charts.",
+        name: "Your whole set, ready for the stage.",
       }),
     ).toBeVisible();
     await expect(page.getByRole("button", { name: "Open App" })).toBeVisible();
-    await expect(page.getByLabel("SetBook workspace preview")).toBeVisible();
+    await expect(
+      page.getByLabel("SetBook responsive performance screenshots"),
+    ).toBeVisible();
+    await expect(
+      page.getByText("Performance view · desktop, tablet, and mobile", {
+        exact: true,
+      }),
+    ).toHaveCount(0);
+    await expect(
+      page.getByAltText(
+        "SetBook performance view showing a two-column chord chart on desktop and tablet",
+      ),
+    ).toBeVisible();
+    await expect(
+      page.getByAltText(
+        "SetBook mobile performance view showing a responsive single-column chord chart",
+      ),
+    ).toBeVisible();
     const supportLinks = page.locator(
       'a[href="https://buymeacoffee.com/glennmark"]',
     );
@@ -60,7 +77,7 @@ test("landing calls to action reach the benefits and app", async ({ page }) => {
   await expect(page).toHaveURL(/#benefits$/);
   await expect(
     page.getByRole("heading", {
-      name: "Less searching. More time making music.",
+      name: "One calm workspace from first chord to final song.",
     }),
   ).toBeVisible();
 
