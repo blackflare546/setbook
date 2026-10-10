@@ -27,6 +27,7 @@ import {
   ArrowDown,
   ArrowLeft,
   ArrowUp,
+  CalendarClock,
   Check,
   Copy,
   ExternalLink,
@@ -48,7 +49,12 @@ import { setlistRepository } from "@/data/repositories/setlist-repository";
 import { songRepository } from "@/data/repositories/song-repository";
 import { createPublishedSnapshot } from "@/lib/sharing/snapshot";
 import {
+  canExtendPublication,
+  formatPublicationDate,
+} from "@/lib/sharing/publication-lifecycle";
+import {
   deletePublishedSetlistByToken,
+  extendPublishedSetlist,
   publishSharedSetlist,
 } from "@/lib/sharing/published-client";
 import { Button } from "@/components/ui/button";
@@ -228,6 +234,7 @@ export function SetlistEditor({ id }: { id: string }) {
   const [sharedBy, setSharedBy] = useState("");
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [publishing, setPublishing] = useState(false);
+  const [extendingPublished, setExtendingPublished] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deletingPublished, setDeletingPublished] = useState(false);
   const [saveState, setSaveState] = useState<SaveState>("idle");
@@ -317,6 +324,7 @@ export function SetlistEditor({ id }: { id: string }) {
         ownerCapability: result.ownerCapability,
         revision: result.revision,
         etag: result.etag,
+        expiresAt: result.expiresAt,
         sharedBy: sharedBy.trim() || undefined,
       };
       const saved = await setlistRepository.save({
@@ -342,6 +350,40 @@ export function SetlistEditor({ id }: { id: string }) {
       });
     } finally {
       setPublishing(false);
+    }
+  }
+  async function extendPublished() {
+    const binding = currentSetlist.shareBinding;
+    if (!binding) return;
+    setExtendingPublished(true);
+    setFeedback(null);
+    try {
+      const result = await extendPublishedSetlist(
+        binding.publicToken,
+        binding.ownerCapability,
+      );
+      const saved = await setlistRepository.save({
+        ...currentSetlist,
+        shareBinding: {
+          ...binding,
+          revision: result.revision,
+          etag: result.etag,
+          expiresAt: result.expiresAt,
+        },
+      });
+      setSetlist(saved);
+      setSaveState("idle");
+      setFeedback({ message: "Sharing expiration extended", tone: "success" });
+    } catch (error) {
+      setFeedback({
+        message:
+          error instanceof Error
+            ? error.message
+            : "Unable to extend published setlist.",
+        tone: "error",
+      });
+    } finally {
+      setExtendingPublished(false);
     }
   }
   async function deletePublished() {
@@ -687,6 +729,7 @@ export function SetlistEditor({ id }: { id: string }) {
               onClick={() => void publish()}
               disabled={
                 publishing ||
+                extendingPublished ||
                 deletingPublished ||
                 !savedForActions ||
                 !setlist.entries.length
@@ -713,6 +756,29 @@ export function SetlistEditor({ id }: { id: string }) {
             )}
             {setlist.shareBinding && (
               <div className="mt-2 space-y-2">
+                <div className="rounded-lg bg-indigo-50 p-3 text-xs leading-5 text-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-200">
+                  <p className="flex items-center gap-1.5 font-semibold">
+                    <CalendarClock size={14} />
+                    {setlist.shareBinding.expiresAt
+                      ? `Link expires ${formatPublicationDate(setlist.shareBinding.expiresAt)}`
+                      : "This existing link does not expire yet"}
+                  </p>
+                  <p className="mt-1">
+                    Publishing updates or extending confirms that this link is
+                    still needed.
+                  </p>
+                </div>
+                {canExtendPublication(setlist.shareBinding.expiresAt) && (
+                  <Button
+                    variant="secondary"
+                    className="w-full"
+                    disabled={extendingPublished || deletingPublished}
+                    onClick={() => void extendPublished()}
+                  >
+                    <CalendarClock size={16} />
+                    {extendingPublished ? "Extending…" : "Extend expiration"}
+                  </Button>
+                )}
                 <Button asChild variant="secondary" className="w-full">
                   <Link
                     target="_blank"

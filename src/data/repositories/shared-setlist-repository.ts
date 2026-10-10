@@ -8,6 +8,7 @@ export interface RemoteSharedSetlist {
   revision: number;
   etag: string;
   updatedAt: string;
+  expiresAt?: string;
 }
 
 export async function fetchSharedSetlist(
@@ -30,6 +31,7 @@ export async function fetchSharedSetlist(
     revision: body.version === 2 ? body.revision : 1,
     etag: response.headers.get("etag") ?? "legacy",
     updatedAt: body.version === 2 ? body.updatedAt : body.publishedAt,
+    expiresAt: body.version === 2 ? body.expiresAt : undefined,
   };
 }
 
@@ -58,6 +60,7 @@ export class SharedSetlistRepository {
       snapshot: remote.snapshot,
       revision: remote.revision,
       etag: remote.etag,
+      expiresAt: remote.expiresAt,
       status: "current",
       followedAt: existing?.followedAt ?? now,
       lastCheckedAt: now,
@@ -93,6 +96,7 @@ export class SharedSetlistRepository {
         ...existing,
         status:
           remote.revision > existing.revision ? "update-available" : "current",
+        expiresAt: remote.expiresAt,
         lastCheckedAt: new Date().toISOString(),
       };
       await this.database.sharedSetlists.put(checked);

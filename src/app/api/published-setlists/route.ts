@@ -6,6 +6,7 @@ import {
   createCapability,
   createPublicToken,
   createSharedRecord,
+  publicationExpiration,
   publishedStoreErrorResponse,
   readPublishedSnapshot,
 } from "@/lib/sharing/published-store";
@@ -32,6 +33,7 @@ export async function POST(request: Request) {
       token = createPublicToken();
     const ownerCapability = createCapability();
     const now = new Date().toISOString();
+    const expiresAt = publicationExpiration(new Date(now));
     const snapshot = { ...parsed.data.snapshot, publishedAt: now };
     const etag = await createSharedRecord({
       schemaVersion: 2,
@@ -39,6 +41,9 @@ export async function POST(request: Request) {
       revision: 1,
       snapshot,
       ownerVerifier: capabilityVerifier(ownerCapability),
+      status: "active",
+      lastConfirmedAt: now,
+      expiresAt,
       createdAt: now,
       updatedAt: now,
     });
@@ -49,6 +54,7 @@ export async function POST(request: Request) {
         revision: 1,
         etag,
         ownerCapability,
+        expiresAt,
       },
       { status: 201 },
     );

@@ -1,6 +1,6 @@
 # SetBook
 
-SetBook is a local-first song chart and setlist app for working musicians. Songs, private setlists, settings, and drafts stay in the browser through Dexie/IndexedDB. Explicitly shared setlists can be followed, imported, or collaboratively edited through separate capability links.
+SetBook is a local-first song chart and setlist app for working musicians. Songs, private setlists, settings, and drafts stay in the browser through Dexie/IndexedDB. Explicitly shared setlists are public and read-only; visitors can follow them or import private song copies, while publishing controls remain with the owner capability stored on the publishing device.
 
 ## Run locally
 
@@ -51,7 +51,7 @@ setbook-shared-setlists/<public-token>.json
 the dashboard. Vercel Blob treats slashes in a pathname as virtual folders, so
 the first successful publish creates the prefix automatically.
 
-### Clean Vercel setup
+### Vercel setup
 
 Use these steps when replacing the Blob store completely:
 
@@ -71,21 +71,39 @@ Use these steps when replacing the Blob store completely:
    use short-lived OIDC authentication automatically. An older token-based
    connection may instead provide `BLOB_READ_WRITE_TOKEN`. SetBook supports
    either configuration; do not create both manually.
-7. Add a server-only environment variable named `SHARE_CAPABILITY_SECRET` for
-   every environment that can publish. Generate it locally with:
+7. Add these server-only environment variables:
 
-   ```bash
-   openssl rand -base64 48
-   ```
+   - `SHARE_CAPABILITY_SECRET`: add it to every environment that can publish;
+     it protects owner capability verifiers. Generate it locally with:
 
-   Paste only the generated value into Vercel. Never prefix the name with
-   `NEXT_PUBLIC_`, commit it, or change it while existing shares still need to
-   be updated.
+     ```bash
+     openssl rand -base64 48
+     ```
+
+     Paste only the generated value into Vercel. Never change it while existing
+     shares still need to be updated.
+
+   - `CRON_SECRET`: add it to Production to authenticate Vercel's cleanup
+     request. Generate a separate random value with
+     `openssl rand -base64 32`. Vercel sends it automatically as an
+     `Authorization: Bearer` header.
+
+   - `PUBLISHED_SETLIST_RETENTION_DAYS`: optional positive integer for every
+     publishing environment. Set it to `30` to make the default explicit, or
+     omit it to use the same 30-day default.
+
+   Never prefix any of these names with `NEXT_PUBLIC_` or commit their values.
 
 8. Redeploy the project after connecting the store and adding the secret. An
    existing deployment does not receive newly configured environment values.
-9. Publish a setlist. The Blob browser should now show a JSON object under
-   `setbook-shared-setlists/`; no manual folder creation is required.
+   The deployment reads `vercel.json` and registers the daily
+   `/api/cron/published-setlists-cleanup` invocation with schedule
+   `0 2 * * *`.
+9. Open **Project → Settings → Cron Jobs** and confirm the cleanup route is
+   listed. Cron runs against the Production deployment; add `CRON_SECRET` to
+   Preview only when manually testing a Preview deployment.
+10. Publish a setlist. The Blob browser should now show a JSON object under
+    `setbook-shared-setlists/`; no manual folder creation is required.
 
 If a local setlist still refers to a file deleted from a previous Blob store,
 SetBook automatically creates a replacement record and saves the new public
@@ -112,11 +130,17 @@ the values pulled by Vercel or set `BLOB_READ_WRITE_TOKEN` equal to
   wrong/deleted store, the store is not Public, or the project is not connected
   to that store.
 - `409 Someone updated this setlist`: reload the setlist before updating it.
+- `401 Unauthorized` from the cleanup route: `CRON_SECRET` is missing or does
+  not match the bearer token sent by Vercel. Update it and redeploy.
+- `503 Cleanup failed`: check the function logs for storage availability and
+  verify that `PUBLISHED_SETLIST_RETENTION_DAYS`, when set, is a positive
+  integer. A failed batch keeps its cursor position so a later run can retry.
 - A missing old JSON record is recovered by creating a new share and URL.
 
 Vercel documentation: [Blob setup and SDK](https://vercel.com/docs/vercel-blob/using-blob-sdk),
 [folders and pathnames](https://vercel.com/docs/vercel-blob#folders-and-slashes),
-and [OIDC authentication](https://vercel.com/changelog/vercel-blob-now-supports-oidc-authentication).
+[OIDC authentication](https://vercel.com/changelog/vercel-blob-now-supports-oidc-authentication),
+and [secured Cron jobs](https://vercel.com/docs/cron-jobs/manage-cron-jobs).
 
 The sharing API is intentionally small:
 
@@ -125,13 +149,23 @@ The sharing API is intentionally small:
 - `PATCH /api/published-setlists/:token`
 - `PUT /api/published-setlists/:token` (deprecated authenticated alias)
 - `DELETE /api/published-setlists/:token`
-- `POST /api/published-setlists/:token/access`
+- `POST /api/published-setlists/:token/extend`
+- `GET /api/cron/published-setlists-cleanup` (Vercel Cron only)
 
-Public reads remain account-free and read-only. Updates and deletion require
-the owner capability. Capabilities are carried in authorization headers, while
-revision numbers and Blob ETags provide optimistic concurrency protection for
-updates. Owner-authorized deletion is idempotent: an already-deleted remote
-record is treated as successfully removed.
+Anyone with the public link can view the shared setlist. Only the publishing
+device can update, extend, or unpublish it.
+
+### Publication expiration and cleanup
+
+New and updated shares expire after 30 days. The owner sees the expiration date
+in the sharing panel. During the final five days, the owner can extend it for
+another 30 days. Visitors do not see the expiration date.
+
+Expired links become unavailable and are deleted by the daily Vercel cleanup
+job. This still happens if the owner clears their browser data. Older shares
+without an expiration date and legacy links do not expire automatically.
+
+Songs that visitors already imported remain in their private libraries.
 
 ## Structure
 

@@ -8,6 +8,7 @@ export interface PublishSharedSetlistResult {
   ownerCapability: string;
   revision: number;
   etag: string;
+  expiresAt: string;
   createdReplacement: boolean;
 }
 
@@ -59,7 +60,30 @@ export async function publishSharedSetlist(
         : binding.ownerCapability,
     revision: result.revision,
     etag: result.etag,
+    expiresAt: result.expiresAt,
     createdReplacement,
+  };
+}
+
+export async function extendPublishedSetlist(
+  token: string,
+  ownerCapability: string,
+  request: typeof fetch = fetch,
+): Promise<{ revision: number; etag: string; expiresAt: string }> {
+  const response = await request(`/api/published-setlists/${token}/extend`, {
+    method: "POST",
+    headers: { authorization: `Bearer ${ownerCapability}` },
+  });
+  const result = await response.json().catch(() => null);
+  if (!response.ok || !result?.expiresAt)
+    throw new Error(
+      result?.error ??
+        `Unable to extend published setlist (server returned ${response.status}).`,
+    );
+  return {
+    revision: result.revision,
+    etag: result.etag,
+    expiresAt: result.expiresAt,
   };
 }
 

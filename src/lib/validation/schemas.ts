@@ -67,6 +67,7 @@ export const setlistSchema = z.object({
       ownerCapability: z.string(),
       revision: z.number().int().positive(),
       etag: z.string(),
+      expiresAt: z.string().optional(),
       sharedBy: z.string().optional(),
     })
     .optional(),
@@ -129,6 +130,9 @@ export const sharedSetlistRecordSchema = z.object({
   // Accepted only so collaborative v2 records remain readable during migration.
   accessMode: z.enum(["view", "editable"]).optional(),
   editorVerifier: z.string().nullable().optional(),
+  status: z.enum(["active", "revoked"]).optional(),
+  lastConfirmedAt: z.string().optional(),
+  expiresAt: z.string().optional(),
   createdAt: z.string(),
   updatedAt: z.string(),
 });
