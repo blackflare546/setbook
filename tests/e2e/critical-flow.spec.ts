@@ -8,7 +8,7 @@ test("shows the welcome once and keeps help and about accessible", async ({
   await page.goto("/");
   await expect(
     page.getByRole("heading", {
-      name: "One place for your songs and chord charts.",
+      name: "Your whole set, ready for the stage.",
     }),
   ).toBeVisible();
   const developerLink = page.getByRole("link", {
@@ -36,7 +36,7 @@ test("shows the welcome once and keeps help and about accessible", async ({
   await expect(page).toHaveURL(/\/welcome$/);
   await expect(
     page.getByRole("heading", {
-      name: "One place for your songs and chord charts.",
+      name: "Your whole set, ready for the stage.",
     }),
   ).toBeVisible();
   await expect(page.getByTestId("landing-page")).toHaveCSS(
@@ -45,7 +45,9 @@ test("shows the welcome once and keeps help and about accessible", async ({
   );
 
   await page.goto("/about");
-  await expect(page.getByRole("heading", { name: "SetBook" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "SetBook", exact: true }),
+  ).toBeVisible();
   await expect(
     page.getByRole("link", { name: "Glenn Mark L. Flores" }),
   ).toHaveCount(1);
