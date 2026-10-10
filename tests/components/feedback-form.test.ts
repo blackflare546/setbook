@@ -1,87 +1,38 @@
 import React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { useForm } from "@formspree/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { FeedbackForm } from "@/components/help/feedback-form";
 
-const reset = vi.fn();
-const handleSubmit = vi.fn(async (event: React.FormEvent<HTMLFormElement>) => {
-  event.preventDefault();
-});
+const fetchMock = vi.fn();
 
-vi.mock("@formspree/react", () => ({
-  useForm: vi.fn(),
-  ValidationError: ({
-    errors,
-    field,
-    prefix = "Form",
-  }: {
-    errors: Record<string, string> | null;
-    field?: string;
-    prefix?: string;
-  }) => {
-    const message = errors?.[field ?? "_form"];
-    return message ? `${prefix} ${message}` : null;
-  },
-}));
+function form() {
+  return screen.getByRole("button", { name: "Send feedback" }).closest("form")!;
+}
 
-const mockedUseForm = vi.mocked(useForm);
-
-function setFormState(
-  overrides: Partial<{
-    errors: Record<string, string> | null;
-    submitting: boolean;
-    succeeded: boolean;
-  }> = {},
-) {
-  mockedUseForm.mockReturnValue([
-    {
-      errors: null,
-      result: null,
-      submitting: false,
-      succeeded: false,
-      ...overrides,
-    },
-    handleSubmit,
-    reset,
-  ] as never);
+function fillRequiredMessage() {
+  fireEvent.change(screen.getByLabelText("Your feedback"), {
+    target: { value: "The chart view is great." },
+  });
 }
 
 beforeEach(() => {
-  vi.stubEnv("NEXT_PUBLIC_FORMSPREE_FORM_ID", "test-form-id");
-  setFormState();
+  vi.stubGlobal("fetch", fetchMock);
 });
 
 afterEach(() => {
   cleanup();
-  vi.unstubAllEnvs();
+  vi.unstubAllGlobals();
   vi.clearAllMocks();
 });
 
 describe("FeedbackForm", () => {
-  it("renders the feedback fields and connects to the supplied Formspree form", () => {
-    render(React.createElement(FeedbackForm));
-
-    expect(mockedUseForm).toHaveBeenCalledWith("test-form-id");
-    expect(screen.getByLabelText("Feedback type")).toHaveValue("general");
-    expect(screen.getByLabelText("Your feedback")).toBeRequired();
-    expect(screen.getByLabelText(/Email/)).not.toBeRequired();
-    expect(screen.getByRole("button", { name: "Send feedback" })).toBeEnabled();
-  });
-
-  it("shows an unavailable state when the Formspree environment variable is missing", () => {
-    vi.stubEnv("NEXT_PUBLIC_FORMSPREE_FORM_ID", "");
-    render(React.createElement(FeedbackForm));
-
-    expect(
-      screen.getByRole("heading", {
-        name: "Feedback is temporarily unavailable",
-      }),
-    ).toBeVisible();
-    expect(mockedUseForm).not.toHaveBeenCalled();
-  });
-
-  it("uses native validation for the required message and optional email format", () => {
+  it("renders the feedback fields with native validation", () => {
     render(React.createElement(FeedbackForm));
 
     const message = screen.getByLabelText(
@@ -89,50 +40,86 @@ describe("FeedbackForm", () => {
     ) as HTMLTextAreaElement;
     const email = screen.getByLabelText(/Email/) as HTMLInputElement;
 
+    expect(screen.getByLabelText("Feedback type")).toHaveValue("general");
+    expect(message).toBeRequired();
+    expect(message).toHaveAttribute("maxlength", "5000");
     expect(message.validity.valueMissing).toBe(true);
+    expect(email).not.toBeRequired();
     expect(email.checkValidity()).toBe(true);
 
     fireEvent.change(email, { target: { value: "not-an-email" } });
     expect(email.validity.typeMismatch).toBe(true);
-
-    fireEvent.change(message, {
-      target: { value: "The chart view is great." },
-    });
-    fireEvent.change(email, { target: { value: "player@example.com" } });
-    expect(message.checkValidity()).toBe(true);
-    expect(email.checkValidity()).toBe(true);
   });
 
-  it("disables the submit button while Formspree is sending", () => {
-    setFormState({ submitting: true });
+  it("disables the submit button while the server is sending", () => {
+    fetchMock.mockReturnValue(new Promise(() => {}));
     render(React.createElement(FeedbackForm));
+    fillRequiredMessage();
+
+    fireEvent.submit(form());
 
     expect(screen.getByRole("button", { name: "Sending…" })).toBeDisabled();
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/feedback",
+      expect.objectContaining({ method: "POST" }),
+    );
   });
 
-  it("shows Formspree form-level and field-level errors", () => {
-    setFormState({
-      errors: {
-        _form: "could not send your feedback.",
-        message: "is required.",
-      },
-    });
+  it("shows server validation errors", async () => {
+    fetchMock.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          error: "Please check the highlighted fields.",
+          fieldErrors: { message: ["Feedback is required."] },
+        }),
+        { status: 400, headers: { "content-type": "application/json" } },
+      ),
+    );
     render(React.createElement(FeedbackForm));
 
+    fireEvent.submit(form());
+
     expect(
-      screen.getByText("Form could not send your feedback."),
+      await screen.findByText("Please check the highlighted fields."),
     ).toBeVisible();
     expect(screen.getByText("Feedback is required.")).toBeVisible();
   });
 
-  it("shows confirmation and resets when sending more feedback", () => {
-    setFormState({ succeeded: true });
+  it("shows confirmation and resets after a successful submission", async () => {
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ ok: true }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
     render(React.createElement(FeedbackForm));
+    fillRequiredMessage();
+
+    fireEvent.submit(form());
 
     expect(
-      screen.getByRole("heading", { name: "Thanks for the feedback" }),
+      await screen.findByRole("heading", { name: "Thanks for the feedback" }),
     ).toBeVisible();
     fireEvent.click(screen.getByRole("button", { name: "Send more feedback" }));
-    expect(reset).toHaveBeenCalledOnce();
+    expect(screen.getByLabelText("Your feedback")).toHaveValue("");
+  });
+
+  it("keeps the form available after a network failure", async () => {
+    fetchMock.mockRejectedValue(new Error("offline"));
+    render(React.createElement(FeedbackForm));
+    fillRequiredMessage();
+
+    fireEvent.submit(form());
+
+    await waitFor(() =>
+      expect(
+        screen.getByText(
+          "Unable to send feedback. Check your connection and try again.",
+        ),
+      ).toBeVisible(),
+    );
+    expect(screen.getByLabelText("Your feedback")).toHaveValue(
+      "The chart view is great.",
+    );
   });
 });

@@ -17,9 +17,6 @@ importers:
       '@dnd-kit/utilities':
         specifier: ^3.2.2
         version: 3.2.2(react@19.2.8)
-      '@formspree/react':
-        specifier: ^3.0.0
-        version: 3.0.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@radix-ui/react-dialog':
         specifier: ^1.1.23
         version: 1.1.23(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -359,15 +356,6 @@ packages:
 
   '@floating-ui/utils@0.2.12':
     resolution: {integrity: sha512-HpCo8tmWzLVad5s2d19EhAz5zqrrQ6s69qd6moPMQvkOuSwDT1YgRfWSVuc4ennqrgv3OHppiOGMQ7oC13yIww==}
-
-  '@formspree/core@4.0.0':
-    resolution: {integrity: sha512-geNlUut5nME1Ztej5Pzx1BrlQ1fFIcJYIqmF+Vm0jaUbpZxjXvt7SDOGeQVkuxn80QJiIHlwBGGjSBFjPX/KDw==}
-
-  '@formspree/react@3.0.0':
-    resolution: {integrity: sha512-8PufBZ4l13VmCp9xTGQXwyF6mZtYSecqgTlFuMo5Fbe4Q6zUk7PMU2uKOwIaytZyTyJgFVCvdbpQElPPBKYNLw==}
-    peerDependencies:
-      react: ^16.8 || ^17.0 || ^18.0 || ^19.0
-      react-dom: ^16.8 || ^17.0 || ^18.0 || ^19.0
 
   '@humanfs/core@0.19.2':
     resolution: {integrity: sha512-UhXNm+CFMWcbChXywFwkmhqjs3PRCmcSa/hfBgLIb7oQ5HNb1wS0icWsGtSAUNgefHeI+eBrA8I1fxmbHsGdvA==}
@@ -1087,17 +1075,6 @@ packages:
 
   '@rtsao/scc@1.1.0':
     resolution: {integrity: sha512-zt6OdqaDoOnJ1ZYsCYGt9YmWzDXl4vQdKTyJev62gFhRGKdx7mcT54V9KIjg+d2wi9EXsPvAPKe7i7WjfVWB8g==}
-
-  '@stripe/react-stripe-js@3.11.0':
-    resolution: {integrity: sha512-5L2Qsg68ELyDGdiQb6mnT4fgyl6V6GN4nJzGdKmVJ3CfbQFv1H157/LJTjJVyQGLN2bZ20cFYFMn2YwZ2TJElw==}
-    peerDependencies:
-      '@stripe/stripe-js': '>=1.44.1 <8.0.0'
-      react: '>=16.8.0 <20.0.0'
-      react-dom: '>=16.8.0 <20.0.0'
-
-  '@stripe/stripe-js@5.10.0':
-    resolution: {integrity: sha512-PTigkxMdMUP6B5ISS7jMqJAKhgrhZwjprDqR1eATtFfh0OpKVNp110xiH+goeVdrJ29/4LeZJR4FaHHWstsu0A==}
-    engines: {node: '>=12.16'}
 
   '@swc/helpers@0.5.23':
     resolution: {integrity: sha512-5lSsMOTXURePglDfvuAQUqkGek9Hg2kksOYay2m0+XR++b2NWYL/4sWyuvVBIs8oKnJaxkdi9whaL/sqN13afw==}
@@ -3633,18 +3610,6 @@ snapshots:
 
   '@floating-ui/utils@0.2.12': {}
 
-  '@formspree/core@4.0.0':
-    dependencies:
-      '@stripe/stripe-js': 5.10.0
-
-  '@formspree/react@3.0.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
-    dependencies:
-      '@formspree/core': 4.0.0
-      '@stripe/react-stripe-js': 3.11.0(@stripe/stripe-js@5.10.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
-      '@stripe/stripe-js': 5.10.0
-      react: 19.2.8
-      react-dom: 19.2.8(react@19.2.8)
-
   '@humanfs/core@0.19.2':
     dependencies:
       '@humanfs/types': 0.15.0
@@ -4251,15 +4216,6 @@ snapshots:
   '@rolldown/pluginutils@1.0.1': {}
 
   '@rtsao/scc@1.1.0': {}
-
-  '@stripe/react-stripe-js@3.11.0(@stripe/stripe-js@5.10.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
-    dependencies:
-      '@stripe/stripe-js': 5.10.0
-      prop-types: 15.8.1
-      react: 19.2.8
-      react-dom: 19.2.8(react@19.2.8)
-
-  '@stripe/stripe-js@5.10.0': {}
 
   '@swc/helpers@0.5.23':
     dependencies:

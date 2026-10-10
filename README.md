@@ -17,12 +17,12 @@ The Help page sends feedback through Formspree. Copy `.env.example` to
 `.env.local`, or add this variable to the existing file:
 
 ```bash
-NEXT_PUBLIC_FORMSPREE_FORM_ID=
+FORMSPREE_FORM_ID=
 ```
 
 Add the same variable to the Vercel project for Production and Preview, then
-redeploy. `NEXT_PUBLIC_` values are embedded in the browser bundle during the
-build, and a Formspree form ID is intentionally public rather than a secret.
+redeploy. The value is read only by the `/api/feedback` route and is not
+included in the browser bundle.
 
 ## Checks
 

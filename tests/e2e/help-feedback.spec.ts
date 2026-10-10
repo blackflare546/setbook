@@ -10,7 +10,7 @@ test("help feedback form is responsive, keyboard accessible, and validates local
     if (message.type() === "error") runtimeErrors.push(message.text());
   });
   page.on("request", (request) => {
-    if (request.url().includes("formspree.io/f/")) {
+    if (request.url().includes("/api/feedback")) {
       submissionRequests += 1;
     }
   });
