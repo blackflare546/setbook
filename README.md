@@ -11,6 +11,19 @@ pnpm dev
 
 Open [http://localhost:3000](http://localhost:3000). No account or network connection is required for normal library, editing, setlist, or performance use.
 
+## Feedback form
+
+The Help page sends feedback through Formspree. Copy `.env.example` to
+`.env.local`, or add this variable to the existing file:
+
+```bash
+FORMSPREE_FORM_ID=
+```
+
+Add the same variable to the Vercel project for Production and Preview, then
+redeploy. The value is read only by the `/api/feedback` route and is not
+included in the browser bundle.
+
 ## Checks
 
 ```bash
