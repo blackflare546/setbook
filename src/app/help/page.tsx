@@ -35,7 +35,7 @@ const sections = [
       "On the receiving device, choose Scan song QR in the Song Library and scan with the camera or upload the QR image.",
       "Review the song before importing it. SetBook skips exact duplicates and asks before replacing or keeping a changed match.",
     ],
-    note: "The song is stored inside the QR and is not uploaded. If a chart is too large for one QR, download the single-song SetBook file and import it from the same scanner. Back up and Restore backup remain full-library tools.",
+    note: "The song is stored inside the QR and is not uploaded. If a chart is too large for one QR, download the single-song SetBook file and import it from the same scanner. Back up and Import backup remain full-library tools; duplicate records are skipped.",
   },
   {
     title: "Creating a setlist",

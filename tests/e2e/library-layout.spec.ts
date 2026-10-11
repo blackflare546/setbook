@@ -67,7 +67,6 @@ async function restoreLargeCollection(page: Page) {
     createdAt: now,
     updatedAt: new Date(Date.parse(now) - index * 1_000).toISOString(),
   }));
-  const restoredDialog = page.waitForEvent("dialog");
   await page.locator('input[accept="application/json"]').setInputFiles({
     name: "large-collection.json",
     mimeType: "application/json",
@@ -81,7 +80,11 @@ async function restoreLargeCollection(page: Page) {
       }),
     ),
   });
-  await (await restoredDialog).accept();
+  const restoreDialog = page.getByRole("dialog", {
+    name: "Import this backup?",
+  });
+  await restoreDialog.getByRole("button", { name: "Import new items" }).click();
+  await expect(restoreDialog).toBeHidden();
 }
 
 test("progressively renders and searches the full song and setlist collections", async ({

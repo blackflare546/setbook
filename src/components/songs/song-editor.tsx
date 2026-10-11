@@ -28,6 +28,7 @@ import { Input, Textarea } from "@/components/ui/input";
 import { FeedbackToast } from "@/components/ui/feedback-toast";
 import { KeySelector } from "@/components/ui/key-selector";
 import { AreaTutorial } from "@/components/tutorials/area-tutorial";
+import { LoadingState } from "@/components/ui/loading-state";
 
 const example = `[Verse 1]\nG                 D\nI found a love for me\nEm                           C\nDarling, just dive right in\n\n[Chorus]\n[G]Take me into your [D]loving arms`;
 
@@ -175,9 +176,7 @@ export function SongEditor({ songId }: { songId?: string }) {
     await save(parsed);
   }
   if (!song)
-    return (
-      <div className="p-10 text-center text-slate-500">Loading chart…</div>
-    );
+    return <LoadingState label="Loading chart…" className="min-h-[60dvh]" />;
 
   if (mode === "paste")
     return (
@@ -331,10 +330,12 @@ export function SongEditor({ songId }: { songId?: string }) {
                   data-testid="save-song"
                   size="lg"
                   disabled={saving || !paste.trim() || !song.title.trim()}
+                  isLoading={saving}
+                  loadingLabel="Saving…"
                   onClick={() => void saveFromPaste()}
                 >
                   <Save size={18} />
-                  {saving ? "Saving…" : "Save song"}
+                  Save song
                 </Button>
                 <Button variant="ghost" size="lg" onClick={leaveEditor}>
                   Cancel
@@ -374,9 +375,11 @@ export function SongEditor({ songId }: { songId?: string }) {
             data-testid="save-song"
             onClick={() => void save()}
             disabled={saving || !song.title.trim()}
+            isLoading={saving}
+            loadingLabel="Saving…"
           >
             <Save size={17} />
-            {saving ? "Saving…" : "Save song"}
+            Save song
           </Button>
         </div>
       </div>

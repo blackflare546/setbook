@@ -230,16 +230,11 @@ export function FeedbackForm() {
           <Button
             className="w-full shrink-0 sm:w-auto"
             type="submit"
-            disabled={submitting}
+            isLoading={submitting}
+            loadingLabel="Sending…"
           >
-            {submitting ? (
-              "Sending…"
-            ) : (
-              <>
-                <Send size={16} aria-hidden="true" />
-                Send feedback
-              </>
-            )}
+            <Send size={16} aria-hidden="true" />
+            Send feedback
           </Button>
         </div>
       </form>

@@ -75,13 +75,17 @@ async function restoreSetlistFixture(page: Page) {
   };
 
   await page.goto("/library");
-  const restoredDialog = page.waitForEvent("dialog");
   await page.locator('input[type="file"]').setInputFiles({
     name: "sortable-setlist.json",
     mimeType: "application/json",
     buffer: Buffer.from(JSON.stringify(backup)),
   });
-  await (await restoredDialog).accept();
+  const restoreDialog = page.getByRole("dialog", {
+    name: "Import this backup?",
+  });
+  await expect(restoreDialog).toBeVisible();
+  await restoreDialog.getByRole("button", { name: "Import new items" }).click();
+  await expect(restoreDialog).toBeHidden();
 }
 
 async function keyboardDrag(

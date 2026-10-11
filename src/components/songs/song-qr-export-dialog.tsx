@@ -7,6 +7,7 @@ import { Download, FileDown, QrCode, X } from "lucide-react";
 import QRCode from "qrcode";
 import type { Song } from "@/core/songs/types";
 import { Button } from "@/components/ui/button";
+import { LoadingState } from "@/components/ui/loading-state";
 import {
   createSongTransfer,
   encodeSongTransfer,
@@ -111,9 +112,10 @@ export function SongQrExportDialog({
           </div>
 
           {loading && (
-            <div className="mt-5 grid aspect-square place-items-center rounded-xl bg-slate-100 text-sm font-semibold text-slate-500 dark:bg-slate-950">
-              Creating QR…
-            </div>
+            <LoadingState
+              label="Creating QR…"
+              className="mt-5 aspect-square rounded-xl bg-slate-100 dark:bg-slate-950"
+            />
           )}
           {qrDataUrl && (
             <>

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { LandingPage } from "@/components/marketing/landing-page";
 import { settingsRepository } from "@/data/repositories/settings-repository";
+import { LoadingState } from "@/components/ui/loading-state";
 
 export function LandingGate() {
   const router = useRouter();
@@ -18,15 +19,8 @@ export function LandingGate() {
 
   if (!showLanding) {
     return (
-      <main className="grid min-h-dvh place-items-center bg-white px-4 text-center dark:bg-slate-950">
-        <div>
-          <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-indigo-600 dark:text-indigo-400">
-            SetBook
-          </p>
-          <p className="mt-2 text-sm font-medium text-slate-500 dark:text-slate-400">
-            Opening your workspace…
-          </p>
-        </div>
+      <main className="min-h-dvh bg-white dark:bg-slate-950">
+        <LoadingState label="Opening your workspace…" className="min-h-dvh" />
       </main>
     );
   }

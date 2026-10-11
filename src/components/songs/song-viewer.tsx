@@ -8,6 +8,7 @@ import { PerformanceView } from "@/components/performance/performance-view";
 import { SongQrExportDialog } from "@/components/songs/song-qr-export-dialog";
 import { Button } from "@/components/ui/button";
 import { QrCode } from "lucide-react";
+import { LoadingState } from "@/components/ui/loading-state";
 
 export function SongViewer({ id }: { id: string }) {
   const [state, setState] = useState<{ loading: boolean; song?: Song }>({
@@ -20,18 +21,7 @@ export function SongViewer({ id }: { id: string }) {
   }, [id]);
 
   if (state.loading)
-    return (
-      <div className="grid min-h-dvh place-items-center bg-white px-4 text-center dark:bg-slate-950">
-        <div>
-          <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-indigo-600 dark:text-indigo-400">
-            Song view
-          </p>
-          <p className="mt-2 text-sm font-medium text-slate-500 dark:text-slate-400">
-            Loading song…
-          </p>
-        </div>
-      </div>
-    );
+    return <LoadingState label="Loading song…" className="min-h-dvh" />;
   if (!state.song)
     return (
       <div className="grid min-h-dvh place-items-center bg-white px-4 text-center dark:bg-slate-950">

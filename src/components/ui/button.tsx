@@ -1,22 +1,37 @@
 import * as React from "react";
 import { Slot } from "@radix-ui/react-slot";
+import { LoaderCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   asChild?: boolean;
   variant?: "primary" | "secondary" | "ghost" | "danger";
   size?: "sm" | "md" | "lg" | "icon";
+  isLoading?: boolean;
+  loadingLabel?: string;
 }
 
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   function Button(
-    { className, variant = "primary", size = "md", asChild, ...props },
+    {
+      className,
+      variant = "primary",
+      size = "md",
+      asChild,
+      isLoading = false,
+      loadingLabel = "Loading…",
+      children,
+      disabled,
+      ...props
+    },
     ref,
   ) {
     const Component = asChild ? Slot : "button";
     return (
       <Component
         ref={ref}
+        aria-busy={isLoading || undefined}
+        disabled={disabled || isLoading}
         className={cn(
           "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-[10px] border border-transparent font-semibold transition-[background-color,border-color,color,box-shadow,opacity] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white active:opacity-90 disabled:pointer-events-none disabled:opacity-60 dark:focus-visible:ring-indigo-400 dark:focus-visible:ring-offset-slate-950",
           {
@@ -38,7 +53,21 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
           className,
         )}
         {...props}
-      />
+      >
+        {isLoading ? (
+          <>
+            <LoaderCircle
+              className="animate-spin"
+              size={16}
+              aria-hidden="true"
+            />
+            {size !== "icon" && loadingLabel}
+            {size === "icon" && <span className="sr-only">{loadingLabel}</span>}
+          </>
+        ) : (
+          children
+        )}
+      </Component>
     );
   },
 );

@@ -2,11 +2,16 @@ import { afterEach, describe, expect, it } from "vitest";
 import { db } from "@/data/db/songbook-db";
 import { exportLibrary, importLibrary } from "@/data/repositories/backup";
 import { settingsRepository } from "@/data/repositories/settings-repository";
+import { createEmptySong } from "@/core/songs/types";
 
 describe("tutorial settings in backups", () => {
   afterEach(async () => {
     await db.transaction("rw", db.songs, db.setlists, db.settings, async () => {
-      await Promise.all([db.songs.clear(), db.setlists.clear(), db.settings.clear()]);
+      await Promise.all([
+        db.songs.clear(),
+        db.setlists.clear(),
+        db.settings.clear(),
+      ]);
     });
   });
 
@@ -61,6 +66,76 @@ describe("tutorial settings in backups", () => {
 
     await expect(settingsRepository.get()).resolves.toMatchObject({
       tutorialVersions: { library: 1, performance: 1 },
+    });
+  });
+
+  it("adds new records while skipping duplicate IDs and existing settings", async () => {
+    const existingSong = {
+      ...createEmptySong(),
+      id: "existing-song",
+      title: "Current song",
+    };
+    const newSong = {
+      ...createEmptySong(),
+      id: "new-song",
+      title: "New song",
+    };
+    const now = new Date().toISOString();
+    const existingSetlist = {
+      id: "existing-setlist",
+      name: "Current setlist",
+      venue: "",
+      notes: "",
+      entries: [],
+      createdAt: now,
+      updatedAt: now,
+    };
+    const newSetlist = {
+      ...existingSetlist,
+      id: "new-setlist",
+      name: "New setlist",
+    };
+    const currentSettings = await settingsRepository.get();
+
+    await db.songs.add(existingSong);
+    await db.setlists.add(existingSetlist);
+    await settingsRepository.save(currentSettings);
+
+    const result = await importLibrary(
+      JSON.stringify({
+        version: 1,
+        exportedAt: now,
+        songs: [{ ...existingSong, title: "Backup version" }, newSong, newSong],
+        setlists: [
+          { ...existingSetlist, name: "Backup version" },
+          newSetlist,
+          newSetlist,
+        ],
+        settings: [{ ...currentSettings, theme: "dark" }],
+      }),
+    );
+
+    expect(result).toEqual({
+      songsAdded: 1,
+      songsSkipped: 2,
+      setlistsAdded: 1,
+      setlistsSkipped: 2,
+      settingsImported: false,
+    });
+    await expect(db.songs.get("existing-song")).resolves.toMatchObject({
+      title: "Current song",
+    });
+    await expect(db.songs.get("new-song")).resolves.toMatchObject({
+      title: "New song",
+    });
+    await expect(db.setlists.get("existing-setlist")).resolves.toMatchObject({
+      name: "Current setlist",
+    });
+    await expect(db.setlists.get("new-setlist")).resolves.toMatchObject({
+      name: "New setlist",
+    });
+    await expect(settingsRepository.get()).resolves.toMatchObject({
+      theme: "light",
     });
   });
 });

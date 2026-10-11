@@ -30,6 +30,7 @@ import { useProgressiveCollection } from "@/lib/hooks/use-progressive-collection
 import { ProgressiveCollectionFooter } from "@/components/ui/progressive-collection-footer";
 import { ScrollToTopButton } from "@/components/ui/scroll-to-top-button";
 import { AreaTutorial } from "@/components/tutorials/area-tutorial";
+import { LoadingState } from "@/components/ui/loading-state";
 
 const sharedStatusStyles = {
   current:
@@ -66,6 +67,9 @@ export function SetlistList() {
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<"updated" | "name">("updated");
   const [name, setName] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [updatingToken, setUpdatingToken] = useState<string | null>(null);
+  const [unfollowingBusy, setUnfollowingBusy] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deletingSetlist, setDeletingSetlist] = useState<Setlist | null>(null);
   const [unfollowing, setUnfollowing] = useState<FollowedSharedSetlist | null>(
@@ -131,7 +135,9 @@ export function SetlistList() {
   }, [sharedSetlists.length]);
 
   async function create() {
-    if (!name.trim()) return;
+    if (!name.trim() || creating) return;
+    setCreating(true);
+    setFeedback(null);
     const now = new Date().toISOString();
     const setlist: Setlist = {
       id: crypto.randomUUID(),
@@ -142,9 +148,17 @@ export function SetlistList() {
       createdAt: now,
       updatedAt: now,
     };
-    await setlistRepository.save(setlist);
-    setName("");
-    router.push(`/setlists/${setlist.id}`);
+    try {
+      await setlistRepository.save(setlist);
+      setName("");
+      router.push(`/setlists/${setlist.id}`);
+    } catch {
+      setFeedback({
+        message: "Setlist could not be created. Please try again.",
+        tone: "error",
+      });
+      setCreating(false);
+    }
   }
 
   async function deleteSetlist(setlist: Setlist) {
@@ -174,6 +188,8 @@ export function SetlistList() {
   }
 
   async function updateShared(shared: FollowedSharedSetlist) {
+    if (updatingToken) return;
+    setUpdatingToken(shared.publicToken);
     setFeedback(null);
     try {
       await sharedSetlistRepository.refresh(shared.publicToken);
@@ -189,14 +205,31 @@ export function SetlistList() {
             : "Unable to update shared setlist.",
         tone: "error",
       });
+    } finally {
+      setUpdatingToken(null);
     }
   }
 
   async function confirmUnfollow() {
-    if (!unfollowing) return;
-    await sharedSetlistRepository.unfollow(unfollowing.publicToken);
-    setUnfollowing(null);
-    setFeedback({ message: "Shared setlist removed", tone: "success" });
+    if (!unfollowing || unfollowingBusy) return;
+    setUnfollowingBusy(true);
+    setFeedback(null);
+    try {
+      await sharedSetlistRepository.unfollow(unfollowing.publicToken);
+      setUnfollowing(null);
+      setFeedback({ message: "Shared setlist removed", tone: "success" });
+    } catch {
+      setFeedback({
+        message: "Shared setlist could not be removed. Please try again.",
+        tone: "error",
+      });
+    } finally {
+      setUnfollowingBusy(false);
+    }
+  }
+
+  if (setlistsQuery === undefined || sharedSetlistsQuery === undefined) {
+    return <LoadingState label="Loading setlists…" className="min-h-[60dvh]" />;
   }
 
   return (
@@ -231,6 +264,8 @@ export function SetlistList() {
           type="button"
           onClick={() => void create()}
           disabled={!name.trim()}
+          isLoading={creating}
+          loadingLabel="Creating…"
         >
           <Plus size={17} /> Create setlist
         </Button>
@@ -265,160 +300,165 @@ export function SetlistList() {
 
       <div data-tour="setlists-collection">
         {cards.length ? (
-        <div className="grid grid-flow-dense gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {progressive.visibleItems.map((card) => {
-            if (card.kind === "owned") {
-              const { setlist } = card;
+          <div className="grid grid-flow-dense gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {progressive.visibleItems.map((card) => {
+              if (card.kind === "owned") {
+                const { setlist } = card;
+                return (
+                  <Card
+                    key={`owned-${setlist.id}`}
+                    data-testid={`setlist-card-${setlist.id}`}
+                    className="group relative p-4 transition-[border-color,box-shadow,transform] hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_18px_50px_-38px_rgba(0,0,0,0.55)] dark:hover:border-slate-700"
+                  >
+                    <Link
+                      href={`/setlists/${setlist.id}`}
+                      aria-label={`Open ${setlist.name}`}
+                      className="absolute inset-0 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-500"
+                      onKeyDown={(event) => {
+                        if (event.key === " ") {
+                          event.preventDefault();
+                          event.currentTarget.click();
+                        }
+                      }}
+                    />
+                    <div className="pointer-events-none relative mb-3 flex items-start justify-between">
+                      <span className="grid h-10 w-10 place-items-center rounded-lg bg-indigo-50 text-indigo-600 dark:bg-indigo-950/50 dark:text-indigo-300">
+                        <ListMusic size={20} />
+                      </span>
+                      <div
+                        className="pointer-events-auto relative z-10 flex"
+                        data-testid={`setlist-actions-${setlist.id}`}
+                      >
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="ghost"
+                          className="h-11 w-11 sm:h-9 sm:w-9"
+                          aria-label={`Duplicate ${setlist.name}`}
+                          onClick={() =>
+                            void setlistRepository.duplicate(setlist.id)
+                          }
+                        >
+                          <Copy size={16} />
+                        </Button>
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="ghost"
+                          className="h-11 w-11 text-rose-600 hover:bg-rose-50 hover:text-rose-700 sm:h-9 sm:w-9 dark:text-rose-400 dark:hover:bg-rose-950/40 dark:hover:text-rose-300"
+                          aria-label={`Delete ${setlist.name}`}
+                          disabled={deletingId === setlist.id}
+                          onClick={() => setDeletingSetlist(setlist)}
+                        >
+                          <Trash2 size={16} />
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="pointer-events-none relative">
+                      <h2 className="break-words text-lg font-bold group-hover:text-indigo-700 dark:group-hover:text-indigo-300">
+                        {setlist.name}
+                      </h2>
+                      <p className="mt-1 text-sm text-slate-500">
+                        {setlist.entries.length}{" "}
+                        {setlist.entries.length === 1 ? "song" : "songs"}
+                        {setlist.venue ? ` · ${setlist.venue}` : ""}
+                      </p>
+                      {setlist.date && (
+                        <p className="mt-2 flex items-center gap-2 text-xs font-medium text-slate-500">
+                          <CalendarDays size={14} />
+                          {new Date(
+                            `${setlist.date}T00:00:00`,
+                          ).toLocaleDateString()}
+                        </p>
+                      )}
+                    </div>
+                  </Card>
+                );
+              }
+
+              const { shared } = card;
               return (
                 <Card
-                  key={`owned-${setlist.id}`}
-                  data-testid={`setlist-card-${setlist.id}`}
-                  className="group relative p-4 transition-[border-color,box-shadow,transform] hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_18px_50px_-38px_rgba(0,0,0,0.55)] dark:hover:border-slate-700"
+                  key={`shared-${shared.publicToken}`}
+                  className="group relative min-h-48 p-5 transition-[border-color,box-shadow,transform] hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_18px_50px_-38px_rgba(0,0,0,0.55)] dark:hover:border-slate-700"
                 >
                   <Link
-                    href={`/setlists/${setlist.id}`}
-                    aria-label={`Open ${setlist.name}`}
+                    href={`/shared/${shared.publicToken}`}
+                    aria-label={`Open shared setlist ${shared.snapshot.name}`}
                     className="absolute inset-0 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-500"
-                    onKeyDown={(event) => {
-                      if (event.key === " ") {
-                        event.preventDefault();
-                        event.currentTarget.click();
-                      }
-                    }}
                   />
-                  <div className="pointer-events-none relative mb-3 flex items-start justify-between">
-                    <span className="grid h-10 w-10 place-items-center rounded-lg bg-indigo-50 text-indigo-600 dark:bg-indigo-950/50 dark:text-indigo-300">
-                      <ListMusic size={20} />
+                  <div className="pointer-events-none relative mb-3 flex items-start justify-between gap-3">
+                    <span className="grid h-10 w-10 place-items-center rounded-lg bg-violet-50 text-violet-600 dark:bg-violet-950/50 dark:text-violet-300">
+                      <Share2 size={20} />
                     </span>
-                    <div
-                      className="pointer-events-auto relative z-10 flex"
-                      data-testid={`setlist-actions-${setlist.id}`}
-                    >
-                      <Button
-                        type="button"
-                        size="icon"
-                        variant="ghost"
-                        className="h-11 w-11 sm:h-9 sm:w-9"
-                        aria-label={`Duplicate ${setlist.name}`}
-                        onClick={() =>
-                          void setlistRepository.duplicate(setlist.id)
-                        }
+                    <div className="flex flex-wrap justify-end gap-1.5">
+                      <span className="rounded-full bg-violet-100 px-2 py-1 text-[11px] font-bold uppercase text-violet-800 dark:bg-violet-950/60 dark:text-violet-200">
+                        Shared
+                      </span>
+                      <span
+                        aria-label={`Status: ${sharedStatusLabel(shared.status)}`}
+                        className={`rounded-full px-2 py-1 text-[11px] font-bold uppercase ${sharedStatusStyles[shared.status]}`}
                       >
-                        <Copy size={16} />
-                      </Button>
-                      <Button
-                        type="button"
-                        size="icon"
-                        variant="ghost"
-                        className="h-11 w-11 text-rose-600 hover:bg-rose-50 hover:text-rose-700 sm:h-9 sm:w-9 dark:text-rose-400 dark:hover:bg-rose-950/40 dark:hover:text-rose-300"
-                        aria-label={`Delete ${setlist.name}`}
-                        disabled={deletingId === setlist.id}
-                        onClick={() => setDeletingSetlist(setlist)}
-                      >
-                        <Trash2 size={16} />
-                      </Button>
+                        {sharedStatusLabel(shared.status)}
+                      </span>
                     </div>
                   </div>
                   <div className="pointer-events-none relative">
                     <h2 className="break-words text-lg font-bold group-hover:text-indigo-700 dark:group-hover:text-indigo-300">
-                      {setlist.name}
+                      {shared.snapshot.name}
                     </h2>
-                    <p className="mt-1 text-sm text-slate-500">
-                      {setlist.entries.length}{" "}
-                      {setlist.entries.length === 1 ? "song" : "songs"}
-                      {setlist.venue ? ` · ${setlist.venue}` : ""}
+                    {shared.snapshot.version === 2 &&
+                      shared.snapshot.sharedBy && (
+                        <p className="mt-1 text-sm text-slate-500">
+                          Shared by {shared.snapshot.sharedBy}
+                        </p>
+                      )}
+                    <p className="mt-2 text-sm text-slate-500">
+                      {shared.snapshot.songs.length}{" "}
+                      {shared.snapshot.songs.length === 1 ? "song" : "songs"}
+                      {shared.snapshot.venue
+                        ? ` · ${shared.snapshot.venue}`
+                        : ""}
                     </p>
-                    {setlist.date && (
-                      <p className="mt-2 flex items-center gap-2 text-xs font-medium text-slate-500">
-                        <CalendarDays size={14} />
-                        {new Date(
-                          `${setlist.date}T00:00:00`,
-                        ).toLocaleDateString()}
-                      </p>
-                    )}
                   </div>
-                </Card>
-              );
-            }
-
-            const { shared } = card;
-            return (
-              <Card
-                key={`shared-${shared.publicToken}`}
-                className="group relative min-h-48 p-5 transition-[border-color,box-shadow,transform] hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_18px_50px_-38px_rgba(0,0,0,0.55)] dark:hover:border-slate-700"
-              >
-                <Link
-                  href={`/shared/${shared.publicToken}`}
-                  aria-label={`Open shared setlist ${shared.snapshot.name}`}
-                  className="absolute inset-0 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-500"
-                />
-                <div className="pointer-events-none relative mb-3 flex items-start justify-between gap-3">
-                  <span className="grid h-10 w-10 place-items-center rounded-lg bg-violet-50 text-violet-600 dark:bg-violet-950/50 dark:text-violet-300">
-                    <Share2 size={20} />
-                  </span>
-                  <div className="flex flex-wrap justify-end gap-1.5">
-                    <span className="rounded-full bg-violet-100 px-2 py-1 text-[11px] font-bold uppercase text-violet-800 dark:bg-violet-950/60 dark:text-violet-200">
-                      Shared
-                    </span>
-                    <span
-                      aria-label={`Status: ${sharedStatusLabel(shared.status)}`}
-                      className={`rounded-full px-2 py-1 text-[11px] font-bold uppercase ${sharedStatusStyles[shared.status]}`}
-                    >
-                      {sharedStatusLabel(shared.status)}
-                    </span>
-                  </div>
-                </div>
-                <div className="pointer-events-none relative">
-                  <h2 className="break-words text-lg font-bold group-hover:text-indigo-700 dark:group-hover:text-indigo-300">
-                    {shared.snapshot.name}
-                  </h2>
-                  {shared.snapshot.version === 2 &&
-                    shared.snapshot.sharedBy && (
-                      <p className="mt-1 text-sm text-slate-500">
-                        Shared by {shared.snapshot.sharedBy}
-                      </p>
+                  <div className="pointer-events-auto relative z-10 mt-3 flex flex-wrap gap-2">
+                    {shared.status === "update-available" && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="secondary"
+                        isLoading={updatingToken === shared.publicToken}
+                        loadingLabel="Updating…"
+                        disabled={Boolean(updatingToken)}
+                        onClick={() => void updateShared(shared)}
+                      >
+                        <CloudDownload size={15} /> Update
+                      </Button>
                     )}
-                  <p className="mt-2 text-sm text-slate-500">
-                    {shared.snapshot.songs.length}{" "}
-                    {shared.snapshot.songs.length === 1 ? "song" : "songs"}
-                    {shared.snapshot.venue ? ` · ${shared.snapshot.venue}` : ""}
-                  </p>
-                </div>
-                <div className="pointer-events-auto relative z-10 mt-3 flex flex-wrap gap-2">
-                  {shared.status === "update-available" && (
                     <Button
                       type="button"
                       size="sm"
-                      variant="secondary"
-                      onClick={() => void updateShared(shared)}
+                      variant="ghost"
+                      className="text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:text-rose-300 dark:hover:bg-rose-950/40 dark:hover:text-rose-200"
+                      onClick={() => setUnfollowing(shared)}
                     >
-                      <CloudDownload size={15} /> Update
+                      <Trash2 size={15} /> Unfollow
                     </Button>
-                  )}
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="ghost"
-                    className="text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:text-rose-300 dark:hover:bg-rose-950/40 dark:hover:text-rose-200"
-                    onClick={() => setUnfollowing(shared)}
-                  >
-                    <Trash2 size={15} /> Unfollow
-                  </Button>
-                </div>
-              </Card>
-            );
-          })}
-        </div>
-        ) : (
-        <Card className="grid min-h-72 place-items-center p-8 text-center">
-          <div>
-            <ListMusic className="mx-auto mb-3 text-indigo-500" size={34} />
-            <h2 className="font-bold">No setlists yet</h2>
-            <p className="mt-1 text-sm text-slate-500">
-              Create a setlist above or scan a shared setlist QR code.
-            </p>
+                  </div>
+                </Card>
+              );
+            })}
           </div>
-        </Card>
+        ) : (
+          <Card className="grid min-h-72 place-items-center p-8 text-center">
+            <div>
+              <ListMusic className="mx-auto mb-3 text-indigo-500" size={34} />
+              <h2 className="font-bold">No setlists yet</h2>
+              <p className="mt-1 text-sm text-slate-500">
+                Create a setlist above or scan a shared setlist QR code.
+              </p>
+            </div>
+          </Card>
         )}
       </div>
       <ProgressiveCollectionFooter
@@ -432,7 +472,9 @@ export function SetlistList() {
 
       <Dialog.Root
         open={Boolean(unfollowing)}
-        onOpenChange={(open) => !open && setUnfollowing(null)}
+        onOpenChange={(open) =>
+          !open && !unfollowingBusy && setUnfollowing(null)
+        }
       >
         <Dialog.Portal>
           <Dialog.Overlay className="fixed inset-0 z-40 bg-slate-950/50 backdrop-blur-[1px]" />
@@ -447,13 +489,19 @@ export function SetlistList() {
             </Dialog.Description>
             <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
               <Dialog.Close asChild>
-                <Button type="button" variant="secondary">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  disabled={unfollowingBusy}
+                >
                   Cancel
                 </Button>
               </Dialog.Close>
               <Button
                 type="button"
                 variant="danger"
+                isLoading={unfollowingBusy}
+                loadingLabel="Removing…"
                 onClick={() => void confirmUnfollow()}
               >
                 <Trash2 size={16} /> Unfollow
@@ -497,13 +545,14 @@ export function SetlistList() {
               <Button
                 type="button"
                 variant="danger"
-                disabled={Boolean(deletingId)}
+                isLoading={Boolean(deletingId)}
+                loadingLabel="Deleting…"
                 onClick={() =>
                   deletingSetlist && void deleteSetlist(deletingSetlist)
                 }
               >
                 <Trash2 size={16} />
-                {deletingId ? "Deleting…" : "Delete setlist"}
+                Delete setlist
               </Button>
             </div>
           </Dialog.Content>

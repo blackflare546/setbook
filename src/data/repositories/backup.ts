@@ -73,16 +73,56 @@ export async function exportLibrary(): Promise<string> {
   );
 }
 
-export async function importLibrary(raw: string): Promise<void> {
+export interface ImportLibraryResult {
+  songsAdded: number;
+  songsSkipped: number;
+  setlistsAdded: number;
+  setlistsSkipped: number;
+  settingsImported: boolean;
+}
+
+export async function importLibrary(raw: string): Promise<ImportLibraryResult> {
   const backup = backupSchema.parse(JSON.parse(raw));
-  await db.transaction("rw", db.songs, db.setlists, db.settings, async () => {
-    await Promise.all([
-      db.songs.clear(),
-      db.setlists.clear(),
-      db.settings.clear(),
-    ]);
-    await db.songs.bulkAdd(backup.songs);
-    await db.setlists.bulkAdd(backup.setlists);
-    await db.settings.bulkAdd(backup.settings);
+  return db.transaction("rw", db.songs, db.setlists, db.settings, async () => {
+    const uniqueSongs = [
+      ...new Map(backup.songs.map((song) => [song.id, song])).values(),
+    ];
+    const uniqueSetlists = [
+      ...new Map(
+        backup.setlists.map((setlist) => [setlist.id, setlist]),
+      ).values(),
+    ];
+    const existingSongs = new Set(
+      (await db.songs.bulkGet(uniqueSongs.map((song) => song.id)))
+        .filter((song) => song !== undefined)
+        .map((song) => song.id),
+    );
+    const existingSetlists = new Set(
+      (await db.setlists.bulkGet(uniqueSetlists.map((setlist) => setlist.id)))
+        .filter((setlist) => setlist !== undefined)
+        .map((setlist) => setlist.id),
+    );
+    const songsToAdd = uniqueSongs.filter(
+      (song) => !existingSongs.has(song.id),
+    );
+    const setlistsToAdd = uniqueSetlists.filter(
+      (setlist) => !existingSetlists.has(setlist.id),
+    );
+    const settings = backup.settings[0];
+    const settingsImported = Boolean(
+      settings && !(await db.settings.get("app")),
+    );
+
+    if (songsToAdd.length) await db.songs.bulkAdd(songsToAdd);
+    if (setlistsToAdd.length) await db.setlists.bulkAdd(setlistsToAdd);
+    if (settingsImported && settings) await db.settings.add(settings);
+
+    return {
+      songsAdded: songsToAdd.length,
+      songsSkipped: backup.songs.length - songsToAdd.length,
+      setlistsAdded: setlistsToAdd.length,
+      setlistsSkipped: backup.setlists.length - setlistsToAdd.length,
+      settingsImported,
+    };
   });
 }

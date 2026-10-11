@@ -159,13 +159,16 @@ test("offers a single-song file when the chart is too large for one QR", async (
   };
 
   await page.goto("/library");
-  const restoredDialog = page.waitForEvent("dialog");
   await page.locator('input[accept="application/json"]').setInputFiles({
     name: "large-song-backup.json",
     mimeType: "application/json",
     buffer: Buffer.from(JSON.stringify(backup)),
   });
-  await (await restoredDialog).accept();
+  const restoreDialog = page.getByRole("dialog", {
+    name: "Import this backup?",
+  });
+  await restoreDialog.getByRole("button", { name: "Import new items" }).click();
+  await expect(restoreDialog).toBeHidden();
 
   await page.getByRole("button", { name: "Show QR for Large Song" }).click();
   await expect(

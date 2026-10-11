@@ -32,6 +32,7 @@ import { useProgressiveCollection } from "@/lib/hooks/use-progressive-collection
 import { ProgressiveCollectionFooter } from "@/components/ui/progressive-collection-footer";
 import { ScrollToTopButton } from "@/components/ui/scroll-to-top-button";
 import { AreaTutorial } from "@/components/tutorials/area-tutorial";
+import { LoadingState } from "@/components/ui/loading-state";
 
 function SongActions({
   song,
@@ -146,6 +147,9 @@ export function SongLibrary() {
   const [sort, setSort] = useState<"updated" | "title">("updated");
   const [deletingSong, setDeletingSong] = useState<Song | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [backingUp, setBackingUp] = useState(false);
+  const [restoreFile, setRestoreFile] = useState<File | null>(null);
+  const [restoring, setRestoring] = useState(false);
   const [feedback, setFeedback] = useState<{
     message: string;
     tone: "success" | "error";
@@ -174,23 +178,51 @@ export function SongLibrary() {
   }, [feedback]);
 
   async function backup() {
-    const url = URL.createObjectURL(
-      new Blob([await exportLibrary()], { type: "application/json" }),
-    );
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `setbook-backup-${new Date().toISOString().slice(0, 10)}.json`;
-    link.click();
-    URL.revokeObjectURL(url);
+    if (backingUp) return;
+    setBackingUp(true);
+    setFeedback(null);
+    try {
+      const url = URL.createObjectURL(
+        new Blob([await exportLibrary()], { type: "application/json" }),
+      );
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `setbook-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      link.click();
+      URL.revokeObjectURL(url);
+      setFeedback({ message: "Backup downloaded", tone: "success" });
+    } catch {
+      setFeedback({
+        message: "Backup could not be created. Please try again.",
+        tone: "error",
+      });
+    } finally {
+      setBackingUp(false);
+    }
   }
 
-  async function restore(file?: File) {
-    if (!file) return;
+  async function restore() {
+    if (!restoreFile || restoring) return;
+    setRestoring(true);
+    setFeedback(null);
     try {
-      await importLibrary(await file.text());
-      alert("Library restored.");
+      const result = await importLibrary(await restoreFile.text());
+      setRestoreFile(null);
+      const added = result.songsAdded + result.setlistsAdded;
+      const skipped = result.songsSkipped + result.setlistsSkipped;
+      setFeedback({
+        message: added
+          ? `Backup imported: ${added} added${skipped ? `, ${skipped} skipped` : ""}`
+          : "Nothing new to import; duplicates were skipped",
+        tone: "success",
+      });
     } catch {
-      alert("That file is not a valid SetBook backup.");
+      setFeedback({
+        message: "That file is not a valid SetBook backup.",
+        tone: "error",
+      });
+    } finally {
+      setRestoring(false);
     }
   }
 
@@ -210,6 +242,12 @@ export function SongLibrary() {
     } finally {
       setDeleting(false);
     }
+  }
+
+  if (liveSongs === undefined) {
+    return (
+      <LoadingState label="Loading song library…" className="min-h-[60dvh]" />
+    );
   }
 
   return (
@@ -237,32 +275,42 @@ export function SongLibrary() {
               data-tour="library-actions"
               className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:justify-end"
             >
-            <input
-              ref={importRef}
-              className="hidden"
-              type="file"
-              accept="application/json"
-              onChange={(event) => void restore(event.target.files?.[0])}
-            />
-            <Button
-              variant="secondary"
-              onClick={() => importRef.current?.click()}
-            >
-              <Upload size={16} />
-              Restore backup
-            </Button>
-            <Button variant="secondary" onClick={() => void backup()}>
-              <Download size={16} />
-              Back up
-            </Button>
-            <SongQrImportDialog
-              onImported={(message) =>
-                setFeedback({ message, tone: "success" })
-              }
-            />
-            <Button asChild>
-              <Link href="/songs/new">Add song</Link>
-            </Button>
+              <input
+                ref={importRef}
+                className="hidden"
+                type="file"
+                accept="application/json"
+                onChange={(event) => {
+                  window.dispatchEvent(new Event("setbook:dismiss-tutorial"));
+                  setRestoreFile(event.currentTarget.files?.[0] ?? null);
+                  event.currentTarget.value = "";
+                }}
+              />
+              <Button
+                variant="secondary"
+                onClick={() => importRef.current?.click()}
+                disabled={restoring}
+              >
+                <Upload size={16} />
+                Import backup
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={() => void backup()}
+                isLoading={backingUp}
+                loadingLabel="Creating backup…"
+              >
+                <Download size={16} />
+                Back up
+              </Button>
+              <SongQrImportDialog
+                onImported={(message) =>
+                  setFeedback({ message, tone: "success" })
+                }
+              />
+              <Button asChild>
+                <Link href="/songs/new">Add song</Link>
+              </Button>
             </div>
           }
         />
@@ -293,53 +341,53 @@ export function SongLibrary() {
       </Card>
       <div data-tour="library-collection">
         {filtered.length ? (
-        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.03),0_12px_32px_-28px_rgba(0,0,0,0.35)] dark:border-slate-800 dark:bg-slate-900 dark:shadow-none">
-          {progressive.visibleItems.map((song, index) => (
-            <div
-              key={song.id}
-              data-testid={`song-row-${song.id}`}
-              className={`group flex min-w-0 items-center gap-3 p-4 transition-colors hover:bg-slate-50 sm:gap-4 sm:px-5 dark:hover:bg-slate-800/50 ${index ? "border-t border-slate-100 dark:border-slate-800" : ""}`}
-            >
-              <div className="hidden h-10 w-10 place-items-center rounded-[10px] border border-indigo-100 bg-indigo-50 text-indigo-600 sm:grid dark:border-indigo-900 dark:bg-indigo-950/50">
-                <FileMusic size={19} />
+          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.03),0_12px_32px_-28px_rgba(0,0,0,0.35)] dark:border-slate-800 dark:bg-slate-900 dark:shadow-none">
+            {progressive.visibleItems.map((song, index) => (
+              <div
+                key={song.id}
+                data-testid={`song-row-${song.id}`}
+                className={`group flex min-w-0 items-center gap-3 p-4 transition-colors hover:bg-slate-50 sm:gap-4 sm:px-5 dark:hover:bg-slate-800/50 ${index ? "border-t border-slate-100 dark:border-slate-800" : ""}`}
+              >
+                <div className="hidden h-10 w-10 place-items-center rounded-[10px] border border-indigo-100 bg-indigo-50 text-indigo-600 sm:grid dark:border-indigo-900 dark:bg-indigo-950/50">
+                  <FileMusic size={19} />
+                </div>
+                <Link href={`/songs/${song.id}`} className="min-w-0 flex-1">
+                  <h2 className="break-words font-semibold text-slate-950 group-hover:text-indigo-700 dark:text-white dark:group-hover:text-indigo-300">
+                    {song.title}
+                  </h2>
+                  <p className="break-words text-sm text-slate-500 dark:text-slate-400">
+                    {song.artist || "Unknown artist"} ·{" "}
+                    {song.originalKey
+                      ? `Key of ${formatMusicalKey(song.originalKey)}`
+                      : "No key set"}{" "}
+                    · {song.sections.length} sections
+                  </p>
+                </Link>
+                <SongActions song={song} onDelete={setDeletingSong} />
               </div>
-              <Link href={`/songs/${song.id}`} className="min-w-0 flex-1">
-                <h2 className="break-words font-semibold text-slate-950 group-hover:text-indigo-700 dark:text-white dark:group-hover:text-indigo-300">
-                  {song.title}
-                </h2>
-                <p className="break-words text-sm text-slate-500 dark:text-slate-400">
-                  {song.artist || "Unknown artist"} ·{" "}
-                  {song.originalKey
-                    ? `Key of ${formatMusicalKey(song.originalKey)}`
-                    : "No key set"}{" "}
-                  · {song.sections.length} sections
-                </p>
-              </Link>
-              <SongActions song={song} onDelete={setDeletingSong} />
-            </div>
-          ))}
-        </div>
-        ) : (
-        <Card className="grid min-h-80 place-items-center p-8 text-center">
-          <div>
-            <span className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-300">
-              <FileMusic size={26} />
-            </span>
-            <h2 className="text-lg font-bold">
-              {query ? "No songs found" : "Build your book"}
-            </h2>
-            <p className="mx-auto mt-1 max-w-sm text-sm text-slate-500">
-              {query
-                ? "Try a different title, artist, or tag."
-                : "Paste in an ordinary chord sheet and SetBook will turn it into an editable chart."}
-            </p>
-            {!query && (
-              <Button asChild className="mt-5">
-                <Link href="/songs/new">Create your first song</Link>
-              </Button>
-            )}
+            ))}
           </div>
-        </Card>
+        ) : (
+          <Card className="grid min-h-80 place-items-center p-8 text-center">
+            <div>
+              <span className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-300">
+                <FileMusic size={26} />
+              </span>
+              <h2 className="text-lg font-bold">
+                {query ? "No songs found" : "Build your book"}
+              </h2>
+              <p className="mx-auto mt-1 max-w-sm text-sm text-slate-500">
+                {query
+                  ? "Try a different title, artist, or tag."
+                  : "Paste in an ordinary chord sheet and SetBook will turn it into an editable chart."}
+              </p>
+              {!query && (
+                <Button asChild className="mt-5">
+                  <Link href="/songs/new">Create your first song</Link>
+                </Button>
+              )}
+            </div>
+          </Card>
         )}
       </div>
       <ProgressiveCollectionFooter
@@ -378,11 +426,52 @@ export function SongLibrary() {
               <Button
                 type="button"
                 variant="danger"
-                disabled={deleting}
+                isLoading={deleting}
+                loadingLabel="Deleting…"
                 onClick={() => void deleteSong()}
               >
                 <Trash2 size={16} />
-                {deleting ? "Deleting…" : "Delete"}
+                Delete
+              </Button>
+            </div>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
+      <Dialog.Root
+        open={Boolean(restoreFile)}
+        onOpenChange={(open) => {
+          if (!open && !restoring) setRestoreFile(null);
+        }}
+      >
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 z-40 bg-slate-950/50 backdrop-blur-[1px]" />
+          <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[min(calc(100vw-2rem),28rem)] -translate-x-1/2 -translate-y-1/2 rounded-xl border border-slate-200 bg-white p-5 shadow-2xl outline-none dark:border-slate-700 dark:bg-slate-900">
+            <Dialog.Title className="text-lg font-bold">
+              Import this backup?
+            </Dialog.Title>
+            <Dialog.Description className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
+              Importing “{restoreFile?.name}” adds songs and setlists that are
+              not already on this device. Items with matching IDs are skipped.
+              Existing data and settings stay unchanged.
+            </Dialog.Description>
+            <div className="mt-4 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-sm text-indigo-900 dark:border-indigo-900 dark:bg-indigo-950/40 dark:text-indigo-100">
+              Duplicate songs and setlists will not be added again.
+            </div>
+            <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <Dialog.Close asChild>
+                <Button type="button" variant="secondary" disabled={restoring}>
+                  Cancel
+                </Button>
+              </Dialog.Close>
+              <Button
+                type="button"
+                variant="danger"
+                isLoading={restoring}
+                loadingLabel="Importing…"
+                onClick={() => void restore()}
+              >
+                <Upload size={16} />
+                Import new items
               </Button>
             </div>
           </Dialog.Content>
