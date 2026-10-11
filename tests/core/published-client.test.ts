@@ -174,4 +174,16 @@ describe("deleting shared setlists", () => {
       },
     );
   });
+
+  it("treats an already-missing published setlist as deleted", async () => {
+    const request = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(
+        jsonResponse({ error: "Shared setlist not found" }, 404),
+      );
+
+    await expect(
+      deletePublishedSetlistByToken("expiredToken", "ownerCapability", request),
+    ).resolves.toBeUndefined();
+  });
 });

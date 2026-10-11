@@ -374,7 +374,7 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
   await expect(page.getByText("Song view")).toBeVisible();
 
   await page.goto("/setlists");
-  await page.getByPlaceholder("New setlist name…").fill("Friday Night");
+  await page.getByLabel("New setlist name").fill("Friday Night");
   await page.getByRole("button", { name: "Create setlist" }).click();
   await expect(page.getByText("Setlist editor")).toBeVisible();
   await expect(page.getByText("Setlist saved")).toHaveCount(0);

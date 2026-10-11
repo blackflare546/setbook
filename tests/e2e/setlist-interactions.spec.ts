@@ -152,8 +152,14 @@ test("setlist cards show actions and open without hijacking them", async ({
   expect(cardBox).not.toBeNull();
   expect(cardBox!.height).toBeLessThan(150);
 
+  const duplicateButton = card.getByRole("button", {
+    name: "Duplicate Sortable Setlist",
+  });
+  await expect(duplicateButton).toBeVisible();
+  await duplicateButton.click();
+  await expect(page.getByText("“Sortable Setlist” duplicated")).toBeVisible();
   await expect(
-    card.getByRole("button", { name: "Duplicate Sortable Setlist" }),
+    page.getByRole("heading", { name: "Sortable Setlist copy" }),
   ).toBeVisible();
   await expect(deleteButton).toBeVisible();
   await expect(deleteButton).toHaveClass(/text-rose-600/);
@@ -180,7 +186,10 @@ test("setlist cards show actions and open without hijacking them", async ({
   await expect(page).toHaveURL(`/setlists/${setlistId}`);
   await page.goto("/setlists");
 
-  const cardLink = page.getByRole("link", { name: "Open Sortable Setlist" });
+  const cardLink = card.getByRole("link", {
+    name: "Open Sortable Setlist",
+    exact: true,
+  });
   await cardLink.focus();
   await page.keyboard.press("Space");
   await expect(page).toHaveURL(`/setlists/${setlistId}`);

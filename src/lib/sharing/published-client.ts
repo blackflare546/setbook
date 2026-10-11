@@ -99,7 +99,7 @@ export async function deletePublishedSetlistByToken(
       : undefined,
   });
   const result = await response.json().catch(() => null);
-  if (!response.ok) {
+  if (!response.ok && response.status !== 404) {
     throw new Error(
       result?.error ??
         `Unable to delete published setlist (server returned ${response.status}).`,
