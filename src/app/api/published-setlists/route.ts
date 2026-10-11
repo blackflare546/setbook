@@ -10,11 +10,18 @@ import {
   publishedStoreErrorResponse,
   readPublishedSnapshot,
 } from "@/lib/sharing/published-store";
+import { readJsonRequestBody } from "@/lib/sharing/request-body";
 
 const createSchema = z.object({ snapshot: publishedSnapshotV2Schema });
 
 export async function POST(request: Request) {
-  const body = await request.json().catch(() => null);
+  const bodyResult = await readJsonRequestBody(request);
+  if (!bodyResult.ok)
+    return NextResponse.json(
+      { error: bodyResult.error },
+      { status: bodyResult.status },
+    );
+  const body = bodyResult.value as { snapshot?: unknown } | null;
   const parsed = createSchema.safeParse(
     body?.snapshot ? body : { snapshot: body },
   );
@@ -56,7 +63,7 @@ export async function POST(request: Request) {
         ownerCapability,
         expiresAt,
       },
-      { status: 201 },
+      { status: 201, headers: { "Cache-Control": "no-store" } },
     );
   } catch (error) {
     console.error("Unable to create shared setlist", error);

@@ -75,7 +75,8 @@ export const historicalRecordBlobPath = (token: string) =>
   `${HISTORICAL_V2_BLOB_PREFIX}/${historicalRecordKey(token)}.json`;
 export const legacyBlobPath = (token: string) =>
   `${LEGACY_BLOB_PREFIX}/${token}.json`;
-const recordLocalPath = (token: string) => path.join(directory, `${token}.json`);
+const recordLocalPath = (token: string) =>
+  path.join(directory, `${token}.json`);
 const historicalRecordLocalPath = (token: string) =>
   path.join(directory, `v2-${historicalRecordKey(token)}.json`);
 const legacyLocalPath = recordLocalPath;
@@ -150,8 +151,16 @@ export function isPublicationAvailable(
 
 export function createPublicToken(length = 20): string {
   const alphabet = "23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
-  const bytes = crypto.getRandomValues(new Uint8Array(length));
-  return Array.from(bytes, (byte) => alphabet[byte % alphabet.length]).join("");
+  const maximum = Math.floor(256 / alphabet.length) * alphabet.length;
+  let token = "";
+  while (token.length < length) {
+    const bytes = crypto.getRandomValues(new Uint8Array(length - token.length));
+    for (const byte of bytes) {
+      if (byte >= maximum) continue;
+      token += alphabet[byte % alphabet.length];
+    }
+  }
+  return token;
 }
 
 export function createCapability(): string {
@@ -273,15 +282,9 @@ export async function createSharedRecord(
 export async function readSharedRecord(
   token: string,
 ): Promise<StoredSharedRecord | null> {
-  const current = await readStoredAt(
-    locationPath(token, "current"),
-    "current",
-  );
+  const current = await readStoredAt(locationPath(token, "current"), "current");
   if (current) return current;
-  return readStoredAt(
-    locationPath(token, "historical-v2"),
-    "historical-v2",
-  );
+  return readStoredAt(locationPath(token, "historical-v2"), "historical-v2");
 }
 
 export async function replaceSharedRecord(
@@ -386,6 +389,9 @@ async function readLegacySnapshot(
 export interface PublishedPublication {
   snapshot: PublishedSnapshot;
   expiresAt?: string;
+  revision?: number;
+  etag?: string;
+  updatedAt?: string;
 }
 
 export async function readPublishedPublication(
@@ -395,7 +401,13 @@ export async function readPublishedPublication(
   const v2 = await readSharedRecord(token);
   if (v2)
     return isPublicationAvailable(v2.record, now)
-      ? { snapshot: v2.record.snapshot, expiresAt: v2.record.expiresAt }
+      ? {
+          snapshot: v2.record.snapshot,
+          expiresAt: v2.record.expiresAt,
+          revision: v2.record.revision,
+          etag: v2.etag,
+          updatedAt: v2.record.updatedAt,
+        }
       : null;
   const legacy = await readLegacySnapshot(token);
   return legacy ? { snapshot: legacy } : null;
@@ -502,8 +514,7 @@ async function listCleanupBatch(
         result.hasMore && result.cursor
           ? { source: state.source, cursor: result.cursor }
           : {
-              source:
-                state.source === "current" ? "historical-v2" : "current",
+              source: state.source === "current" ? "historical-v2" : "current",
             },
     };
   }
@@ -533,8 +544,7 @@ async function listCleanupBatch(
       hasMore && selected.length
         ? { source: state.source, cursor: selected.at(-1) }
         : {
-            source:
-              state.source === "current" ? "historical-v2" : "current",
+            source: state.source === "current" ? "historical-v2" : "current",
           },
   };
 }

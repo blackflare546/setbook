@@ -3,7 +3,6 @@ import { z } from "zod";
 import { publishedSnapshotV2Schema } from "@/lib/validation/schemas";
 import {
   capabilityMatches,
-  isPublicationAvailable,
   publicationExpiration,
   publishedStoreErrorResponse,
   readPublishedPublication,
@@ -11,6 +10,7 @@ import {
   replaceSharedRecord,
   revokeAndDeleteSharedRecord,
 } from "@/lib/sharing/published-store";
+import { readJsonRequestBody } from "@/lib/sharing/request-body";
 
 const updateSchema = z.object({
   snapshot: publishedSnapshotV2Schema,
@@ -24,7 +24,7 @@ function validToken(token: string) {
 
 function bearer(request: Request): string | null {
   const value = request.headers.get("authorization");
-  return value?.startsWith("Bearer ") ? value.slice(7) : null;
+  return value?.match(/^Bearer\s+(.+)$/i)?.[1]?.trim() || null;
 }
 
 export async function GET(
@@ -35,22 +35,17 @@ export async function GET(
   if (!validToken(token))
     return NextResponse.json({ error: "Invalid token" }, { status: 400 });
   try {
-    const stored = await readSharedRecord(token);
-    if (stored && isPublicationAvailable(stored.record))
+    const publication = await readPublishedPublication(token);
+    if (publication?.revision)
       return NextResponse.json(
         {
-          ...stored.record.snapshot,
-          revision: stored.record.revision,
-          updatedAt: stored.record.updatedAt,
+          ...publication.snapshot,
+          revision: publication.revision,
+          updatedAt: publication.updatedAt,
+          expiresAt: publication.expiresAt,
         },
-        { headers: { ETag: stored.etag, "Cache-Control": "no-store" } },
+        { headers: { ETag: publication.etag!, "Cache-Control": "no-store" } },
       );
-    if (stored)
-      return NextResponse.json(
-        { error: "Shared setlist not found" },
-        { status: 404 },
-      );
-    const publication = await readPublishedPublication(token);
     return publication
       ? NextResponse.json(publication.snapshot, {
           headers: { "Cache-Control": "public, max-age=60" },
@@ -76,7 +71,13 @@ async function update(
   const { token } = await context.params;
   if (!validToken(token))
     return NextResponse.json({ error: "Invalid token" }, { status: 400 });
-  const parsed = updateSchema.safeParse(await request.json().catch(() => null));
+  const bodyResult = await readJsonRequestBody(request);
+  if (!bodyResult.ok)
+    return NextResponse.json(
+      { error: bodyResult.error },
+      { status: bodyResult.status },
+    );
+  const parsed = updateSchema.safeParse(bodyResult.value);
   if (!parsed.success)
     return NextResponse.json(
       { error: "Invalid shared setlist", details: parsed.error.flatten() },
@@ -112,23 +113,20 @@ async function update(
     // them. Advance from the authoritative server revision so stale metadata
     // in the owner's browser cannot permanently block publishing.
     const revision = stored.record.revision + 1;
-    const replaced = await replaceSharedRecord(
-      stored,
-      {
-        schemaVersion: 2,
-        publicToken: stored.record.publicToken,
-        revision,
-        snapshot: { ...parsed.data.snapshot, publishedAt: now },
-        ownerVerifier: stored.record.ownerVerifier,
-        accessMode: stored.record.accessMode,
-        editorVerifier: stored.record.editorVerifier,
-        status: "active",
-        lastConfirmedAt: now,
-        expiresAt,
-        createdAt: stored.record.createdAt,
-        updatedAt: now,
-      },
-    );
+    const replaced = await replaceSharedRecord(stored, {
+      schemaVersion: 2,
+      publicToken: stored.record.publicToken,
+      revision,
+      snapshot: { ...parsed.data.snapshot, publishedAt: now },
+      ownerVerifier: stored.record.ownerVerifier,
+      accessMode: stored.record.accessMode,
+      editorVerifier: stored.record.editorVerifier,
+      status: "active",
+      lastConfirmedAt: now,
+      expiresAt,
+      createdAt: stored.record.createdAt,
+      updatedAt: now,
+    });
     return NextResponse.json({
       token,
       revision,

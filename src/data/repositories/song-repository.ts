@@ -25,6 +25,15 @@ export class SongRepository {
     const song = await this.database.songs.get(id);
     return song ? normalizeSong(song) : undefined;
   }
+  findBySharedSource(
+    publicToken: string,
+    sharedSongId: string,
+  ): Promise<Song[]> {
+    return this.database.songs
+      .where("[sharedSource.publicToken+sharedSource.sharedSongId]")
+      .equals([publicToken, sharedSongId])
+      .toArray();
+  }
   async save(song: Song): Promise<Song> {
     const saved = {
       ...song,
@@ -87,7 +96,8 @@ export class SongRepository {
           for (const { index, entry } of removed.entries.toSorted(
             (left, right) => left.index - right.index,
           )) {
-            if (entries.some((candidate) => candidate.id === entry.id)) continue;
+            if (entries.some((candidate) => candidate.id === entry.id))
+              continue;
             entries.splice(Math.min(index, entries.length), 0, entry);
           }
           await this.database.setlists.put({

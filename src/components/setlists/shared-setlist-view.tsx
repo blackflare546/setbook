@@ -2,8 +2,15 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import * as Dialog from "@radix-ui/react-dialog";
 import { useLiveQuery } from "dexie-react-hooks";
-import { CloudDownload, Download, Play } from "lucide-react";
+import {
+  AlertTriangle,
+  CloudDownload,
+  Download,
+  Play,
+  WifiOff,
+} from "lucide-react";
 import type { PublishedSnapshot } from "@/lib/validation/schemas";
 import { songRepository } from "@/data/repositories/song-repository";
 import {
@@ -26,8 +33,13 @@ export function SharedSetlistView({ token }: { token: string }) {
   const library = useMemo(() => libraryQuery ?? [], [libraryQuery]);
   const [snapshot, setSnapshot] = useState<PublishedSnapshot | null>(null);
   const [busy, setBusy] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [importingSongId, setImportingSongId] = useState<string | null>(null);
   const [importingAll, setImportingAll] = useState(false);
+  const [importConflictIndex, setImportConflictIndex] = useState<number | null>(
+    null,
+  );
+  const [importAllDialogOpen, setImportAllDialogOpen] = useState(false);
   const [feedback, setFeedback] = useState<{
     message: string;
     tone: "success" | "error";
@@ -35,6 +47,7 @@ export function SharedSetlistView({ token }: { token: string }) {
 
   const initialize = useCallback(async () => {
     setBusy(true);
+    setLoadError(null);
     try {
       const cached = await sharedSetlistRepository.get(token);
       if (cached) {
@@ -46,13 +59,11 @@ export function SharedSetlistView({ token }: { token: string }) {
       const saved = await sharedSetlistRepository.follow(token, remote);
       setSnapshot(saved.snapshot);
     } catch (error) {
-      setFeedback({
-        message:
-          error instanceof Error
-            ? error.message
-            : "Unable to open shared setlist.",
-        tone: "error",
-      });
+      setLoadError(
+        error instanceof Error
+          ? error.message
+          : "Unable to open shared setlist.",
+      );
     } finally {
       setBusy(false);
     }
@@ -116,23 +127,23 @@ export function SharedSetlistView({ token }: { token: string }) {
   async function importOne(index: number) {
     if (!snapshot || !followed || importingSongId || importingAll) return;
     const sharedSong = snapshot.songs[index];
-    const identity = sharedSong.sharedSongId ?? sharedSong.entryId;
     const existing = await findImportedSong(token, sharedSong);
     const changed =
       existing &&
       existing.sharedSource?.contentHash !==
         (sharedSong.contentHash ?? existing.sharedSource?.contentHash);
-    let replace = false;
     if (changed) {
-      replace = confirm(
-        `“${sharedSong.title}” has changed. Choose OK to replace your private copy, or Cancel for more options.`,
-      );
-      if (
-        !replace &&
-        !confirm("Import the newer version as a separate private copy?")
-      )
-        return;
+      setImportConflictIndex(index);
+      return;
     }
+    await performImport(index, false);
+  }
+
+  async function performImport(index: number, replace: boolean) {
+    if (!snapshot || !followed || importingSongId || importingAll) return;
+    const sharedSong = snapshot.songs[index];
+    const identity = sharedSong.sharedSongId ?? sharedSong.entryId;
+    setImportConflictIndex(null);
     setImportingSongId(identity);
     setFeedback(null);
     try {
@@ -161,16 +172,11 @@ export function SharedSetlistView({ token }: { token: string }) {
 
   async function importAll() {
     if (!snapshot || !followed || importingAll || importingSongId) return;
-    if (
-      !confirm(
-        `Import ${snapshot.songs.length} ${snapshot.songs.length === 1 ? "song" : "songs"} as private copies in My Library?`,
-      )
-    )
-      return;
+    setImportAllDialogOpen(false);
     setImportingAll(true);
     setFeedback(null);
+    let count = 0;
     try {
-      let count = 0;
       for (const song of snapshot.songs) {
         const result = await importSharedSong(token, followed.revision, song);
         if (!result.existed) count += 1;
@@ -183,8 +189,11 @@ export function SharedSetlistView({ token }: { token: string }) {
       });
     } catch (error) {
       setFeedback({
-        message:
-          error instanceof Error ? error.message : "Unable to import songs.",
+        message: count
+          ? `${count} ${count === 1 ? "song was" : "songs were"} imported before the import stopped.`
+          : error instanceof Error
+            ? error.message
+            : "Unable to import songs.",
         tone: "error",
       });
     } finally {
@@ -196,10 +205,31 @@ export function SharedSetlistView({ token }: { token: string }) {
     return busy ? (
       <LoadingState label="Opening shared setlist…" className="min-h-[60dvh]" />
     ) : (
-      <div className="grid min-h-[60dvh] place-items-center px-4 text-center text-sm text-slate-500">
-        Shared setlist unavailable
+      <div className="grid min-h-[60dvh] place-items-center px-4 py-10">
+        <Card className="w-full max-w-lg p-6 text-center sm:p-8">
+          <AlertTriangle
+            className="mx-auto text-amber-500"
+            size={28}
+            aria-hidden="true"
+          />
+          <h1 className="mt-4 text-xl font-bold">Shared setlist unavailable</h1>
+          <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
+            {loadError ?? "SetBook could not open this shared setlist."}
+          </p>
+          <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-center">
+            <Button asChild variant="secondary">
+              <Link href="/setlists">Back to setlists</Link>
+            </Button>
+            <Button type="button" onClick={() => void initialize()}>
+              Try again
+            </Button>
+          </div>
+        </Card>
       </div>
     );
+
+  const conflictingSong =
+    importConflictIndex === null ? null : snapshot.songs[importConflictIndex];
 
   return (
     <div className="mx-auto max-w-6xl px-3 py-7 pb-24 min-[375px]:px-4 sm:px-6 sm:py-10 lg:px-8 lg:py-12">
@@ -230,7 +260,7 @@ export function SharedSetlistView({ token }: { token: string }) {
               loadingLabel="Updating…"
               onClick={() => void updateSharedSetlist()}
             >
-              <CloudDownload size={16} /> Update
+              <CloudDownload size={16} aria-hidden="true" /> Update
             </Button>
           )}
           <Button
@@ -238,11 +268,37 @@ export function SharedSetlistView({ token }: { token: string }) {
             className="bg-indigo-600 text-white hover:bg-indigo-700 dark:bg-indigo-600 dark:text-white dark:hover:bg-indigo-500"
           >
             <Link href={`/s/${token}`}>
-              <Play size={16} /> Perform
+              <Play size={16} aria-hidden="true" /> Perform
             </Link>
           </Button>
         </div>
       </div>
+
+      {(followed?.status === "offline" ||
+        followed?.status === "unavailable") && (
+        <div
+          role="status"
+          className="mb-5 flex items-start gap-3 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950 dark:border-amber-800 dark:bg-amber-950/35 dark:text-amber-100"
+        >
+          {followed.status === "offline" ? (
+            <WifiOff className="mt-0.5 shrink-0" size={17} aria-hidden="true" />
+          ) : (
+            <AlertTriangle
+              className="mt-0.5 shrink-0"
+              size={17}
+              aria-hidden="true"
+            />
+          )}
+          <p>
+            <span className="font-semibold">
+              {followed.status === "offline"
+                ? "You’re offline."
+                : "The shared link can’t be reached."}
+            </span>{" "}
+            This is the most recent copy saved on this device.
+          </p>
+        </div>
+      )}
 
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
         {snapshot.songs.map((song, index) => {
@@ -302,7 +358,7 @@ export function SharedSetlistView({ token }: { token: string }) {
                   aria-label={`Import ${song.title} to My Library`}
                   onClick={() => void importOne(index)}
                 >
-                  <Download size={16} />
+                  <Download size={16} aria-hidden="true" />
                   Import
                 </Button>
               </div>
@@ -325,12 +381,90 @@ export function SharedSetlistView({ token }: { token: string }) {
           }
           isLoading={importingAll}
           loadingLabel="Importing…"
-          onClick={() => void importAll()}
+          onClick={() => setImportAllDialogOpen(true)}
         >
-          <Download size={16} />
+          <Download size={16} aria-hidden="true" />
           {`Import all ${snapshot.songs.length} ${snapshot.songs.length === 1 ? "song" : "songs"}`}
         </Button>
       </Card>
+
+      <Dialog.Root
+        open={Boolean(conflictingSong)}
+        onOpenChange={(open) => {
+          if (!open && !importingSongId) setImportConflictIndex(null);
+        }}
+      >
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 z-40 bg-slate-950/50 backdrop-blur-[1px]" />
+          <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[min(calc(100vw-2rem),30rem)] -translate-x-1/2 -translate-y-1/2 rounded-xl border border-slate-200 bg-white p-5 shadow-2xl outline-none dark:border-slate-700 dark:bg-slate-900">
+            <Dialog.Title className="text-lg font-bold">
+              Import newer version of {conflictingSong?.title}?
+            </Dialog.Title>
+            <Dialog.Description className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
+              A private copy from this shared song is already in My Library.
+              Keep both versions, or replace that imported copy with the newer
+              shared version. Other private songs are never changed.
+            </Dialog.Description>
+            <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
+              <Dialog.Close asChild>
+                <Button type="button" variant="secondary">
+                  Cancel
+                </Button>
+              </Dialog.Close>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() =>
+                  importConflictIndex !== null &&
+                  void performImport(importConflictIndex, false)
+                }
+              >
+                Keep both
+              </Button>
+              <Button
+                type="button"
+                variant="danger"
+                onClick={() =>
+                  importConflictIndex !== null &&
+                  void performImport(importConflictIndex, true)
+                }
+              >
+                Replace imported copy
+              </Button>
+            </div>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
+
+      <Dialog.Root
+        open={importAllDialogOpen}
+        onOpenChange={(open) => !importingAll && setImportAllDialogOpen(open)}
+      >
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 z-40 bg-slate-950/50 backdrop-blur-[1px]" />
+          <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[min(calc(100vw-2rem),28rem)] -translate-x-1/2 -translate-y-1/2 rounded-xl border border-slate-200 bg-white p-5 shadow-2xl outline-none dark:border-slate-700 dark:bg-slate-900">
+            <Dialog.Title className="text-lg font-bold">
+              Import all songs?
+            </Dialog.Title>
+            <Dialog.Description className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
+              This creates {snapshot.songs.length}{" "}
+              {snapshot.songs.length === 1 ? "private copy" : "private copies"}{" "}
+              in My Library. Songs already imported from this shared setlist
+              will be skipped.
+            </Dialog.Description>
+            <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <Dialog.Close asChild>
+                <Button type="button" variant="secondary">
+                  Cancel
+                </Button>
+              </Dialog.Close>
+              <Button type="button" onClick={() => void importAll()}>
+                <Download size={16} aria-hidden="true" /> Import songs
+              </Button>
+            </div>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
     </div>
   );
 }

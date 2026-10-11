@@ -13,7 +13,7 @@ function validToken(token: string) {
 
 function bearer(request: Request): string | null {
   const value = request.headers.get("authorization");
-  return value?.startsWith("Bearer ") ? value.slice(7) : null;
+  return value?.match(/^Bearer\s+(.+)$/i)?.[1]?.trim() || null;
 }
 
 export async function POST(
