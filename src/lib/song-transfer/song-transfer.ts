@@ -207,7 +207,9 @@ function normalizedIdentity(value: string): string {
   return value.trim().replace(/\s+/g, " ").toLocaleLowerCase();
 }
 
-export function songTransferIdentity(transfer: SongTransferV1): string {
+export function songTransferIdentity(
+  transfer: Pick<SongTransferV1, "title" | "artist">,
+): string {
   return `${normalizedIdentity(transfer.title)}\u0000${normalizedIdentity(transfer.artist)}`;
 }
 

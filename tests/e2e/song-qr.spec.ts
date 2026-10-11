@@ -101,10 +101,15 @@ test("imports an offline song QR, prevents exact duplicates, and handles changed
   await expect(
     page.getByRole("button", { name: "Open existing" }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Done" }).click();
+  await page.getByRole("button", { name: "Open existing" }).click();
+  await expect(page).toHaveURL(/\/songs\/[^/]+$/);
+  await page.getByRole("link", { name: "Go back" }).click();
   await expect(page.getByTestId(/^song-row-/)).toHaveCount(1);
 
   await page.getByRole("button", { name: "Scan song QR" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Scan a song QR" }),
+  ).toBeVisible();
   await uploadQr(page, { ...transfer, notes: "Updated arrangement cue" });
   await expect(
     page.getByText("already exists with different content", { exact: false }),

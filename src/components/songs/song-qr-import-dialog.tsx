@@ -32,9 +32,11 @@ export function SongQrImportDialog({
   const [working, setWorking] = useState<"replace" | "keep-both" | null>(null);
   const [readingFile, setReadingFile] = useState(false);
   const [fileError, setFileError] = useState<string | null>(null);
+  const [operationError, setOperationError] = useState<string | null>(null);
 
   const prepare = useCallback(async (next: SongTransferV1) => {
     setFileError(null);
+    setOperationError(null);
     const nextInspection = await inspectSongTransfer(next);
     setTransfer(next);
     setInspection(nextInspection);
@@ -49,6 +51,7 @@ export function SongQrImportDialog({
     setTransfer(null);
     setInspection(null);
     setFileError(null);
+    setOperationError(null);
   }
 
   async function readFile(file?: File) {
@@ -71,6 +74,7 @@ export function SongQrImportDialog({
     if (!transfer || working) return;
     const nextResolution = resolution ?? "keep-both";
     setWorking(nextResolution);
+    setOperationError(null);
     try {
       const result = await importSongTransfer(transfer, resolution);
       if (result.status === "identity-conflict") {
@@ -85,6 +89,12 @@ export function SongQrImportDialog({
           : result.replaced
             ? "Existing song replaced"
             : "Song imported",
+      );
+    } catch {
+      setOperationError(
+        nextResolution === "replace"
+          ? "The existing song could not be replaced. Your library was not changed."
+          : "The song could not be imported. Please try again.",
       );
     } finally {
       setWorking(null);
@@ -107,7 +117,7 @@ export function SongQrImportDialog({
     >
       <Dialog.Trigger asChild>
         <Button type="button">
-          <QrCode size={17} /> Scan song QR
+          <QrCode size={17} aria-hidden="true" /> Scan song QR
         </Button>
       </Dialog.Trigger>
       <Dialog.Portal>
@@ -131,7 +141,7 @@ export function SongQrImportDialog({
                 variant="ghost"
                 aria-label="Close song scanner"
               >
-                <X size={18} />
+                <X size={18} aria-hidden="true" />
               </Button>
             </Dialog.Close>
           </div>
@@ -151,7 +161,7 @@ export function SongQrImportDialog({
                       aria-hidden="true"
                     />
                   ) : (
-                    <FileUp size={17} />
+                    <FileUp size={17} aria-hidden="true" />
                   )}
                   {readingFile
                     ? "Reading song file…"
@@ -202,8 +212,18 @@ export function SongQrImportDialog({
               {inspection?.status === "identity-conflict" && (
                 <div className="mt-4 rounded-xl bg-amber-50 p-4 text-sm leading-6 text-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
                   “{existing?.title}” by {existing?.artist || "Unknown artist"}{" "}
-                  already exists with different content.
+                  already exists with different content. Replacing it keeps its
+                  place in setlists but overwrites its chart and metadata.
                 </div>
+              )}
+
+              {operationError && (
+                <p
+                  role="alert"
+                  className="mt-4 rounded-lg bg-rose-50 p-3 text-sm text-rose-700 dark:bg-rose-950/40 dark:text-rose-200"
+                >
+                  {operationError}
+                </p>
               )}
 
               <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
@@ -213,7 +233,7 @@ export function SongQrImportDialog({
                   onClick={reset}
                   disabled={Boolean(working)}
                 >
-                  <RotateCcw size={16} /> Scan another
+                  <RotateCcw size={16} aria-hidden="true" /> Scan another
                 </Button>
                 {inspection?.status === "new" && (
                   <Button
@@ -236,6 +256,7 @@ export function SongQrImportDialog({
                       type="button"
                       onClick={() => {
                         setOpen(false);
+                        reset();
                         router.push(`/songs/${existing.id}`);
                       }}
                     >

@@ -13,6 +13,7 @@ import {
   encodeSongTransfer,
   serializeSongTransferFile,
   songFileName,
+  type SongTransferV1,
 } from "@/lib/song-transfer/song-transfer";
 
 export function SongQrExportDialog({
@@ -26,16 +27,21 @@ export function SongQrExportDialog({
 }) {
   const [open, setOpen] = useState(false);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
-  const [tooLarge, setTooLarge] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [status, setStatus] = useState<
+    "idle" | "loading" | "ready" | "too-large" | "error"
+  >("idle");
+  const [generatedTransfer, setGeneratedTransfer] =
+    useState<SongTransferV1 | null>(null);
   const generationRef = useRef(0);
   const transfer = useMemo(() => createSongTransfer(song), [song]);
+  const displayStatus = generatedTransfer === transfer ? status : "idle";
 
   function generateQr() {
+    if (displayStatus === "ready" && qrDataUrl) return;
     const generation = generationRef.current + 1;
     generationRef.current = generation;
-    setLoading(true);
-    setTooLarge(false);
+    setGeneratedTransfer(transfer);
+    setStatus("loading");
     setQrDataUrl(null);
     void encodeSongTransfer(transfer)
       .then((value) =>
@@ -46,13 +52,18 @@ export function SongQrExportDialog({
         }),
       )
       .then((url) => {
-        if (generationRef.current === generation) setQrDataUrl(url);
+        if (generationRef.current !== generation) return;
+        setQrDataUrl(url);
+        setStatus("ready");
       })
-      .catch(() => {
-        if (generationRef.current === generation) setTooLarge(true);
-      })
-      .finally(() => {
-        if (generationRef.current === generation) setLoading(false);
+      .catch((error: unknown) => {
+        if (generationRef.current !== generation) return;
+        setStatus(
+          error instanceof Error &&
+            error.message.includes("too big to be stored in a QR Code")
+            ? "too-large"
+            : "error",
+        );
       });
   }
 
@@ -65,8 +76,10 @@ export function SongQrExportDialog({
     const link = document.createElement("a");
     link.href = url;
     link.download = songFileName(song.title);
+    document.body.append(link);
     link.click();
-    URL.revokeObjectURL(url);
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 0);
   }
 
   return (
@@ -82,7 +95,7 @@ export function SongQrExportDialog({
       <Dialog.Trigger asChild>
         {children ?? (
           <Button type="button" variant="secondary">
-            <QrCode size={16} /> Show QR
+            <QrCode size={16} aria-hidden="true" /> Show QR
           </Button>
         )}
       </Dialog.Trigger>
@@ -106,18 +119,18 @@ export function SongQrExportDialog({
                 variant="ghost"
                 aria-label="Close song QR"
               >
-                <X size={18} />
+                <X size={18} aria-hidden="true" />
               </Button>
             </Dialog.Close>
           </div>
 
-          {loading && (
+          {displayStatus === "loading" && (
             <LoadingState
               label="Creating QR…"
               className="mt-5 aspect-square rounded-xl bg-slate-100 dark:bg-slate-950"
             />
           )}
-          {qrDataUrl && (
+          {displayStatus === "ready" && qrDataUrl && (
             <>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
@@ -130,12 +143,12 @@ export function SongQrExportDialog({
                   href={qrDataUrl}
                   download={`${songFileName(song.title).replace(".setbook-song.json", "")}-qr.png`}
                 >
-                  <Download size={16} /> Download QR image
+                  <Download size={16} aria-hidden="true" /> Download QR image
                 </a>
               </Button>
             </>
           )}
-          {tooLarge && (
+          {displayStatus === "too-large" && (
             <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950/30">
               <h3 className="font-semibold text-amber-950 dark:text-amber-100">
                 This song is too large for one reliable QR
@@ -146,14 +159,35 @@ export function SongQrExportDialog({
               </p>
             </div>
           )}
-          {(tooLarge || qrDataUrl) && (
+          {displayStatus === "error" && (
+            <div
+              role="alert"
+              className="mt-5 rounded-xl border border-rose-200 bg-rose-50 p-4 dark:border-rose-900 dark:bg-rose-950/30"
+            >
+              <h3 className="font-semibold text-rose-950 dark:text-rose-100">
+                QR could not be created
+              </h3>
+              <p className="mt-1 text-sm leading-6 text-rose-800 dark:text-rose-200">
+                Try again, or download the private SetBook song file instead.
+              </p>
+              <Button
+                type="button"
+                variant="secondary"
+                className="mt-3"
+                onClick={generateQr}
+              >
+                Try again
+              </Button>
+            </div>
+          )}
+          {displayStatus !== "loading" && (
             <Button
               type="button"
-              variant={tooLarge ? "primary" : "ghost"}
+              variant={displayStatus === "too-large" ? "primary" : "ghost"}
               className="mt-3 w-full"
               onClick={downloadSongFile}
             >
-              <FileDown size={16} /> Download song file
+              <FileDown size={16} aria-hidden="true" /> Download song file
             </Button>
           )}
         </Dialog.Content>
