@@ -2,10 +2,7 @@
 
 import { useEffect } from "react";
 import type { DriveStep } from "driver.js";
-import {
-  TUTORIAL_VERSIONS,
-  type TutorialId,
-} from "@/core/tutorials/types";
+import { TUTORIAL_VERSIONS, type TutorialId } from "@/core/tutorials/types";
 import { settingsRepository } from "@/data/repositories/settings-repository";
 
 const steps: Record<TutorialId, DriveStep[]> = {
@@ -23,7 +20,7 @@ const steps: Record<TutorialId, DriveStep[]> = {
       popover: {
         title: "Add, scan, or back up",
         description:
-          "Create a chart, import one from a QR code, or move your complete library with backup and restore.",
+          "Create a chart, import one from a QR code, or move your complete library with backup and import.",
       },
     },
     {
@@ -219,13 +216,21 @@ export function AreaTutorial({
 
     let cancelled = false;
     let destroy: (() => void) | undefined;
+    const dismiss = () => {
+      cancelled = true;
+      destroy?.();
+    };
+    window.addEventListener("setbook:dismiss-tutorial", dismiss);
 
     async function start() {
       const url = new URL(window.location.href);
       const forced = url.searchParams.get("tutorial") === id;
       const version = TUTORIAL_VERSIONS[id];
       const settings = await settingsRepository.get();
-      if (cancelled || (!forced && (settings.tutorialVersions[id] ?? 0) >= version)) {
+      if (
+        cancelled ||
+        (!forced && (settings.tutorialVersions[id] ?? 0) >= version)
+      ) {
         return;
       }
 
@@ -240,7 +245,8 @@ export function AreaTutorial({
 
         const driverObject = driver({
           steps: steps[id],
-          animate: !window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+          animate: !window.matchMedia("(prefers-reduced-motion: reduce)")
+            .matches,
           smoothScroll: true,
           allowKeyboardControl: true,
           allowScroll: true,
@@ -273,6 +279,7 @@ export function AreaTutorial({
     void start();
     return () => {
       cancelled = true;
+      window.removeEventListener("setbook:dismiss-tutorial", dismiss);
       destroy?.();
       onActiveChange?.(false);
     };

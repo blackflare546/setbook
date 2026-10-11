@@ -3,7 +3,13 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
-import { BookOpen, ListMusic, Play, RotateCcw, WandSparkles } from "lucide-react";
+import {
+  BookOpen,
+  ListMusic,
+  Play,
+  RotateCcw,
+  WandSparkles,
+} from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -24,6 +30,7 @@ export function TutorialControls() {
   const router = useRouter();
   const setlists = useLiveQuery(() => setlistRepository.list(), []);
   const [message, setMessage] = useState<string | null>(null);
+  const [resetting, setResetting] = useState(false);
   const latestSetlist = setlists?.[0];
   const latestPerformableSetlist = setlists?.find(
     (setlist) => setlist.entries.length > 0,
@@ -81,8 +88,14 @@ export function TutorialControls() {
   );
 
   async function resetAll() {
-    await settingsRepository.resetAllTutorials();
-    setMessage("All tutorials will appear again when you enter each area.");
+    if (resetting) return;
+    setResetting(true);
+    try {
+      await settingsRepository.resetAllTutorials();
+      setMessage("All tutorials will appear again when you enter each area.");
+    } finally {
+      setResetting(false);
+    }
   }
 
   return (
@@ -99,7 +112,13 @@ export function TutorialControls() {
             Replay a guided tour without changing any songs or setlists.
           </p>
         </div>
-        <Button type="button" variant="secondary" onClick={() => void resetAll()}>
+        <Button
+          type="button"
+          variant="secondary"
+          isLoading={resetting}
+          loadingLabel="Resetting…"
+          onClick={() => void resetAll()}
+        >
           <RotateCcw size={16} />
           Reset all tutorials
         </Button>
@@ -115,37 +134,44 @@ export function TutorialControls() {
       )}
 
       <div className="grid gap-3 sm:grid-cols-2">
-        {actions.map(({ id, title, description, icon: Icon, href, unavailable }) => (
-          <Card key={id} className="flex items-start gap-4 p-4 sm:p-5">
-            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-indigo-50 text-indigo-600 dark:bg-indigo-950/50 dark:text-indigo-300">
-              <Icon size={19} aria-hidden="true" />
-            </span>
-            <div className="min-w-0 flex-1">
-              <h3 className="font-semibold text-slate-950 dark:text-white">
-                {title}
-              </h3>
-              <p className="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300">
-                {description}
-              </p>
-              {unavailable && (
-                <p id={`${id}-tutorial-requirement`} className="mt-2 text-xs text-slate-500">
-                  {unavailable}
+        {actions.map(
+          ({ id, title, description, icon: Icon, href, unavailable }) => (
+            <Card key={id} className="flex items-start gap-4 p-4 sm:p-5">
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-indigo-50 text-indigo-600 dark:bg-indigo-950/50 dark:text-indigo-300">
+                <Icon size={19} aria-hidden="true" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <h3 className="font-semibold text-slate-950 dark:text-white">
+                  {title}
+                </h3>
+                <p className="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300">
+                  {description}
                 </p>
-              )}
-              <Button
-                type="button"
-                size="sm"
-                variant="secondary"
-                className="mt-3"
-                disabled={!href}
-                aria-describedby={unavailable ? `${id}-tutorial-requirement` : undefined}
-                onClick={() => href && router.push(href)}
-              >
-                Start tutorial
-              </Button>
-            </div>
-          </Card>
-        ))}
+                {unavailable && (
+                  <p
+                    id={`${id}-tutorial-requirement`}
+                    className="mt-2 text-xs text-slate-500"
+                  >
+                    {unavailable}
+                  </p>
+                )}
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="secondary"
+                  className="mt-3"
+                  disabled={!href}
+                  aria-describedby={
+                    unavailable ? `${id}-tutorial-requirement` : undefined
+                  }
+                  onClick={() => href && router.push(href)}
+                >
+                  Start tutorial
+                </Button>
+              </div>
+            </Card>
+          ),
+        )}
       </div>
     </section>
   );

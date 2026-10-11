@@ -15,6 +15,7 @@ import { formatMusicalKey } from "@/core/chords/keys";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { FeedbackToast } from "@/components/ui/feedback-toast";
+import { LoadingState } from "@/components/ui/loading-state";
 
 export function SharedSetlistView({ token }: { token: string }) {
   const followed = useLiveQuery(
@@ -192,9 +193,11 @@ export function SharedSetlistView({ token }: { token: string }) {
   }
 
   if (!snapshot)
-    return (
+    return busy ? (
+      <LoadingState label="Opening shared setlist…" className="min-h-[60dvh]" />
+    ) : (
       <div className="grid min-h-[60dvh] place-items-center px-4 text-center text-sm text-slate-500">
-        {busy ? "Opening shared setlist…" : "Shared setlist unavailable"}
+        Shared setlist unavailable
       </div>
     );
 
@@ -223,10 +226,11 @@ export function SharedSetlistView({ token }: { token: string }) {
             <Button
               type="button"
               variant="secondary"
-              disabled={busy}
+              isLoading={busy}
+              loadingLabel="Updating…"
               onClick={() => void updateSharedSetlist()}
             >
-              <CloudDownload size={16} /> {busy ? "Updating…" : "Update"}
+              <CloudDownload size={16} /> Update
             </Button>
           )}
           <Button
@@ -293,11 +297,13 @@ export function SharedSetlistView({ token }: { token: string }) {
                   size="sm"
                   variant="secondary"
                   disabled={Boolean(importingSongId) || importingAll}
+                  isLoading={importingSongId === identity}
+                  loadingLabel="Importing…"
                   aria-label={`Import ${song.title} to My Library`}
                   onClick={() => void importOne(index)}
                 >
                   <Download size={16} />
-                  {importingSongId === identity ? "Importing…" : "Import"}
+                  Import
                 </Button>
               </div>
             </div>
@@ -317,12 +323,12 @@ export function SharedSetlistView({ token }: { token: string }) {
           disabled={
             !snapshot.songs.length || importingAll || Boolean(importingSongId)
           }
+          isLoading={importingAll}
+          loadingLabel="Importing…"
           onClick={() => void importAll()}
         >
           <Download size={16} />
-          {importingAll
-            ? "Importing…"
-            : `Import all ${snapshot.songs.length} ${snapshot.songs.length === 1 ? "song" : "songs"}`}
+          {`Import all ${snapshot.songs.length} ${snapshot.songs.length === 1 ? "song" : "songs"}`}
         </Button>
       </Card>
     </div>

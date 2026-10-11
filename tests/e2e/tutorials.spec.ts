@@ -106,7 +106,6 @@ test("starts each contextual tutorial when its area becomes ready", async ({
   await page.keyboard.press("Escape");
 
   const now = new Date().toISOString();
-  const restoredDialog = page.waitForEvent("dialog");
   await page.locator('input[accept="application/json"]').setInputFiles({
     name: "tutorial-data.json",
     mimeType: "application/json",
@@ -170,10 +169,16 @@ test("starts each contextual tutorial when its area becomes ready", async ({
       }),
     ),
   });
-  await (await restoredDialog).accept();
+  const restoreDialog = page.getByRole("dialog", {
+    name: "Import this backup?",
+  });
+  await restoreDialog.getByRole("button", { name: "Import new items" }).click();
+  await expect(restoreDialog).toBeHidden();
 
   await page.goto("/setlists");
-  await expect(page.locator(".driver-popover")).toContainText("Plan your shows");
+  await expect(page.locator(".driver-popover")).toContainText(
+    "Plan your shows",
+  );
   await page.keyboard.press("Escape");
 
   await page.goto("/setlists/tutorial-setlist");

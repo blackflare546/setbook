@@ -3,7 +3,7 @@
 import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 import * as Dialog from "@radix-ui/react-dialog";
-import { FileUp, QrCode, RotateCcw, X } from "lucide-react";
+import { FileUp, LoaderCircle, QrCode, RotateCcw, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { QrReader } from "@/components/ui/qr-reader";
 import { formatMusicalKey } from "@/core/chords/keys";
@@ -29,7 +29,8 @@ export function SongQrImportDialog({
   const [inspection, setInspection] = useState<SongTransferInspection | null>(
     null,
   );
-  const [working, setWorking] = useState(false);
+  const [working, setWorking] = useState<"replace" | "keep-both" | null>(null);
+  const [readingFile, setReadingFile] = useState(false);
   const [fileError, setFileError] = useState<string | null>(null);
 
   const prepare = useCallback(async (next: SongTransferV1) => {
@@ -51,7 +52,8 @@ export function SongQrImportDialog({
   }
 
   async function readFile(file?: File) {
-    if (!file) return;
+    if (!file || readingFile) return;
+    setReadingFile(true);
     try {
       await prepare(deserializeSongTransferFile(await file.text()));
     } catch (error) {
@@ -60,12 +62,15 @@ export function SongQrImportDialog({
           ? error.message
           : "That song file could not be read.",
       );
+    } finally {
+      setReadingFile(false);
     }
   }
 
   async function finish(resolution?: "replace" | "keep-both") {
-    if (!transfer) return;
-    setWorking(true);
+    if (!transfer || working) return;
+    const nextResolution = resolution ?? "keep-both";
+    setWorking(nextResolution);
     try {
       const result = await importSongTransfer(transfer, resolution);
       if (result.status === "identity-conflict") {
@@ -82,7 +87,7 @@ export function SongQrImportDialog({
             : "Song imported",
       );
     } finally {
-      setWorking(false);
+      setWorking(null);
     }
   }
 
@@ -135,12 +140,27 @@ export function SongQrImportDialog({
             <div className="mt-5">
               <QrReader onRead={readQr} cameraLabel="Song QR camera preview" />
               <div className="mt-4 border-t border-slate-200 pt-4 dark:border-slate-800">
-                <label className="inline-flex min-h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-[10px] border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-800 shadow-sm hover:bg-slate-100 focus-within:ring-2 focus-within:ring-indigo-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800">
-                  <FileUp size={17} /> Import SetBook song file
+                <label
+                  aria-busy={readingFile || undefined}
+                  className={`inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-[10px] border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-800 shadow-sm focus-within:ring-2 focus-within:ring-indigo-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 ${readingFile ? "cursor-wait opacity-60" : "cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800"}`}
+                >
+                  {readingFile ? (
+                    <LoaderCircle
+                      className="animate-spin"
+                      size={17}
+                      aria-hidden="true"
+                    />
+                  ) : (
+                    <FileUp size={17} />
+                  )}
+                  {readingFile
+                    ? "Reading song file…"
+                    : "Import SetBook song file"}
                   <input
                     className="sr-only"
                     type="file"
                     accept=".setbook-song.json,application/json"
+                    disabled={readingFile}
                     onChange={(event) => {
                       const file = event.currentTarget.files?.[0];
                       event.currentTarget.value = "";
@@ -191,7 +211,7 @@ export function SongQrImportDialog({
                   type="button"
                   variant="ghost"
                   onClick={reset}
-                  disabled={working}
+                  disabled={Boolean(working)}
                 >
                   <RotateCcw size={16} /> Scan another
                 </Button>
@@ -199,9 +219,10 @@ export function SongQrImportDialog({
                   <Button
                     type="button"
                     onClick={() => void finish("keep-both")}
-                    disabled={working}
+                    isLoading={working === "keep-both"}
+                    loadingLabel="Importing…"
                   >
-                    {working ? "Importing…" : "Import song"}
+                    Import song
                   </Button>
                 )}
                 {inspection?.status === "exact-existing" && existing && (
@@ -228,14 +249,18 @@ export function SongQrImportDialog({
                       type="button"
                       variant="secondary"
                       onClick={() => void finish("keep-both")}
-                      disabled={working}
+                      disabled={Boolean(working)}
+                      isLoading={working === "keep-both"}
+                      loadingLabel="Importing…"
                     >
                       Keep both
                     </Button>
                     <Button
                       type="button"
                       onClick={() => void finish("replace")}
-                      disabled={working}
+                      disabled={Boolean(working)}
+                      isLoading={working === "replace"}
+                      loadingLabel="Replacing…"
                     >
                       Replace existing
                     </Button>

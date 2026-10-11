@@ -67,6 +67,7 @@ import { useProgressiveCollection } from "@/lib/hooks/use-progressive-collection
 import { ProgressiveCollectionFooter } from "@/components/ui/progressive-collection-footer";
 import { ScrollToTopButton } from "@/components/ui/scroll-to-top-button";
 import { AreaTutorial } from "@/components/tutorials/area-tutorial";
+import { LoadingState } from "@/components/ui/loading-state";
 
 type SaveState = "idle" | "dirty" | "saving" | "saved" | "error";
 
@@ -233,6 +234,7 @@ export function SetlistEditor({ id }: { id: string }) {
   const songs = useMemo(() => liveSongs ?? [], [liveSongs]);
   const [sharedBy, setSharedBy] = useState("");
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
+  const [generatingQr, setGeneratingQr] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [extendingPublished, setExtendingPublished] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -282,9 +284,7 @@ export function SetlistEditor({ id }: { id: string }) {
   const progressiveSongs = useProgressiveCollection(matchingSongs, songQuery);
   const songMap = new Map(songs.map((song) => [song.id, song]));
   if (!setlist)
-    return (
-      <div className="p-12 text-center text-slate-500">Loading setlist…</div>
-    );
+    return <LoadingState label="Loading setlist…" className="min-h-[60dvh]" />;
   const currentSetlist = setlist;
   const savedForActions = saveState === "idle" || saveState === "saved";
   const update = (next: Partial<Setlist>) => {
@@ -433,13 +433,23 @@ export function SetlistEditor({ id }: { id: string }) {
 
   async function showQrCode() {
     const token = currentSetlist.shareBinding?.publicToken;
-    if (!token) return;
-    setQrDataUrl(
-      await QRCode.toDataURL(absoluteUrl(`/s/${token}`), {
-        width: 640,
-        margin: 2,
-      }),
-    );
+    if (!token || generatingQr) return;
+    setGeneratingQr(true);
+    try {
+      setQrDataUrl(
+        await QRCode.toDataURL(absoluteUrl(`/s/${token}`), {
+          width: 640,
+          margin: 2,
+        }),
+      );
+    } catch {
+      setFeedback({
+        message: "QR code could not be created. Please try again.",
+        tone: "error",
+      });
+    } finally {
+      setGeneratingQr(false);
+    }
   }
 
   function handleDragStart(event: DragStartEvent) {
@@ -502,10 +512,11 @@ export function SetlistEditor({ id }: { id: string }) {
           <Button
             variant="secondary"
             onClick={() => void save()}
-            disabled={saveState === "saving"}
+            isLoading={saveState === "saving"}
+            loadingLabel="Saving…"
           >
             <Save size={16} />
-            {saveState === "saving" ? "Saving…" : "Save"}
+            Save
           </Button>
           {savedForActions && setlist.entries.length ? (
             <Button asChild>
@@ -734,19 +745,19 @@ export function SetlistEditor({ id }: { id: string }) {
                 !savedForActions ||
                 !setlist.entries.length
               }
+              isLoading={publishing}
+              loadingLabel="Publishing…"
             >
               {setlist.shareBinding ? (
                 <Check size={16} />
               ) : (
                 <Share2 size={16} />
               )}{" "}
-              {publishing
-                ? "Publishing…"
-                : setlist.shareBinding
-                  ? "Update published setlist"
-                  : setlist.publishToken
-                    ? "Upgrade sharing"
-                    : "Publish setlist"}
+              {setlist.shareBinding
+                ? "Update published setlist"
+                : setlist.publishToken
+                  ? "Upgrade sharing"
+                  : "Publish setlist"}
             </Button>
             {setlist.publishToken && !setlist.shareBinding && (
               <p className="mt-2 rounded-lg bg-amber-50 p-3 text-xs leading-5 text-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
@@ -773,10 +784,12 @@ export function SetlistEditor({ id }: { id: string }) {
                     variant="secondary"
                     className="w-full"
                     disabled={extendingPublished || deletingPublished}
+                    isLoading={extendingPublished}
+                    loadingLabel="Extending…"
                     onClick={() => void extendPublished()}
                   >
                     <CalendarClock size={16} />
-                    {extendingPublished ? "Extending…" : "Extend expiration"}
+                    Extend expiration
                   </Button>
                 )}
                 <Button asChild variant="secondary" className="w-full">
@@ -800,7 +813,12 @@ export function SetlistEditor({ id }: { id: string }) {
                   >
                     <Copy size={16} /> Copy link
                   </Button>
-                  <Button variant="secondary" onClick={() => void showQrCode()}>
+                  <Button
+                    variant="secondary"
+                    isLoading={generatingQr}
+                    loadingLabel="Creating QR…"
+                    onClick={() => void showQrCode()}
+                  >
                     <QrCode size={16} /> QR code
                   </Button>
                 </div>
@@ -837,11 +855,12 @@ export function SetlistEditor({ id }: { id: string }) {
                         </Dialog.Close>
                         <Button
                           variant="danger"
-                          disabled={deletingPublished}
+                          isLoading={deletingPublished}
+                          loadingLabel="Stopping…"
                           onClick={() => void deletePublished()}
                         >
                           <Trash2 size={16} />
-                          {deletingPublished ? "Deleting…" : "Stop Sharing"}
+                          Stop Sharing
                         </Button>
                       </div>
                     </Dialog.Content>

@@ -45,13 +45,16 @@ test("keeps Performance Key options accessible throughout a long desktop setlist
     ],
     settings: [tutorialSettings],
   };
-  const restoredDialog = page.waitForEvent("dialog");
   await page.locator('input[type="file"]').setInputFiles({
     name: "long-setlist.json",
     mimeType: "application/json",
     buffer: Buffer.from(JSON.stringify(backup)),
   });
-  await (await restoredDialog).accept();
+  const restoreDialog = page.getByRole("dialog", {
+    name: "Import this backup?",
+  });
+  await restoreDialog.getByRole("button", { name: "Import new items" }).click();
+  await expect(restoreDialog).toBeHidden();
 
   await page.goto("/setlists/long-key-selector-setlist");
   const selectors = page.getByRole("combobox", {

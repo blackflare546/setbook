@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Camera, ImageUp } from "lucide-react";
+import { Camera, ImageUp, LoaderCircle } from "lucide-react";
 import type { IScannerControls } from "@zxing/browser";
 
 export function QrReader({
@@ -16,6 +16,7 @@ export function QrReader({
   const acceptingRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const [starting, setStarting] = useState(true);
+  const [readingImage, setReadingImage] = useState(false);
 
   const stopCamera = useCallback(() => {
     controlsRef.current?.stop();
@@ -83,7 +84,8 @@ export function QrReader({
   }, [accept, stopCamera]);
 
   async function readImage(file?: File) {
-    if (!file) return;
+    if (!file || readingImage) return;
+    setReadingImage(true);
     setError(null);
     acceptingRef.current = false;
     let bitmap: ImageBitmap | null = null;
@@ -106,6 +108,7 @@ export function QrReader({
       );
     } finally {
       bitmap?.close();
+      setReadingImage(false);
     }
   }
 
@@ -135,12 +138,21 @@ export function QrReader({
           {error}
         </p>
       )}
-      <label className="mt-4 inline-flex min-h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-[10px] border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-800 shadow-sm hover:border-slate-400 hover:bg-slate-100 focus-within:ring-2 focus-within:ring-indigo-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800">
-        <ImageUp size={17} /> Upload QR image
+      <label
+        aria-busy={readingImage || undefined}
+        className={`mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-[10px] border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-800 shadow-sm focus-within:ring-2 focus-within:ring-indigo-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 ${readingImage ? "cursor-wait opacity-60" : "cursor-pointer hover:border-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"}`}
+      >
+        {readingImage ? (
+          <LoaderCircle className="animate-spin" size={17} aria-hidden="true" />
+        ) : (
+          <ImageUp size={17} />
+        )}
+        {readingImage ? "Reading image…" : "Upload QR image"}
         <input
           className="sr-only"
           type="file"
           accept="image/*"
+          disabled={readingImage}
           onChange={(event) => {
             const file = event.currentTarget.files?.[0];
             event.currentTarget.value = "";
