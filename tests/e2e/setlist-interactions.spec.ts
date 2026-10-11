@@ -208,7 +208,7 @@ test("confirms song deletion without deleting on dismissal", async ({
   await deleteButton.click();
   const dialog = page.getByRole("dialog", { name: "Delete Song?" });
   await expect(dialog).toContainText(
-    "Are you sure you want to delete “Alpha Song”? This action cannot be undone.",
+    "Any entries for this song will also be removed from your setlists.",
   );
   await page.keyboard.press("Escape");
   await expect(dialog).toBeHidden();
@@ -228,7 +228,15 @@ test("confirms song deletion without deleting on dismissal", async ({
   await deleteButton.click();
   await dialog.getByRole("button", { name: "Delete", exact: true }).click();
   await expect(row).toHaveCount(0);
-  await expect(page.getByText("Song deleted")).toBeVisible();
+  await expect(
+    page.getByText("Song deleted and removed from 1 setlist"),
+  ).toBeVisible();
+
+  await page.getByRole("button", { name: "Undo" }).click();
+  await expect(page.getByText("Song restored")).toBeVisible();
+  await expect(row).toBeVisible();
+  await page.goto(`/setlists/${setlistId}`);
+  await expect(page.getByText("3 songs")).toBeVisible();
 });
 
 test("keeps owned setlist actions accessible on touch devices", async ({

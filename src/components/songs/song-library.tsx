@@ -17,7 +17,10 @@ import {
   Trash2,
   Upload,
 } from "lucide-react";
-import { songRepository } from "@/data/repositories/song-repository";
+import {
+  songRepository,
+  type SongDeletion,
+} from "@/data/repositories/song-repository";
 import { exportLibrary, importLibrary } from "@/data/repositories/backup";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -200,12 +203,16 @@ export function SongLibrary() {
   const [sort, setSort] = useState<"updated" | "title">("updated");
   const [deletingSong, setDeletingSong] = useState<Song | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [pendingDeletion, setPendingDeletion] =
+    useState<SongDeletion | null>(null);
+  const [restoringDeletion, setRestoringDeletion] = useState(false);
   const [duplicatingSongId, setDuplicatingSongId] = useState<string | null>(
     null,
   );
   const [backingUp, setBackingUp] = useState(false);
   const [restoreFile, setRestoreFile] = useState<File | null>(null);
   const [restoring, setRestoring] = useState(false);
+  const [restoreError, setRestoreError] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<{
     message: string;
     tone: "success" | "error";
@@ -239,13 +246,23 @@ export function SongLibrary() {
 
   useEffect(() => {
     if (!feedback || feedback.tone !== "success") return;
-    const timeout = window.setTimeout(() => setFeedback(null), 2500);
+    const undoAvailable = Boolean(
+      pendingDeletion && feedback.message.startsWith("Song deleted"),
+    );
+    const timeout = window.setTimeout(
+      () => {
+        setFeedback(null);
+        if (undoAvailable) setPendingDeletion(null);
+      },
+      undoAvailable ? 6_000 : 2_500,
+    );
     return () => window.clearTimeout(timeout);
-  }, [feedback]);
+  }, [feedback, pendingDeletion]);
 
   async function backup() {
     if (backingUp) return;
     setBackingUp(true);
+    setPendingDeletion(null);
     setFeedback(null);
     try {
       const downloadUrl = URL.createObjectURL(
@@ -259,7 +276,7 @@ export function SongLibrary() {
         link.click();
         link.remove();
       } finally {
-        URL.revokeObjectURL(downloadUrl);
+        window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 0);
       }
       setFeedback({ message: "Backup downloaded", tone: "success" });
     } catch {
@@ -275,7 +292,9 @@ export function SongLibrary() {
   async function restore() {
     if (!restoreFile || restoring) return;
     setRestoring(true);
+    setPendingDeletion(null);
     setFeedback(null);
+    setRestoreError(null);
     try {
       const result = await importLibrary(await restoreFile.text());
       setRestoreFile(null);
@@ -288,10 +307,7 @@ export function SongLibrary() {
         tone: "success",
       });
     } catch {
-      setFeedback({
-        message: "That file is not a valid SetBook backup.",
-        tone: "error",
-      });
+      setRestoreError("That file is not a valid SetBook backup.");
     } finally {
       setRestoring(false);
     }
@@ -302,9 +318,17 @@ export function SongLibrary() {
     setDeleting(true);
     setFeedback(null);
     try {
-      await songRepository.delete(deletingSong.id);
+      const deletion = await songRepository.delete(deletingSong.id);
+      if (!deletion) throw new Error("Song not found");
       setDeletingSong(null);
-      setFeedback({ message: "Song deleted", tone: "success" });
+      setPendingDeletion(deletion);
+      const setlistCount = deletion.removedFromSetlists.length;
+      setFeedback({
+        message: setlistCount
+          ? `Song deleted and removed from ${setlistCount} ${setlistCount === 1 ? "setlist" : "setlists"}`
+          : "Song deleted",
+        tone: "success",
+      });
     } catch {
       setFeedback({
         message: "Song could not be deleted. Please try again.",
@@ -312,6 +336,23 @@ export function SongLibrary() {
       });
     } finally {
       setDeleting(false);
+    }
+  }
+
+  async function undoSongDeletion() {
+    if (!pendingDeletion || restoringDeletion) return;
+    setRestoringDeletion(true);
+    try {
+      await songRepository.restoreDeletion(pendingDeletion);
+      setPendingDeletion(null);
+      setFeedback({ message: "Song restored", tone: "success" });
+    } catch {
+      setFeedback({
+        message: "Song could not be restored. Please try again.",
+        tone: "error",
+      });
+    } finally {
+      setRestoringDeletion(false);
     }
   }
 
@@ -352,6 +393,15 @@ export function SongLibrary() {
       <FeedbackToast
         message={feedback?.message ?? null}
         tone={feedback?.tone}
+        actionLabel={
+          pendingDeletion &&
+          (feedback?.message.startsWith("Song deleted") ||
+            feedback?.message.startsWith("Song could not be restored"))
+            ? "Undo"
+            : undefined
+        }
+        onAction={pendingDeletion ? () => void undoSongDeletion() : undefined}
+        actionBusy={restoringDeletion}
       />
       <div data-tour="library-header">
         <PageHeader
@@ -376,6 +426,7 @@ export function SongLibrary() {
                 onChange={(event) => {
                   window.dispatchEvent(new Event("setbook:dismiss-tutorial"));
                   setRestoreFile(event.currentTarget.files?.[0] ?? null);
+                  setRestoreError(null);
                   event.currentTarget.value = "";
                 }}
               />
@@ -500,8 +551,9 @@ export function SongLibrary() {
               Delete Song?
             </Dialog.Title>
             <Dialog.Description className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
-              Are you sure you want to delete “{deletingSong?.title}”? This
-              action cannot be undone.
+              Delete “{deletingSong?.title}” from this device? Any entries for
+              this song will also be removed from your setlists. You can undo
+              immediately after deletion.
             </Dialog.Description>
             <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
               <Dialog.Close asChild>
@@ -526,7 +578,10 @@ export function SongLibrary() {
       <Dialog.Root
         open={Boolean(restoreFile)}
         onOpenChange={(open) => {
-          if (!open && !restoring) setRestoreFile(null);
+          if (!open && !restoring) {
+            setRestoreFile(null);
+            setRestoreError(null);
+          }
         }}
       >
         <Dialog.Portal>
@@ -538,11 +593,20 @@ export function SongLibrary() {
             <Dialog.Description className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
               Importing “{restoreFile?.name}” adds songs and setlists that are
               not already on this device. Items with matching IDs are skipped.
-              Existing data and settings stay unchanged.
+              Existing data stays unchanged. Backup settings are used only if
+              this device has no saved settings yet.
             </Dialog.Description>
             <div className="mt-4 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-sm text-indigo-900 dark:border-indigo-900 dark:bg-indigo-950/40 dark:text-indigo-100">
               Duplicate songs and setlists will not be added again.
             </div>
+            {restoreError && (
+              <p
+                role="alert"
+                className="mt-4 rounded-lg bg-rose-50 p-3 text-sm text-rose-700 dark:bg-rose-950/40 dark:text-rose-200"
+              >
+                {restoreError}
+              </p>
+            )}
             <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
               <Dialog.Close asChild>
                 <Button type="button" variant="secondary" disabled={restoring}>

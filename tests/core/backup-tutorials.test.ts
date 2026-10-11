@@ -138,4 +138,103 @@ describe("tutorial settings in backups", () => {
       theme: "light",
     });
   });
+
+  it("rejects dangling setlist entries without partially importing data", async () => {
+    const song = { ...createEmptySong(), id: "valid-song", title: "Valid" };
+    const now = new Date().toISOString();
+
+    await expect(
+      importLibrary(
+        JSON.stringify({
+          version: 1,
+          exportedAt: now,
+          songs: [song],
+          setlists: [
+            {
+              id: "broken-setlist",
+              name: "Broken",
+              venue: "",
+              notes: "",
+              entries: [
+                { id: "missing", songId: "missing-song", arrangementCue: "" },
+              ],
+              createdAt: now,
+              updatedAt: now,
+            },
+          ],
+          settings: [],
+        }),
+      ),
+    ).rejects.toThrow("missing song");
+    await expect(db.songs.count()).resolves.toBe(0);
+    await expect(db.setlists.count()).resolves.toBe(0);
+  });
+
+  it("strips publishing credentials when importing a backup", async () => {
+    const now = new Date().toISOString();
+    const result = await importLibrary(
+      JSON.stringify({
+        version: 1,
+        exportedAt: now,
+        songs: [],
+        setlists: [
+          {
+            id: "published-setlist",
+            name: "Imported",
+            venue: "",
+            notes: "",
+            entries: [],
+            publishToken: "legacy-token",
+            shareBinding: {
+              publicToken: "public-token",
+              ownerCapability: "secret-owner-capability",
+              revision: 1,
+              etag: "etag",
+            },
+            createdAt: now,
+            updatedAt: now,
+          },
+        ],
+        settings: [],
+      }),
+    );
+
+    expect(result.setlistsAdded).toBe(1);
+    await expect(db.setlists.get("published-setlist")).resolves.toEqual(
+      expect.not.objectContaining({
+        publishToken: expect.anything(),
+        shareBinding: expect.anything(),
+      }),
+    );
+  });
+
+  it("accepts a partial backup that references a song already on the device", async () => {
+    const song = { ...createEmptySong(), id: "local-song", title: "Local" };
+    const now = new Date().toISOString();
+    await db.songs.add(song);
+
+    await expect(
+      importLibrary(
+        JSON.stringify({
+          version: 1,
+          exportedAt: now,
+          songs: [],
+          setlists: [
+            {
+              id: "partial-setlist",
+              name: "Partial",
+              venue: "",
+              notes: "",
+              entries: [
+                { id: "local-entry", songId: song.id, arrangementCue: "" },
+              ],
+              createdAt: now,
+              updatedAt: now,
+            },
+          ],
+          settings: [],
+        }),
+      ),
+    ).resolves.toMatchObject({ setlistsAdded: 1 });
+  });
 });

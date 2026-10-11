@@ -38,10 +38,20 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>("light");
 
   useEffect(() => {
-    void settingsRepository.get().then((settings) => {
-      setThemeState(settings.theme);
-      setResolvedTheme(applyTheme(settings.theme));
-    });
+    let active = true;
+    void settingsRepository
+      .get()
+      .then((settings) => {
+        if (!active) return;
+        setThemeState(settings.theme);
+        setResolvedTheme(applyTheme(settings.theme));
+      })
+      .catch(() => {
+        // Keep the accessible light default when local settings are unavailable.
+      });
+    return () => {
+      active = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -52,9 +62,15 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, [theme]);
 
   async function setTheme(nextTheme: Theme) {
-    await settingsRepository.saveTheme(nextTheme);
+    const previousTheme = theme;
     setThemeState(nextTheme);
     setResolvedTheme(applyTheme(nextTheme));
+    try {
+      await settingsRepository.saveTheme(nextTheme);
+    } catch {
+      setThemeState(previousTheme);
+      setResolvedTheme(applyTheme(previousTheme));
+    }
   }
 
   return (

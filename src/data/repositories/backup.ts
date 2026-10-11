@@ -55,21 +55,37 @@ const backupSchema = z.object({
 });
 
 export async function exportLibrary(): Promise<string> {
-  const setlists = (await db.setlists.toArray()).map((setlist) => {
-    const safe = { ...setlist };
-    delete safe.shareBinding;
-    return safe;
-  });
-  return JSON.stringify(
-    {
-      version: 1,
-      exportedAt: new Date().toISOString(),
-      songs: await db.songs.toArray(),
-      setlists,
-      settings: await db.settings.toArray(),
+  return db.transaction(
+    "r",
+    db.songs,
+    db.setlists,
+    db.settings,
+    async () => {
+      const songs = await db.songs.toArray();
+      const songIds = new Set(songs.map((song) => song.id));
+      const setlists = (await db.setlists.toArray()).map((setlist) => {
+        const safe = {
+          ...setlist,
+          entries: setlist.entries.filter((entry) =>
+            songIds.has(entry.songId),
+          ),
+        };
+        delete safe.shareBinding;
+        delete safe.publishToken;
+        return safe;
+      });
+      return JSON.stringify(
+        {
+          version: 1,
+          exportedAt: new Date().toISOString(),
+          songs,
+          setlists,
+          settings: await db.settings.toArray(),
+        },
+        null,
+        2,
+      );
     },
-    null,
-    2,
   );
 }
 
@@ -87,9 +103,15 @@ export async function importLibrary(raw: string): Promise<ImportLibraryResult> {
     const uniqueSongs = [
       ...new Map(backup.songs.map((song) => [song.id, song])).values(),
     ];
+    const localSetlists = backup.setlists.map((setlist) => {
+      const local = { ...setlist };
+      delete local.shareBinding;
+      delete local.publishToken;
+      return local;
+    });
     const uniqueSetlists = [
       ...new Map(
-        backup.setlists.map((setlist) => [setlist.id, setlist]),
+        localSetlists.map((setlist) => [setlist.id, setlist]),
       ).values(),
     ];
     const existingSongs = new Set(
@@ -108,6 +130,28 @@ export async function importLibrary(raw: string): Promise<ImportLibraryResult> {
     const setlistsToAdd = uniqueSetlists.filter(
       (setlist) => !existingSetlists.has(setlist.id),
     );
+    const referencedSongIds = [
+      ...new Set(
+        setlistsToAdd.flatMap((setlist) =>
+          setlist.entries.map((entry) => entry.songId),
+        ),
+      ),
+    ];
+    const existingReferencedSongIds = new Set(
+      (await db.songs.bulkGet(referencedSongIds))
+        .filter((song) => song !== undefined)
+        .map((song) => song.id),
+    );
+    const availableSongIds = new Set([
+      ...existingReferencedSongIds,
+      ...uniqueSongs.map((song) => song.id),
+    ]);
+    const hasMissingSong = setlistsToAdd.some((setlist) =>
+      setlist.entries.some((entry) => !availableSongIds.has(entry.songId)),
+    );
+    if (hasMissingSong) {
+      throw new Error("Backup contains a setlist with a missing song.");
+    }
     const settings = backup.settings[0];
     const settingsImported = Boolean(
       settings && !(await db.settings.get("app")),
