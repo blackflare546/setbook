@@ -310,6 +310,19 @@ test("keeps the mobile back button left aligned and adds editor bottom clearance
   }
 });
 
+test("shows a recovery path when a local setlist no longer exists", async ({
+  page,
+}) => {
+  await page.goto("/setlists/missing-local-setlist");
+
+  await expect(
+    page.getByRole("heading", { name: "Setlist not found" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Back to setlists" }),
+  ).toHaveAttribute("href", "/setlists");
+});
+
 test("dragging reorders complete entries and persists only after Save", async ({
   page,
 }) => {
