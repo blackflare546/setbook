@@ -1,0 +1,36 @@
+name: Deployment smoke check
+
+on:
+  workflow_dispatch:
+    inputs:
+      deployment_url:
+        description: Full URL of the deployment to verify
+        required: true
+        type: string
+      required_features:
+        description: Comma-separated health features that must be configured
+        required: false
+        default: publicSharing,cleanup
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Check deployment
+        env:
+          SETBOOK_DEPLOYMENT_URL: ${{ inputs.deployment_url }}
+          SETBOOK_SMOKE_REQUIRED_FEATURES: ${{ inputs.required_features }}
+        run: node scripts/smoke-deployment.mjs

@@ -31,6 +31,7 @@ pnpm test
 pnpm typecheck
 pnpm lint
 pnpm build
+pnpm bundle:report
 pnpm exec playwright install chromium
 pnpm test:e2e
 ```
@@ -48,6 +49,21 @@ It requires the Blob connection, a stable sharing secret, and a separate cron
 secret. It warns, but does not fail, when feedback is intentionally disabled.
 `release:check` audits production dependencies and then runs linting, type
 checking, unit tests, the production build, and all Playwright tests.
+
+GitHub Actions runs the same release gate for pull requests and pushes to
+`main`. After deployment, verify the public URL and its browser security headers:
+
+```bash
+pnpm health:smoke -- https://your-setbook-deployment.example
+```
+
+Set `SETBOOK_SMOKE_REQUIRED_FEATURES=publicSharing,cleanup,feedback` to make the
+smoke check fail when any listed server feature is not configured. The public
+`/api/health` response exposes only feature availability booleans, never secret
+or credential values. `bundle:report` summarizes all emitted client chunks and
+supports an optional `SETBOOK_MAX_CLIENT_GZIP_KB` regression ceiling.
+The **Deployment smoke check** GitHub workflow runs the same verification on
+demand and requires public sharing and cleanup by default.
 
 The Vitest suite covers chord parsing, classification, inline and above-lyric positioning, song parsing, transposition, setlist operations, and published snapshot serialization. The Playwright flow covers song creation through performance and persistent-link republishing.
 
@@ -162,6 +178,7 @@ and [secured Cron jobs](https://vercel.com/docs/cron-jobs/manage-cron-jobs).
 
 The sharing API is intentionally small:
 
+- `GET /api/health` (liveness and feature availability)
 - `POST /api/published-setlists`
 - `GET /api/published-setlists/:token`
 - `PATCH /api/published-setlists/:token`

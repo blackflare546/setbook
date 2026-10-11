@@ -14,7 +14,9 @@
     "test:e2e": "playwright test",
     "check": "pnpm lint && pnpm typecheck",
     "env:check": "node scripts/check-production-env.mjs",
-    "release:check": "pnpm audit --prod && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm test:e2e",
+    "health:smoke": "node scripts/smoke-deployment.mjs",
+    "bundle:report": "node scripts/report-bundle-size.mjs",
+    "release:check": "pnpm audit --prod && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm bundle:report && pnpm test:e2e",
     "format": "prettier --write ."
   },
   "dependencies": {
