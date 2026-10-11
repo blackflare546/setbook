@@ -1,5 +1,6 @@
 import type { Song } from "@/core/songs/types";
 import type { SetlistSongEntry } from "@/core/setlists/types";
+import Dexie from "dexie";
 import { sectionsToText } from "@/core/parser/parser";
 import { db, type SongbookDatabase } from "@/data/db/songbook-db";
 
@@ -32,6 +33,17 @@ export class SongRepository {
     return this.database.songs
       .where("[sharedSource.publicToken+sharedSource.sharedSongId]")
       .equals([publicToken, sharedSongId])
+      .toArray();
+  }
+  listBySharedToken(publicToken: string): Promise<Song[]> {
+    return this.database.songs
+      .where("[sharedSource.publicToken+sharedSource.sharedSongId]")
+      .between(
+        [publicToken, Dexie.minKey],
+        [publicToken, Dexie.maxKey],
+        true,
+        true,
+      )
       .toArray();
   }
   async save(song: Song): Promise<Song> {

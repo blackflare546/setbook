@@ -29,7 +29,10 @@ export function SharedSetlistView({ token }: { token: string }) {
     () => sharedSetlistRepository.get(token),
     [token],
   );
-  const libraryQuery = useLiveQuery(() => songRepository.list(), []);
+  const libraryQuery = useLiveQuery(
+    () => songRepository.listBySharedToken(token),
+    [token],
+  );
   const library = useMemo(() => libraryQuery ?? [], [libraryQuery]);
   const [snapshot, setSnapshot] = useState<PublishedSnapshot | null>(null);
   const [busy, setBusy] = useState(false);

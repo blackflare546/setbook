@@ -1,4 +1,8 @@
+import type { Metadata } from "next";
 import { SetlistEditor } from "@/components/setlists/setlist-editor";
+
+export const metadata: Metadata = { title: "Edit setlist" };
+
 export default async function SetlistPage({
   params,
 }: {
