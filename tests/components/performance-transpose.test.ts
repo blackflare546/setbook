@@ -1,11 +1,6 @@
 import React from "react";
 import { afterEach, describe, expect, it } from "vitest";
-import {
-  cleanup,
-  fireEvent,
-  render,
-  screen,
-} from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { PerformanceView } from "@/components/performance/performance-view";
 import type { PublishedSnapshot } from "@/lib/validation/schemas";
 
@@ -98,10 +93,50 @@ function displayedChord() {
 afterEach(cleanup);
 
 describe("performance transposition", () => {
-  it("keeps an independent offset for every setlist entry", () => {
-    const originalChords = snapshot.songs.map(
-      (song) => ({ ...song.sections[0].lines[0].chords[0] }),
+  it("keeps the active song valid when a refreshed snapshot becomes shorter", () => {
+    const view = render(React.createElement(PerformanceView, { snapshot }));
+
+    fireEvent.keyDown(window, { key: "ArrowRight" });
+    fireEvent.keyDown(window, { key: "ArrowRight" });
+    expect(screen.getByRole("heading", { name: "Song C" })).toBeVisible();
+
+    view.rerender(
+      React.createElement(PerformanceView, {
+        snapshot: { ...snapshot, songs: snapshot.songs.slice(0, 1) },
+      }),
     );
+    expect(screen.getByRole("heading", { name: "Song A" })).toBeVisible();
+    expect(screen.getByText("1/1")).toBeVisible();
+  });
+
+  it("uses arrow shortcuts without hijacking interactive controls or dialogs", () => {
+    render(React.createElement(PerformanceView, { snapshot }));
+
+    fireEvent.keyDown(window, { key: "ArrowRight" });
+    expect(screen.getByRole("heading", { name: "Song B" })).toBeVisible();
+
+    const select = document.createElement("select");
+    document.body.append(select);
+    fireEvent.keyDown(select, { key: "ArrowRight" });
+    expect(screen.getByRole("heading", { name: "Song B" })).toBeVisible();
+    select.remove();
+
+    fireEvent.click(screen.getByLabelText("Open performance menu"));
+    expect(screen.getByRole("dialog")).toBeVisible();
+    fireEvent.keyDown(window, { key: "ArrowRight" });
+    expect(screen.getByRole("heading", { name: "Song B" })).toBeVisible();
+
+    fireEvent.click(screen.getByLabelText("Close performance menu"));
+    fireEvent.keyDown(window, { key: "ArrowLeft", ctrlKey: true });
+    expect(screen.getByRole("heading", { name: "Song B" })).toBeVisible();
+    fireEvent.keyDown(window, { key: "ArrowLeft" });
+    expect(screen.getByRole("heading", { name: "Song A" })).toBeVisible();
+  });
+
+  it("keeps an independent offset for every setlist entry", () => {
+    const originalChords = snapshot.songs.map((song) => ({
+      ...song.sections[0].lines[0].chords[0],
+    }));
     render(React.createElement(PerformanceView, { snapshot }));
 
     expect(screen.getByLabelText("Transpose offset")).toHaveTextContent("0");
@@ -143,9 +178,9 @@ describe("performance transposition", () => {
     expect(screen.getByLabelText("Transpose offset")).toHaveTextContent("-1");
     expect(displayedChord()).toHaveTextContent("G#m");
 
-    expect(snapshot.songs.map((song) => song.sections[0].lines[0].chords[0])).toEqual(
-      originalChords,
-    );
+    expect(
+      snapshot.songs.map((song) => song.sections[0].lines[0].chords[0]),
+    ).toEqual(originalChords);
     expect(originalChords).toEqual([
       { id: "chord-a", symbol: "G", position: 12 },
       { id: "chord-b", symbol: "C", position: 4 },

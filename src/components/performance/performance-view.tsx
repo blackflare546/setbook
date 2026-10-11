@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import * as Dialog from "@radix-ui/react-dialog";
 import {
@@ -54,7 +54,7 @@ import { cn } from "@/lib/utils";
 import { AreaTutorial } from "@/components/tutorials/area-tutorial";
 import { useResponsiveAutoHideControls } from "./use-responsive-auto-hide-controls";
 
-function ChartLine({
+const ChartLine = memo(function ChartLine({
   line,
   semitones,
   fontSettings,
@@ -146,7 +146,7 @@ function ChartLine({
       </div>
     </div>
   );
-}
+});
 
 const FONT_ROWS: Array<{ category: ChartFontCategory; label: string }> = [
   { category: "section", label: "Sections" },
@@ -201,7 +201,7 @@ function ChartAppearancePanel({
               aria-label={`Decrease ${category} font size`}
               onClick={() => onChange(category, -10)}
             >
-              <Minus size={18} />
+              <Minus size={18} aria-hidden="true" />
             </Button>
             <span
               className="text-center text-sm font-bold tabular-nums"
@@ -216,7 +216,7 @@ function ChartAppearancePanel({
               aria-label={`Increase ${category} font size`}
               onClick={() => onChange(category, 10)}
             >
-              <Plus size={18} />
+              <Plus size={18} aria-hidden="true" />
             </Button>
           </div>
         );
@@ -230,7 +230,7 @@ function ChartAppearancePanel({
           aria-label="Decrease line height"
           onClick={() => onLineHeightChange(-0.1)}
         >
-          <Minus size={18} />
+          <Minus size={18} aria-hidden="true" />
         </Button>
         <span
           className="text-center text-sm font-bold tabular-nums"
@@ -245,13 +245,14 @@ function ChartAppearancePanel({
           aria-label="Increase line height"
           onClick={() => onLineHeightChange(0.1)}
         >
-          <Plus size={18} />
+          <Plus size={18} aria-hidden="true" />
         </Button>
       </div>
       <div className="border-t border-slate-200 pt-3 dark:border-slate-800">
         <p className="mb-2 text-sm font-semibold">Layout</p>
         <div
           className="grid grid-cols-3 gap-1 rounded-lg bg-slate-100 p-1 dark:bg-slate-900"
+          role="group"
           aria-label="Chart layout"
         >
           {CHART_LAYOUT_OPTIONS.map((option) => (
@@ -373,7 +374,7 @@ function ChartFontControls(props: ChartAppearanceProps) {
                 className="h-11 w-11"
                 aria-label="Close font size controls"
               >
-                <X size={20} />
+                <X size={20} aria-hidden="true" />
               </Button>
             </Dialog.Close>
           </div>
@@ -422,7 +423,11 @@ export function PerformanceView({
   const performanceRootRef = useRef<HTMLElement>(null);
   const chartScrollRef = useRef<HTMLDivElement>(null);
   const autoHide = useResponsiveAutoHideControls(chartScrollRef, !singleSong);
-  const song = snapshot.songs[current];
+  const currentIndex = Math.min(
+    current,
+    Math.max(0, snapshot.songs.length - 1),
+  );
+  const song = snapshot.songs[currentIndex];
   const selectSong = useCallback(
     (index: number) => {
       setCurrent(Math.max(0, Math.min(snapshot.songs.length - 1, index)));
@@ -431,12 +436,22 @@ export function PerformanceView({
   );
 
   useEffect(() => {
-    void settingsRepository.get().then((settings) => {
-      setFontSettings(settings.chartFontSettings);
-      setChartColors(settings.chartColors);
-      setDarkChartColors(settings.darkChartColors);
-      setChartLayout(settings.chartLayout);
-    });
+    let active = true;
+    void settingsRepository
+      .get()
+      .then((settings) => {
+        if (!active) return;
+        setFontSettings(settings.chartFontSettings);
+        setChartColors(settings.chartColors);
+        setDarkChartColors(settings.darkChartColors);
+        setChartLayout(settings.chartLayout);
+      })
+      .catch(() => {
+        // Keep the readable in-memory defaults when settings are unavailable.
+      });
+    return () => {
+      active = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -464,7 +479,7 @@ export function PerformanceView({
         container.scrollTop = 0;
         container.scrollLeft = 0;
       });
-  }, [current]);
+  }, [currentIndex]);
 
   useEffect(() => {
     const syncFullscreenState = () => {
@@ -482,12 +497,40 @@ export function PerformanceView({
 
   useEffect(() => {
     function key(event: KeyboardEvent) {
-      if (event.key === "ArrowRight") selectSong(current + 1);
-      if (event.key === "ArrowLeft") selectSong(current - 1);
+      if (
+        singleSong ||
+        showOrder ||
+        event.defaultPrevented ||
+        event.altKey ||
+        event.ctrlKey ||
+        event.metaKey ||
+        event.shiftKey ||
+        (event.target instanceof HTMLElement &&
+          (event.target.isContentEditable ||
+            Boolean(
+              event.target.closest(
+                "input, select, textarea, button, a, [role='dialog'], [role='slider'], [role='spinbutton']",
+              ),
+            )))
+      )
+        return;
+      if (event.key === "ArrowRight") {
+        event.preventDefault();
+        selectSong(currentIndex + 1);
+      }
+      if (event.key === "ArrowLeft") {
+        event.preventDefault();
+        selectSong(currentIndex - 1);
+      }
     }
     window.addEventListener("keydown", key);
     return () => window.removeEventListener("keydown", key);
-  }, [current, selectSong]);
+  }, [currentIndex, selectSong, showOrder, singleSong]);
+
+  const displayedChartColors = useMemo(
+    () => resolveChartColors(chartColors, darkChartColors, resolvedTheme),
+    [chartColors, darkChartColors, resolvedTheme],
+  );
 
   function changeFontScale(category: ChartFontCategory, change: number) {
     setFontSettings((currentSettings) => {
@@ -551,7 +594,7 @@ export function PerformanceView({
     return (
       <main className="grid min-h-dvh place-items-center bg-slate-50 px-5 text-slate-950 dark:bg-slate-950 dark:text-white">
         <div className="text-center">
-          <Music2 className="mx-auto mb-3 text-indigo-500" />
+          <Music2 className="mx-auto mb-3 text-indigo-500" aria-hidden="true" />
           <h1 className="text-xl font-bold">This setlist is empty</h1>
           {backHref && (
             <Button asChild variant="secondary" className="mt-4">
@@ -583,11 +626,6 @@ export function PerformanceView({
     : "Not set";
   const activeChartColors =
     resolvedTheme === "dark" ? darkChartColors : chartColors;
-  const displayedChartColors = resolveChartColors(
-    chartColors,
-    darkChartColors,
-    resolvedTheme,
-  );
   const controlsVisible =
     tutorialActive || !autoHide.responsive || autoHide.controlsVisible;
 
@@ -601,10 +639,7 @@ export function PerformanceView({
       )}
     >
       {!singleSong && !publicMode && (
-        <AreaTutorial
-          id="performance"
-          onActiveChange={setTutorialActive}
-        />
+        <AreaTutorial id="performance" onActiveChange={setTutorialActive} />
       )}
       {!singleSong && autoHide.responsive && controlsVisible && (
         <Button
@@ -618,7 +653,7 @@ export function PerformanceView({
             setShowOrder(true);
           }}
         >
-          <List size={21} />
+          <List size={21} aria-hidden="true" />
         </Button>
       )}
       <header
@@ -645,7 +680,7 @@ export function PerformanceView({
               aria-label="Go back"
             >
               <Link href={backHref}>
-                <ArrowLeft size={19} />
+                <ArrowLeft size={19} aria-hidden="true" />
               </Link>
             </Button>
           )}
@@ -660,7 +695,7 @@ export function PerformanceView({
             {!singleSong && (
               <p className="truncate text-xs text-slate-500 dark:text-slate-400 sm:text-sm">
                 {publicMode ? `${snapshot.name} · ` : ""}
-                {current + 1} of {snapshot.songs.length}
+                {currentIndex + 1} of {snapshot.songs.length}
                 {snapshot.venue ? ` · ${snapshot.venue}` : ""}
               </p>
             )}
@@ -668,7 +703,7 @@ export function PerformanceView({
           {publicMode && publicToken && (
             <Button asChild variant="secondary" size="sm" className="h-11">
               <Link href={`/shared/${publicToken}`}>
-                <ExternalLink size={16} />
+                <ExternalLink size={16} aria-hidden="true" />
                 <span className="hidden sm:inline">Open in SetBook</span>
               </Link>
             </Button>
@@ -677,7 +712,7 @@ export function PerformanceView({
           {editHref && (
             <Button asChild variant="secondary" size="sm" className="h-11">
               <Link href={editHref}>
-                <Edit3 size={16} />
+                <Edit3 size={16} aria-hidden="true" />
                 <span className="hidden min-[375px]:inline">Edit song</span>
               </Link>
             </Button>
@@ -697,7 +732,7 @@ export function PerformanceView({
                   aria-hidden={autoHide.responsive || undefined}
                   tabIndex={autoHide.responsive ? -1 : undefined}
                 >
-                  <List size={21} />
+                  <List size={21} aria-hidden="true" />
                 </Button>
               </Dialog.Trigger>
               <Dialog.Portal>
@@ -714,7 +749,7 @@ export function PerformanceView({
                         className="h-11 w-11"
                         aria-label="Close performance menu"
                       >
-                        <X size={20} />
+                        <X size={20} aria-hidden="true" />
                       </Button>
                     </Dialog.Close>
                   </div>
@@ -762,7 +797,7 @@ export function PerformanceView({
                       }}
                     >
                       <span className="flex items-center gap-2">
-                        <StickyNote size={18} />
+                        <StickyNote size={18} aria-hidden="true" />
                         Band Notes
                       </span>
                       <span className="text-xs text-indigo-700 dark:text-indigo-300">
@@ -787,7 +822,10 @@ export function PerformanceView({
                           selectSong(index);
                           setShowOrder(false);
                         }}
-                        className={`flex min-h-12 w-full items-center gap-3 rounded-[10px] p-3 text-left ${index === current ? "bg-slate-950 text-white dark:bg-slate-800 dark:text-slate-100" : "text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"}`}
+                        aria-current={
+                          index === currentIndex ? "true" : undefined
+                        }
+                        className={`flex min-h-12 w-full items-center gap-3 rounded-[10px] p-3 text-left ${index === currentIndex ? "bg-slate-950 text-white dark:bg-slate-800 dark:text-slate-100" : "text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"}`}
                       >
                         <span className="w-5 shrink-0 text-xs font-bold">
                           {index + 1}
@@ -836,7 +874,11 @@ export function PerformanceView({
             disabled={!fullscreenAvailable}
             onClick={() => void toggleFullscreen()}
           >
-            {isFullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
+            {isFullscreen ? (
+              <Minimize2 size={18} aria-hidden="true" />
+            ) : (
+              <Maximize2 size={18} aria-hidden="true" />
+            )}
           </Button>
         </div>
       </header>
@@ -865,7 +907,10 @@ export function PerformanceView({
         >
           <div className="mb-6 border-b border-slate-200 pb-5 dark:border-slate-800 sm:mb-8 sm:flex sm:items-end sm:justify-between sm:gap-4">
             <div className="min-w-0">
-              <h1 className="break-words text-2xl font-semibold tracking-[-0.04em] min-[375px]:text-3xl sm:text-4xl">
+              <h1
+                aria-live="polite"
+                className="break-words text-2xl font-semibold tracking-[-0.04em] min-[375px]:text-3xl sm:text-4xl"
+              >
                 {song.title}
               </h1>
               <p className="mt-1 text-sm text-slate-500 dark:text-slate-400 sm:text-base">
@@ -882,6 +927,7 @@ export function PerformanceView({
                 </p>
                 <p
                   aria-label="Current key"
+                  aria-live="polite"
                   className="font-mono text-xl font-bold text-indigo-700 dark:text-amber-200"
                 >
                   {currentKey}
@@ -894,6 +940,7 @@ export function PerformanceView({
               </div>
               <div
                 className="flex items-center gap-1"
+                role="group"
                 aria-label="Transpose controls"
               >
                 <Button
@@ -903,11 +950,12 @@ export function PerformanceView({
                   aria-label="Transpose down"
                   onClick={() => changeTransposeOffset(-1)}
                 >
-                  <Minus size={18} />
+                  <Minus size={18} aria-hidden="true" />
                 </Button>
                 <span
                   className="w-8 text-center text-xs font-bold"
                   aria-label="Transpose offset"
+                  aria-live="polite"
                 >
                   {transposeOffset > 0
                     ? `+${transposeOffset}`
@@ -920,7 +968,7 @@ export function PerformanceView({
                   aria-label="Transpose up"
                   onClick={() => changeTransposeOffset(1)}
                 >
-                  <Plus size={18} />
+                  <Plus size={18} aria-hidden="true" />
                 </Button>
                 <Button
                   size="icon"
@@ -930,7 +978,7 @@ export function PerformanceView({
                   disabled={transposeOffset === 0}
                   onClick={resetTransposeOffset}
                 >
-                  <RotateCcw size={16} />
+                  <RotateCcw size={16} aria-hidden="true" />
                 </Button>
               </div>
             </div>
@@ -1028,29 +1076,31 @@ export function PerformanceView({
             <Button
               variant="ghost"
               className="min-w-0 flex-1"
-              disabled={current === 0}
-              onClick={() => selectSong(current - 1)}
+              disabled={currentIndex === 0}
+              onClick={() => selectSong(currentIndex - 1)}
             >
-              <ChevronLeft />
+              <ChevronLeft aria-hidden="true" />
               <span className="hidden truncate sm:inline">
-                {current ? snapshot.songs[current - 1]?.title : "Previous"}
+                {currentIndex
+                  ? snapshot.songs[currentIndex - 1]?.title
+                  : "Previous"}
               </span>
               <span className="sm:hidden">Prev</span>
             </Button>
             <span className="shrink-0 text-xs font-bold text-slate-500">
-              {current + 1}/{snapshot.songs.length}
+              {currentIndex + 1}/{snapshot.songs.length}
             </span>
             <Button
               variant="ghost"
               className="min-w-0 flex-1"
-              disabled={current === snapshot.songs.length - 1}
-              onClick={() => selectSong(current + 1)}
+              disabled={currentIndex === snapshot.songs.length - 1}
+              onClick={() => selectSong(currentIndex + 1)}
             >
               <span className="hidden truncate sm:inline">
-                {snapshot.songs[current + 1]?.title ?? "Next"}
+                {snapshot.songs[currentIndex + 1]?.title ?? "Next"}
               </span>
               <span className="sm:hidden">Next</span>
-              <ChevronRight />
+              <ChevronRight aria-hidden="true" />
             </Button>
           </div>
         </footer>
