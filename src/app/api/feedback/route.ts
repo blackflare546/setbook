@@ -7,6 +7,20 @@ const feedbackSchema = z.object({
   email: z.union([z.literal(""), z.string().trim().email().max(254)]),
   website: z.string().max(200).optional().default(""),
 });
+const MAX_FEEDBACK_BODY_BYTES = 16 * 1024;
+
+async function readFeedbackBody(request: Request): Promise<unknown> {
+  const declaredLength = Number(request.headers.get("content-length"));
+  if (
+    Number.isFinite(declaredLength) &&
+    declaredLength > MAX_FEEDBACK_BODY_BYTES
+  )
+    throw new RangeError("Feedback payload is too large.");
+  const text = await request.text();
+  if (new TextEncoder().encode(text).byteLength > MAX_FEEDBACK_BODY_BYTES)
+    throw new RangeError("Feedback payload is too large.");
+  return JSON.parse(text);
+}
 
 export async function POST(request: Request) {
   if (!request.headers.get("content-type")?.includes("application/json")) {
@@ -16,7 +30,20 @@ export async function POST(request: Request) {
     );
   }
 
-  const body = await request.json().catch(() => null);
+  let body: unknown;
+  try {
+    body = await readFeedbackBody(request);
+  } catch (error) {
+    return NextResponse.json(
+      {
+        error:
+          error instanceof RangeError
+            ? "Feedback is too large to submit."
+            : "Feedback must contain valid JSON.",
+      },
+      { status: error instanceof RangeError ? 413 : 400 },
+    );
+  }
   const parsed = feedbackSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(

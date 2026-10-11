@@ -247,6 +247,17 @@ describe("published setlist storage configuration", () => {
     );
   });
 
+  it("never uses the development capability secret in production", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("VERCEL", "");
+    vi.stubEnv("VERCEL_ENV", "");
+    vi.stubEnv("SHARE_CAPABILITY_SECRET", "");
+
+    expect(() => capabilityVerifier("owner-capability")).toThrow(
+      PublishedStoreConfigurationError,
+    );
+  });
+
   it("returns an actionable service error for missing Blob configuration", () => {
     expect(
       publishedStoreErrorResponse(new PublishedStoreConfigurationError()),

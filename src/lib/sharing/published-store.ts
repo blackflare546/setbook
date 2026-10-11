@@ -59,7 +59,10 @@ export class SharedRecordConflictError extends Error {
 function serverSecret(): string {
   const value = process.env.SHARE_CAPABILITY_SECRET;
   if (value) return value;
-  if (isVercelRuntime()) throw new PublishedStoreConfigurationError();
+  if (process.env.NODE_ENV === "production" || isVercelRuntime())
+    throw new PublishedStoreConfigurationError(
+      "Public sharing is not configured. Set SHARE_CAPABILITY_SECRET to a stable random server-only value and redeploy.",
+    );
   return "setbook-local-development-capability-secret";
 }
 

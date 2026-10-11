@@ -3,7 +3,14 @@ import { expect, test } from "./fixtures";
 test("announces navigation state and provides one keyboard-reachable main area", async ({
   page,
 }) => {
-  await page.goto("/library");
+  const response = await page.goto("/library");
+  const headers = response?.headers() ?? {};
+  expect(headers["content-security-policy"]).toContain(
+    "frame-ancestors 'none'",
+  );
+  expect(headers["permissions-policy"]).toContain("camera=(self)");
+  expect(headers["x-content-type-options"]).toBe("nosniff");
+  expect(headers["x-powered-by"]).toBeUndefined();
 
   const skipLink = page.getByRole("link", { name: "Skip to content" });
   await expect(skipLink).toHaveAttribute("href", "#main-content");

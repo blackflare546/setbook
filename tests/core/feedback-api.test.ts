@@ -64,6 +64,30 @@ describe("feedback API", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it("rejects malformed and oversized JSON before validation", async () => {
+    const malformed = await POST(
+      new Request("http://localhost/api/feedback", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: "{",
+      }),
+    );
+    expect(malformed.status).toBe(400);
+
+    const oversized = await POST(
+      new Request("http://localhost/api/feedback", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "content-length": String(16 * 1024 + 1),
+        },
+        body: "{}",
+      }),
+    );
+    expect(oversized.status).toBe(413);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it("silently accepts honeypot submissions without forwarding them", async () => {
     const response = await POST(
       feedbackRequest({
