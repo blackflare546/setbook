@@ -115,7 +115,7 @@ test("progressively renders and searches the full song and setlist collections",
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBeLessThan(2);
   await page.getByRole("button", { name: "Show more" }).click();
   await expect(page.getByTestId(/^song-row-/)).toHaveCount(120);
-  await page.getByPlaceholder("Search title, artist, or tag…").fill("125");
+  await page.getByRole("searchbox", { name: "Search songs" }).fill("125");
   await expect(
     page.getByRole("heading", { name: "Library Song 125" }),
   ).toBeVisible();

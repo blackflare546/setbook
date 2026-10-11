@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useLiveQuery } from "dexie-react-hooks";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
@@ -37,9 +37,13 @@ import { LoadingState } from "@/components/ui/loading-state";
 function SongActions({
   song,
   onDelete,
+  onDuplicate,
+  duplicating,
 }: {
   song: Song;
   onDelete: (song: Song) => void;
+  onDuplicate: (song: Song) => void;
+  duplicating: boolean;
 }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   return (
@@ -51,30 +55,37 @@ function SongActions({
             size="icon"
             aria-label={`Show QR for ${song.title}`}
           >
-            <QrCode size={17} />
+            <QrCode size={17} aria-hidden="true" />
           </Button>
         </SongQrExportDialog>
-        <Button asChild variant="ghost" size="icon" aria-label="Edit song">
+        <Button
+          asChild
+          variant="ghost"
+          size="icon"
+          aria-label={`Edit song: ${song.title}`}
+        >
           <Link href={`/songs/${song.id}/edit`}>
-            <Pencil size={17} />
+            <Pencil size={17} aria-hidden="true" />
           </Link>
         </Button>
         <Button
           variant="ghost"
           size="icon"
-          aria-label="Duplicate song"
-          onClick={() => void songRepository.duplicate(song.id)}
+          aria-label={`Duplicate song: ${song.title}`}
+          onClick={() => onDuplicate(song)}
+          isLoading={duplicating}
+          loadingLabel={`Duplicating ${song.title}…`}
         >
-          <Copy size={17} />
+          <Copy size={17} aria-hidden="true" />
         </Button>
         <Button
           variant="ghost"
           size="icon"
           className="text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:text-rose-400 dark:hover:bg-rose-950/40 dark:hover:text-rose-300"
-          aria-label="Delete song"
+          aria-label={`Delete song: ${song.title}`}
           onClick={() => onDelete(song)}
         >
-          <Trash2 size={17} />
+          <Trash2 size={17} aria-hidden="true" />
         </Button>
       </div>
       <DropdownMenu.Root open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
@@ -85,7 +96,7 @@ function SongActions({
             className="h-11 w-11 shrink-0 sm:hidden"
             aria-label={`Song actions for ${song.title}`}
           >
-            <MoreHorizontal size={20} />
+            <MoreHorizontal size={20} aria-hidden="true" />
           </Button>
         </DropdownMenu.Trigger>
         <DropdownMenu.Portal>
@@ -99,16 +110,17 @@ function SongActions({
                 href={`/songs/${song.id}/edit`}
                 className="flex min-h-11 cursor-pointer items-center gap-3 rounded-md px-3 text-sm font-semibold outline-none hover:bg-slate-100 focus:bg-slate-100 dark:hover:bg-slate-800 dark:focus:bg-slate-800"
               >
-                <Pencil size={17} />
+                <Pencil size={17} aria-hidden="true" />
                 Edit
               </Link>
             </DropdownMenu.Item>
             <DropdownMenu.Item
               className="flex min-h-11 cursor-pointer items-center gap-3 rounded-md px-3 text-sm font-semibold outline-none hover:bg-slate-100 focus:bg-slate-100 dark:hover:bg-slate-800 dark:focus:bg-slate-800"
-              onSelect={() => void songRepository.duplicate(song.id)}
+              disabled={duplicating}
+              onSelect={() => onDuplicate(song)}
             >
-              <Copy size={17} />
-              Duplicate
+              <Copy size={17} aria-hidden="true" />
+              {duplicating ? "Duplicating…" : "Duplicate"}
             </DropdownMenu.Item>
             <DropdownMenu.Separator className="my-1 h-px bg-slate-200 dark:bg-slate-700" />
             <SongQrExportDialog
@@ -121,7 +133,7 @@ function SongActions({
                 className="flex min-h-11 cursor-pointer items-center gap-3 rounded-md px-3 text-sm font-semibold outline-none hover:bg-slate-100 focus:bg-slate-100 dark:hover:bg-slate-800 dark:focus:bg-slate-800"
                 onSelect={(event) => event.preventDefault()}
               >
-                <QrCode size={17} />
+                <QrCode size={17} aria-hidden="true" />
                 Show QR
               </DropdownMenu.Item>
             </SongQrExportDialog>
@@ -130,7 +142,7 @@ function SongActions({
               className="flex min-h-11 cursor-pointer items-center gap-3 rounded-md px-3 text-sm font-semibold text-rose-600 outline-none hover:bg-rose-50 focus:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/40 dark:focus:bg-rose-950/40"
               onSelect={() => onDelete(song)}
             >
-              <Trash2 size={17} />
+              <Trash2 size={17} aria-hidden="true" />
               Delete
             </DropdownMenu.Item>
           </DropdownMenu.Content>
@@ -140,6 +152,47 @@ function SongActions({
   );
 }
 
+const SongRow = memo(function SongRow({
+  song,
+  onDelete,
+  onDuplicate,
+  duplicating,
+}: {
+  song: Song;
+  onDelete: (song: Song) => void;
+  onDuplicate: (song: Song) => void;
+  duplicating: boolean;
+}) {
+  return (
+    <div
+      data-testid={`song-row-${song.id}`}
+      className="group flex min-w-0 items-center gap-3 p-4 transition-colors hover:bg-slate-50 sm:gap-4 sm:px-5 dark:hover:bg-slate-800/50"
+    >
+      <div className="hidden h-10 w-10 place-items-center rounded-[10px] border border-indigo-100 bg-indigo-50 text-indigo-600 sm:grid dark:border-indigo-900 dark:bg-indigo-950/50">
+        <FileMusic size={19} aria-hidden="true" />
+      </div>
+      <Link href={`/songs/${song.id}`} className="min-w-0 flex-1">
+        <h2 className="break-words font-semibold text-slate-950 group-hover:text-indigo-700 dark:text-white dark:group-hover:text-indigo-300">
+          {song.title}
+        </h2>
+        <p className="break-words text-sm text-slate-500 dark:text-slate-400">
+          {song.artist || "Unknown artist"} ·{" "}
+          {song.originalKey
+            ? `Key of ${formatMusicalKey(song.originalKey)}`
+            : "No key set"}{" "}
+          · {song.sections.length} sections
+        </p>
+      </Link>
+      <SongActions
+        song={song}
+        onDelete={onDelete}
+        onDuplicate={onDuplicate}
+        duplicating={duplicating}
+      />
+    </div>
+  );
+});
+
 export function SongLibrary() {
   const liveSongs = useLiveQuery(() => songRepository.list(), []);
   const songs = useMemo(() => liveSongs ?? [], [liveSongs]);
@@ -147,6 +200,9 @@ export function SongLibrary() {
   const [sort, setSort] = useState<"updated" | "title">("updated");
   const [deletingSong, setDeletingSong] = useState<Song | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [duplicatingSongId, setDuplicatingSongId] = useState<string | null>(
+    null,
+  );
   const [backingUp, setBackingUp] = useState(false);
   const [restoreFile, setRestoreFile] = useState<File | null>(null);
   const [restoring, setRestoring] = useState(false);
@@ -155,20 +211,30 @@ export function SongLibrary() {
     tone: "success" | "error";
   } | null>(null);
   const importRef = useRef<HTMLInputElement>(null);
+  const duplicateInFlightRef = useRef(false);
+  const searchableSongs = useMemo(
+    () =>
+      songs.map((song) => ({
+        song,
+        searchText:
+          `${song.title} ${song.artist} ${song.tags.join(" ")}`.toLocaleLowerCase(),
+      })),
+    [songs],
+  );
+  const normalizedQuery = query.trim().toLocaleLowerCase();
   const filtered = useMemo(() => {
-    const normalized = query.toLowerCase();
-    const found = songs.filter((song) =>
-      `${song.title} ${song.artist} ${song.tags.join(" ")}`
-        .toLowerCase()
-        .includes(normalized),
-    );
+    const found = normalizedQuery
+      ? searchableSongs
+          .filter(({ searchText }) => searchText.includes(normalizedQuery))
+          .map(({ song }) => song)
+      : songs;
     return sort === "title"
       ? found.toSorted((a, b) => a.title.localeCompare(b.title))
       : found;
-  }, [songs, query, sort]);
+  }, [normalizedQuery, searchableSongs, songs, sort]);
   const progressive = useProgressiveCollection(
     filtered,
-    `${query}\u0000${sort}`,
+    `${normalizedQuery}\u0000${sort}`,
   );
 
   useEffect(() => {
@@ -182,14 +248,19 @@ export function SongLibrary() {
     setBackingUp(true);
     setFeedback(null);
     try {
-      const url = URL.createObjectURL(
+      const downloadUrl = URL.createObjectURL(
         new Blob([await exportLibrary()], { type: "application/json" }),
       );
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `setbook-backup-${new Date().toISOString().slice(0, 10)}.json`;
-      link.click();
-      URL.revokeObjectURL(url);
+      try {
+        const link = document.createElement("a");
+        link.href = downloadUrl;
+        link.download = `setbook-backup-${new Date().toISOString().slice(0, 10)}.json`;
+        document.body.append(link);
+        link.click();
+        link.remove();
+      } finally {
+        URL.revokeObjectURL(downloadUrl);
+      }
       setFeedback({ message: "Backup downloaded", tone: "success" });
     } catch {
       setFeedback({
@@ -244,6 +315,28 @@ export function SongLibrary() {
     }
   }
 
+  const duplicateSong = useCallback(async (song: Song) => {
+    if (duplicateInFlightRef.current) return;
+
+    duplicateInFlightRef.current = true;
+    setDuplicatingSongId(song.id);
+    setFeedback(null);
+
+    try {
+      const duplicate = await songRepository.duplicate(song.id);
+      if (!duplicate) throw new Error("Song not found");
+      setFeedback({ message: `“${song.title}” duplicated`, tone: "success" });
+    } catch {
+      setFeedback({
+        message: "Song could not be duplicated. Please try again.",
+        tone: "error",
+      });
+    } finally {
+      duplicateInFlightRef.current = false;
+      setDuplicatingSongId(null);
+    }
+  }, []);
+
   if (liveSongs === undefined) {
     return (
       <LoadingState label="Loading song library…" className="min-h-[60dvh]" />
@@ -291,7 +384,7 @@ export function SongLibrary() {
                 onClick={() => importRef.current?.click()}
                 disabled={restoring}
               >
-                <Upload size={16} />
+                <Upload size={16} aria-hidden="true" />
                 Import backup
               </Button>
               <Button
@@ -300,7 +393,7 @@ export function SongLibrary() {
                 isLoading={backingUp}
                 loadingLabel="Creating backup…"
               >
-                <Download size={16} />
+                <Download size={16} aria-hidden="true" />
                 Back up
               </Button>
               <SongQrImportDialog
@@ -323,8 +416,11 @@ export function SongLibrary() {
           <Search
             className="absolute left-3 top-2.5 text-slate-400"
             size={18}
+            aria-hidden="true"
           />
           <Input
+            type="search"
+            aria-label="Search songs"
             className="pl-10"
             placeholder="Search title, artist, or tag…"
             value={query}
@@ -333,55 +429,45 @@ export function SongLibrary() {
         </label>
         <Button
           variant="secondary"
+          aria-label={
+            sort === "updated"
+              ? "Sort songs by title"
+              : "Sort songs by recently edited"
+          }
           onClick={() => setSort(sort === "updated" ? "title" : "updated")}
         >
-          <ArrowDownAZ size={17} />
+          <ArrowDownAZ size={17} aria-hidden="true" />
           {sort === "updated" ? "Recently edited" : "Title A–Z"}
         </Button>
       </Card>
       <div data-tour="library-collection">
         {filtered.length ? (
-          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.03),0_12px_32px_-28px_rgba(0,0,0,0.35)] dark:border-slate-800 dark:bg-slate-900 dark:shadow-none">
-            {progressive.visibleItems.map((song, index) => (
-              <div
+          <div className="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.03),0_12px_32px_-28px_rgba(0,0,0,0.35)] dark:divide-slate-800 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none">
+            {progressive.visibleItems.map((song) => (
+              <SongRow
                 key={song.id}
-                data-testid={`song-row-${song.id}`}
-                className={`group flex min-w-0 items-center gap-3 p-4 transition-colors hover:bg-slate-50 sm:gap-4 sm:px-5 dark:hover:bg-slate-800/50 ${index ? "border-t border-slate-100 dark:border-slate-800" : ""}`}
-              >
-                <div className="hidden h-10 w-10 place-items-center rounded-[10px] border border-indigo-100 bg-indigo-50 text-indigo-600 sm:grid dark:border-indigo-900 dark:bg-indigo-950/50">
-                  <FileMusic size={19} />
-                </div>
-                <Link href={`/songs/${song.id}`} className="min-w-0 flex-1">
-                  <h2 className="break-words font-semibold text-slate-950 group-hover:text-indigo-700 dark:text-white dark:group-hover:text-indigo-300">
-                    {song.title}
-                  </h2>
-                  <p className="break-words text-sm text-slate-500 dark:text-slate-400">
-                    {song.artist || "Unknown artist"} ·{" "}
-                    {song.originalKey
-                      ? `Key of ${formatMusicalKey(song.originalKey)}`
-                      : "No key set"}{" "}
-                    · {song.sections.length} sections
-                  </p>
-                </Link>
-                <SongActions song={song} onDelete={setDeletingSong} />
-              </div>
+                song={song}
+                onDelete={setDeletingSong}
+                onDuplicate={duplicateSong}
+                duplicating={duplicatingSongId === song.id}
+              />
             ))}
           </div>
         ) : (
           <Card className="grid min-h-80 place-items-center p-8 text-center">
             <div>
               <span className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-300">
-                <FileMusic size={26} />
+                <FileMusic size={26} aria-hidden="true" />
               </span>
               <h2 className="text-lg font-bold">
-                {query ? "No songs found" : "Build your book"}
+                {normalizedQuery ? "No songs found" : "Build your book"}
               </h2>
               <p className="mx-auto mt-1 max-w-sm text-sm text-slate-500">
-                {query
+                {normalizedQuery
                   ? "Try a different title, artist, or tag."
                   : "Paste in an ordinary chord sheet and SetBook will turn it into an editable chart."}
               </p>
-              {!query && (
+              {!normalizedQuery && (
                 <Button asChild className="mt-5">
                   <Link href="/songs/new">Create your first song</Link>
                 </Button>
@@ -430,7 +516,7 @@ export function SongLibrary() {
                 loadingLabel="Deleting…"
                 onClick={() => void deleteSong()}
               >
-                <Trash2 size={16} />
+                <Trash2 size={16} aria-hidden="true" />
                 Delete
               </Button>
             </div>
@@ -465,12 +551,11 @@ export function SongLibrary() {
               </Dialog.Close>
               <Button
                 type="button"
-                variant="danger"
                 isLoading={restoring}
                 loadingLabel="Importing…"
                 onClick={() => void restore()}
               >
-                <Upload size={16} />
+                <Upload size={16} aria-hidden="true" />
                 Import new items
               </Button>
             </div>

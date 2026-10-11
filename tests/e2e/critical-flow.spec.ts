@@ -354,6 +354,7 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
 
   await songActions.click();
   await page.getByRole("menuitem", { name: "Duplicate" }).click();
+  await expect(page.getByText(`“${title}” duplicated`)).toBeVisible();
   await expect(page.getByText("2 songs, available offline")).toBeVisible();
   const copyActions = page.getByLabel(`Song actions for ${title} copy`);
   await copyActions.click();
