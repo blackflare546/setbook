@@ -1,9 +1,5 @@
-"use client";
-
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
 import {
   ArrowRight,
   BookOpen,
@@ -18,8 +14,8 @@ import {
 import performanceDesktop from "@/assets/landing/perform-desktop-tablet-view.jpeg";
 import performanceMobile from "@/assets/landing/perform-mobile-view.jpeg";
 import { SetBookLogo } from "@/components/brand/setbook-logo";
+import { OpenAppButton } from "@/components/marketing/open-app-button";
 import { Button } from "@/components/ui/button";
-import { settingsRepository } from "@/data/repositories/settings-repository";
 
 const benefits = [
   {
@@ -111,19 +107,6 @@ function ProductShowcase() {
 }
 
 export function LandingPage() {
-  const router = useRouter();
-  const [opening, setOpening] = useState(false);
-
-  async function openApp() {
-    if (opening) return;
-    setOpening(true);
-    try {
-      await settingsRepository.markLandingPageSeen();
-    } finally {
-      router.push("/library");
-    }
-  }
-
   return (
     <div
       data-testid="landing-page"
@@ -165,15 +148,10 @@ export function LandingPage() {
               Buy me a coffee
             </a>
           </nav>
-          <Button
-            className="ml-auto h-11 rounded-[10px] bg-[#101114] px-4 text-white hover:bg-[#292b31] active:translate-y-px md:ml-3 dark:bg-[#101114] dark:text-white dark:hover:bg-[#292b31]"
-            onClick={openApp}
-            isLoading={opening}
-            loadingLabel="Opening…"
-          >
+          <OpenAppButton className="ml-auto h-11 rounded-[10px] bg-[#101114] px-4 text-white hover:bg-[#292b31] active:translate-y-px md:ml-3 dark:bg-[#101114] dark:text-white dark:hover:bg-[#292b31]">
             Open App
             <ArrowRight size={16} aria-hidden="true" />
-          </Button>
+          </OpenAppButton>
         </div>
       </header>
 
@@ -200,16 +178,13 @@ export function LandingPage() {
                 from the same clear chart on desktop, tablet, or phone.
               </p>
               <div className="mt-9 flex flex-col gap-3 sm:flex-row">
-                <Button
+                <OpenAppButton
                   size="lg"
                   className="min-h-12 rounded-[10px] bg-[#101114] px-6 text-white shadow-sm hover:bg-[#292b31] active:translate-y-px dark:bg-[#101114] dark:text-white dark:hover:bg-[#292b31]"
-                  onClick={openApp}
-                  isLoading={opening}
-                  loadingLabel="Opening…"
                 >
                   Open Song Library
                   <ArrowRight size={18} aria-hidden="true" />
-                </Button>
+                </OpenAppButton>
                 <Button
                   asChild
                   size="lg"
@@ -366,15 +341,12 @@ export function LandingPage() {
                 dependable place.
               </p>
             </div>
-            <Button
+            <OpenAppButton
               size="lg"
               className="min-h-12 shrink-0 rounded-[10px] bg-white px-6 text-[#101114] hover:bg-[#eceef1] active:translate-y-px dark:bg-white dark:text-[#101114] dark:hover:bg-[#eceef1]"
-              onClick={openApp}
-              isLoading={opening}
-              loadingLabel="Opening…"
             >
               Open SetBook <ArrowRight size={18} aria-hidden="true" />
-            </Button>
+            </OpenAppButton>
           </div>
         </section>
       </main>
