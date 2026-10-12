@@ -52,6 +52,7 @@ import {
   canExtendPublication,
   formatPublicationDate,
 } from "@/lib/sharing/publication-lifecycle";
+import { publicPerformancePath } from "@/lib/sharing/shared-link";
 import {
   deletePublishedSetlistByToken,
   extendPublishedSetlist,
@@ -573,7 +574,7 @@ export function SetlistEditor({ id }: { id: string }) {
     setGeneratingQr(true);
     try {
       setQrDataUrl(
-        await QRCode.toDataURL(absoluteUrl(`/s/${token}`), {
+        await QRCode.toDataURL(absoluteUrl(publicPerformancePath(token)), {
           width: 640,
           margin: 2,
         }),
@@ -942,7 +943,9 @@ export function SetlistEditor({ id }: { id: string }) {
                 <Button asChild variant="secondary" className="w-full">
                   <Link
                     target="_blank"
-                    href={`/s/${setlist.shareBinding.publicToken}`}
+                    href={publicPerformancePath(
+                      setlist.shareBinding.publicToken,
+                    )}
                   >
                     <ExternalLink size={16} aria-hidden="true" />
                     Open public link
@@ -953,7 +956,11 @@ export function SetlistEditor({ id }: { id: string }) {
                     variant="secondary"
                     onClick={() =>
                       void copyText(
-                        absoluteUrl(`/s/${setlist.shareBinding!.publicToken}`),
+                        absoluteUrl(
+                          publicPerformancePath(
+                            setlist.shareBinding!.publicToken,
+                          ),
+                        ),
                         "Public link copied",
                       )
                     }

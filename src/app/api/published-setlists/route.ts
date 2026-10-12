@@ -11,6 +11,7 @@ import {
   readPublishedSnapshot,
 } from "@/lib/sharing/published-store";
 import { readJsonRequestBody } from "@/lib/sharing/request-body";
+import { publicPerformancePath } from "@/lib/sharing/shared-link";
 
 const createSchema = z.object({ snapshot: publishedSnapshotV2Schema });
 
@@ -57,7 +58,7 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         token,
-        url: `/s/${token}`,
+        url: publicPerformancePath(token),
         revision: 1,
         etag,
         ownerCapability,

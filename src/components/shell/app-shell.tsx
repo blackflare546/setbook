@@ -25,7 +25,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     pathname === "/" ||
     pathname === "/welcome" ||
     pathname.startsWith("/performance/") ||
-    pathname.startsWith("/s/") ||
+    /^\/shared\/[^/]+\/performance\/?$/.test(pathname) ||
     songView;
   if (immersive) return <>{children}</>;
   return (

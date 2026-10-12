@@ -19,11 +19,11 @@ the existing server-side sharing routes.
 - Production dependency audit: no known vulnerabilities
 - ESLint: clean
 - TypeScript: clean under strict mode
-- Vitest: 289 tests across 28 files
+- Vitest: 290 tests across 28 files
 - Playwright: 38 Chromium scenarios
 - Next.js production build: successful
 - Deployment smoke check: five primary pages, security headers, and health API
-- Emitted client JavaScript baseline: 33 chunks, 627.2 kB gzip, 526.2 kB
+- Emitted client JavaScript baseline: 33 chunks, 627.7 kB gzip, 526.7 kB
   Brotli in aggregate
 
 The bundle figure is the sum of every emitted client chunk, not the amount a

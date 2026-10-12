@@ -190,6 +190,10 @@ The sharing API is intentionally small:
 Anyone with the public link can view the shared setlist. Only the publishing
 device can update, extend, or unpublish it.
 
+Public performance links use `/shared/<token>/performance`. The former compact
+`/s/<token>` format redirects permanently so previously distributed links and
+QR codes continue to work.
+
 ## Response security
 
 SetBook sends a Content Security Policy and browser hardening headers from

@@ -19,7 +19,7 @@ export function QrScannerDialog() {
     (rawValue: string) => {
       const token = publicTokenFromSharedLink(rawValue, window.location.origin);
       if (!token) {
-        throw new Error("Use a SetBook public link that starts with /s/.");
+        throw new Error("Use a valid SetBook public performance link.");
       }
       setOpen(false);
       setPasteError(null);

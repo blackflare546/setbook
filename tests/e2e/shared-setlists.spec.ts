@@ -55,8 +55,10 @@ test("uses one setlist grid and applies shared updates explicitly", async ({
   });
   expect(createdResponse.status()).toBe(201);
   const created = await createdResponse.json();
+  expect(created.url).toBe(`/shared/${created.token}/performance`);
 
-  await page.goto(created.url);
+  await page.goto(`/s/${created.token}`);
+  await expect(page).toHaveURL(created.url);
   await expect(
     page.getByRole("link", { name: "Open in SetBook" }),
   ).toBeVisible();

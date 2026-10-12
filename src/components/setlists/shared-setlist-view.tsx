@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { FeedbackToast } from "@/components/ui/feedback-toast";
 import { LoadingState } from "@/components/ui/loading-state";
+import { publicPerformancePath } from "@/lib/sharing/shared-link";
 
 export function SharedSetlistView({ token }: { token: string }) {
   const followed = useLiveQuery(
@@ -270,7 +271,7 @@ export function SharedSetlistView({ token }: { token: string }) {
             asChild
             className="bg-indigo-600 text-white hover:bg-indigo-700 dark:bg-indigo-600 dark:text-white dark:hover:bg-indigo-500"
           >
-            <Link href={`/s/${token}`}>
+            <Link href={publicPerformancePath(token)}>
               <Play size={16} aria-hidden="true" /> Perform
             </Link>
           </Button>
