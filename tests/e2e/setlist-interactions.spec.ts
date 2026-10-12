@@ -91,16 +91,26 @@ async function restoreSetlistFixture(page: Page) {
 async function keyboardDrag(
   page: Page,
   accessibleName: string,
-  arrows: string[],
+  moves: Array<{ key: string; targetEntryId: string }>,
 ) {
   const handle = page.getByRole("button", { name: accessibleName });
   await handle.focus();
   await page.keyboard.press("Space");
-  for (const arrow of arrows) {
-    await page.keyboard.press(arrow);
-    await page.waitForTimeout(150);
+  await expect(handle).toHaveAttribute("aria-pressed", "true");
+
+  for (const move of moves) {
+    await page.keyboard.press(move.key);
+    await expect(
+      page
+        .getByTestId(`setlist-entry-${move.targetEntryId}`)
+        .locator("div.bg-indigo-500"),
+    ).toBeVisible();
   }
+
   await page.keyboard.press("Space");
+  await expect(
+    page.locator('[aria-roledescription="sortable"][aria-pressed="true"]'),
+  ).toHaveCount(0);
 }
 
 async function pointerDrag(
@@ -369,8 +379,8 @@ test("dragging reorders complete entries and persists only after Save", async ({
   );
 
   await keyboardDrag(page, "Drag song 1: Charlie Song", [
-    "ArrowDown",
-    "ArrowDown",
+    { key: "ArrowDown", targetEntryId: "entry-a" },
+    { key: "ArrowDown", targetEntryId: "entry-b" },
   ]);
   await expectEntryOrder(page, ["Alpha Song", "Bravo Song", "Charlie Song"]);
   await expect(

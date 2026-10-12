@@ -1,4 +1,31 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
+
+async function waitForStoredTheme(
+  page: Page,
+  theme: "light" | "dark" | "system",
+) {
+  await page.waitForFunction(
+    (expectedTheme) =>
+      new Promise<boolean>((resolve) => {
+        const request = indexedDB.open("musician-songbook");
+        request.onerror = () => resolve(false);
+        request.onsuccess = () => {
+          const database = request.result;
+          const transaction = database.transaction("settings", "readonly");
+          const getRequest = transaction.objectStore("settings").get("app");
+          getRequest.onerror = () => {
+            database.close();
+            resolve(false);
+          };
+          getRequest.onsuccess = () => {
+            database.close();
+            resolve(getRequest.result?.theme === expectedTheme);
+          };
+        };
+      }),
+    theme,
+  );
+}
 
 test("shows the Library tutorial once, supports keyboard navigation, and replays on demand", async ({
   page,
@@ -64,6 +91,7 @@ test("uses dark styling and disables tour animation for reduced motion", async (
   await page.setViewportSize({ width: 320, height: 844 });
   await page.goto("/about");
   await page.getByLabel("Theme").selectOption("dark");
+  await waitForStoredTheme(page, "dark");
   await page.goto("/library");
 
   const popover = page.locator(".driver-popover");
