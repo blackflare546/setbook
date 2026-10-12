@@ -60,6 +60,7 @@ describe("shared setlist refresh", () => {
             name: "Updated team setlist",
             revision: 2,
             updatedAt: "2026-01-02T00:00:00.000Z",
+            expiresAt: "2026-02-01T00:00:00.000Z",
           }),
           { status: 200, headers: { etag: '"two"' } },
         ),
@@ -72,6 +73,7 @@ describe("shared setlist refresh", () => {
 
     expect(refreshed.revision).toBe(2);
     expect(refreshed.snapshot.name).toBe("Updated team setlist");
+    expect(refreshed.expiresAt).toBe("2026-02-01T00:00:00.000Z");
     expect(songsAfter).toEqual(songsBefore);
   });
 
@@ -103,5 +105,33 @@ describe("shared setlist refresh", () => {
     expect(checked.revision).toBe(1);
     expect(checked.snapshot.name).toBe("Team setlist");
     expect(checked.etag).toBe('"one"');
+  });
+
+  it("rejects invalid lifecycle metadata and keeps the cached copy", async () => {
+    await repository.follow("abc123", {
+      snapshot,
+      revision: 1,
+      etag: '"one"',
+      updatedAt: snapshot.publishedAt,
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            ...snapshot,
+            revision: "2",
+            updatedAt: "2026-01-02T00:00:00.000Z",
+          }),
+          { status: 200, headers: { etag: '"two"' } },
+        ),
+      ),
+    );
+
+    await expect(repository.refresh("abc123")).rejects.toThrow();
+    const cached = await repository.get("abc123");
+    expect(cached?.snapshot.name).toBe("Team setlist");
+    expect(cached?.revision).toBe(1);
+    expect(cached?.status).toBe("unavailable");
   });
 });

@@ -2,6 +2,13 @@ import { test, expect, type Page } from "./fixtures";
 
 test.setTimeout(120_000);
 
+function publicTokenFromPerformancePath(pathname: string | null): string {
+  const match = /^\/shared\/([^/]+)\/performance$/.exec(pathname ?? "");
+  if (!match)
+    throw new Error(`Unexpected public performance path: ${pathname}`);
+  return match[1];
+}
+
 test("shows the welcome once and keeps help and about accessible", async ({
   page,
 }) => {
@@ -354,6 +361,7 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
 
   await songActions.click();
   await page.getByRole("menuitem", { name: "Duplicate" }).click();
+  await expect(page.getByText(`“${title}” duplicated`)).toBeVisible();
   await expect(page.getByText("2 songs, available offline")).toBeVisible();
   const copyActions = page.getByLabel(`Song actions for ${title} copy`);
   await copyActions.click();
@@ -373,7 +381,7 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
   await expect(page.getByText("Song view")).toBeVisible();
 
   await page.goto("/setlists");
-  await page.getByPlaceholder("New setlist name…").fill("Friday Night");
+  await page.getByLabel("New setlist name").fill("Friday Night");
   await page.getByRole("button", { name: "Create setlist" }).click();
   await expect(page.getByText("Setlist editor")).toBeVisible();
   await expect(page.getByText("Setlist saved")).toHaveCount(0);
@@ -651,9 +659,9 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
     tabletNavigationBox!.y,
   );
   const firstShareUrl = await shareLink.getAttribute("href");
-  expect(firstShareUrl).toMatch(/^\/s\//);
+  const firstShareToken = publicTokenFromPerformancePath(firstShareUrl);
   const publishedResponse = await page.request.get(
-    `/api/published-setlists/${firstShareUrl!.split("/").at(-1)}`,
+    `/api/published-setlists/${firstShareToken}`,
   );
   const publishedSnapshot = await publishedResponse.json();
   expect(publishedSnapshot).not.toHaveProperty("theme");
@@ -943,7 +951,7 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
   await deleteDialog.getByRole("button", { name: "Cancel" }).click();
   await expect(shareLink).toHaveAttribute("href", firstShareUrl!);
 
-  const deleteApiPattern = `**/api/published-setlists/${firstShareUrl!.split("/").at(-1)}`;
+  const deleteApiPattern = `**/api/published-setlists/${firstShareToken}`;
   await page.route(deleteApiPattern, async (route) => {
     if (route.request().method() === "DELETE") {
       await route.fulfill({
@@ -986,7 +994,7 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
   const deletedResponse = await page.request.get(firstShareUrl!);
   expect(deletedResponse.status()).toBe(404);
   const repeatedDeleteResponse = await page.request.delete(
-    `/api/published-setlists/${firstShareUrl!.split("/").at(-1)}`,
+    `/api/published-setlists/${firstShareToken}`,
   );
   expect(repeatedDeleteResponse.status()).toBe(204);
   await page.goto(firstShareUrl!);
@@ -1001,12 +1009,12 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
   const republishedLink = page.getByRole("link", { name: "Open public link" });
   await expect(republishedLink).toBeVisible();
   const republishedUrl = await republishedLink.getAttribute("href");
-  expect(republishedUrl).toMatch(/^\/s\//);
+  const republishedToken = publicTokenFromPerformancePath(republishedUrl);
   await page.goto(republishedUrl!);
   await expect(page.getByText("Shared setlist")).toBeVisible();
 
   await page.goto("/setlists");
-  const republishedDeletePattern = `**/api/published-setlists/${republishedUrl!.split("/").at(-1)}`;
+  const republishedDeletePattern = `**/api/published-setlists/${republishedToken}`;
   await page.route(republishedDeletePattern, async (route) => {
     if (route.request().method() === "DELETE") {
       await route.fulfill({

@@ -35,13 +35,14 @@ export async function inspectSongTransfer(
   const fingerprint = songTransferFingerprint(transfer);
   const identity = songTransferIdentity(transfer);
   const songs = await repository.list();
-  const exact = songs.find(
-    (song) => songTransferFingerprint(createSongTransfer(song)) === fingerprint,
-  );
-  if (exact) return { status: "exact-existing", existing: exact };
-  const identityMatch = songs.find(
-    (song) => songTransferIdentity(createSongTransfer(song)) === identity,
-  );
+  let identityMatch: Song | undefined;
+  for (const song of songs) {
+    if (songTransferIdentity(song) !== identity) continue;
+    identityMatch ??= song;
+    const candidate = createSongTransfer(song);
+    if (songTransferFingerprint(candidate) === fingerprint)
+      return { status: "exact-existing", existing: song };
+  }
   return identityMatch
     ? { status: "identity-conflict", existing: identityMatch }
     : { status: "new" };

@@ -68,7 +68,7 @@ const sections = [
 
 export default function HelpPage() {
   return (
-    <main className="px-4 py-8 pb-28 sm:px-6 sm:py-10 lg:px-8 lg:py-12 lg:pb-16">
+    <div className="px-4 py-8 pb-28 sm:px-6 sm:py-10 lg:px-8 lg:py-12 lg:pb-16">
       <div className="mx-auto max-w-5xl">
         <PageHeader
           title="How to use SetBook"
@@ -143,6 +143,6 @@ export default function HelpPage() {
           <FeedbackForm />
         </section>
       </div>
-    </main>
+    </div>
   );
 }

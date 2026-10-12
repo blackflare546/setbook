@@ -20,7 +20,7 @@ const capabilities = [
 export default function AboutPage() {
   return (
     <div className="px-4 py-8 pb-28 sm:px-6 sm:py-10 lg:px-8 lg:py-12 lg:pb-16">
-      <main className="mx-auto max-w-5xl">
+      <div className="mx-auto max-w-5xl">
         <PageHeader
           title="SetBook"
           description="A local-first song chart and setlist workspace for worship teams and bands."
@@ -95,7 +95,7 @@ export default function AboutPage() {
             <BookOpen size={17} /> View Welcome Page
           </Link>
         </Button>
-      </main>
+      </div>
 
       <footer className="mx-auto mt-12 max-w-5xl border-t border-slate-200 pt-6 text-sm text-slate-500 dark:border-slate-800 dark:text-slate-400">
         Developed by:{" "}

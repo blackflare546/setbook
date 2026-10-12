@@ -38,11 +38,9 @@ export async function findImportedSong(
   repository: SongRepository = songRepository,
 ): Promise<Song | undefined> {
   const hash = contentHash(song);
-  const songs = await repository.list();
-  const sourceMatches = songs.filter(
-    (candidate) =>
-      candidate.sharedSource?.publicToken === publicToken &&
-      candidate.sharedSource.sharedSongId === sourceIdentity(song),
+  const sourceMatches = await repository.findBySharedSource(
+    publicToken,
+    sourceIdentity(song),
   );
 
   // Prefer the exact shared version. A user may have intentionally kept an

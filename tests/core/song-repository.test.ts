@@ -25,4 +25,41 @@ describe("song capo persistence", () => {
     await repository.save(song);
     await expect(repository.get(song.id)).resolves.toMatchObject({ capo });
   });
+
+  it("removes deleted songs from setlists and restores both on undo", async () => {
+    const song = { ...createEmptySong(), title: "Referenced song" };
+    await repository.save(song);
+    const now = new Date().toISOString();
+    await database.setlists.add({
+      id: "setlist",
+      name: "Sunday",
+      venue: "",
+      notes: "",
+      entries: [
+        {
+          id: "before",
+          songId: "another-song",
+          arrangementCue: "",
+        },
+        { id: "referenced", songId: song.id, arrangementCue: "Cue" },
+      ],
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    const deletion = await repository.delete(song.id);
+    expect(deletion).toBeDefined();
+    await expect(repository.get(song.id)).resolves.toBeUndefined();
+    await expect(database.setlists.get("setlist")).resolves.toMatchObject({
+      entries: [{ id: "before" }],
+    });
+
+    await repository.restoreDeletion(deletion!);
+    await expect(repository.get(song.id)).resolves.toMatchObject({
+      title: "Referenced song",
+    });
+    await expect(database.setlists.get("setlist")).resolves.toMatchObject({
+      entries: [{ id: "before" }, { id: "referenced", arrangementCue: "Cue" }],
+    });
+  });
 });

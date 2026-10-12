@@ -31,9 +31,39 @@ pnpm test
 pnpm typecheck
 pnpm lint
 pnpm build
+pnpm bundle:report
 pnpm exec playwright install chromium
 pnpm test:e2e
 ```
+
+Before a production deployment, validate the configured environment and run the
+complete release gate:
+
+```bash
+pnpm env:check
+pnpm release:check
+```
+
+`env:check` loads the root `.env*` files using Next.js environment precedence.
+It requires the Blob connection, a stable sharing secret, and a separate cron
+secret. It warns, but does not fail, when feedback is intentionally disabled.
+`release:check` audits production dependencies and then runs linting, type
+checking, unit tests, the production build, and all Playwright tests.
+
+GitHub Actions runs the same release gate for pull requests and pushes to
+`main`. After deployment, verify the public URL and its browser security headers:
+
+```bash
+pnpm health:smoke -- https://your-setbook-deployment.example
+```
+
+Set `SETBOOK_SMOKE_REQUIRED_FEATURES=publicSharing,cleanup,feedback` to make the
+smoke check fail when any listed server feature is not configured. The public
+`/api/health` response exposes only feature availability booleans, never secret
+or credential values. `bundle:report` summarizes all emitted client chunks and
+supports an optional `SETBOOK_MAX_CLIENT_GZIP_KB` regression ceiling.
+The **Deployment smoke check** GitHub workflow runs the same verification on
+demand and requires public sharing and cleanup by default.
 
 The Vitest suite covers chord parsing, classification, inline and above-lyric positioning, song parsing, transposition, setlist operations, and published snapshot serialization. The Playwright flow covers song creation through performance and persistent-link republishing.
 
@@ -94,6 +124,10 @@ Use these steps when replacing the Blob store completely:
 
    Never prefix any of these names with `NEXT_PUBLIC_` or commit their values.
 
+   Run `pnpm env:check` against the intended deployment environment before
+   releasing. Production runtimes never use SetBook’s predictable local
+   development capability secret.
+
 8. Redeploy the project after connecting the store and adding the secret. An
    existing deployment does not receive newly configured environment values.
    The deployment reads `vercel.json` and registers the daily
@@ -144,6 +178,7 @@ and [secured Cron jobs](https://vercel.com/docs/cron-jobs/manage-cron-jobs).
 
 The sharing API is intentionally small:
 
+- `GET /api/health` (liveness and feature availability)
 - `POST /api/published-setlists`
 - `GET /api/published-setlists/:token`
 - `PATCH /api/published-setlists/:token`
@@ -154,6 +189,26 @@ The sharing API is intentionally small:
 
 Anyone with the public link can view the shared setlist. Only the publishing
 device can update, extend, or unpublish it.
+
+Public performance links use `/shared/<token>/performance`. The former compact
+`/s/<token>` format redirects permanently so previously distributed links and
+QR codes continue to work.
+
+## Response security
+
+SetBook sends a Content Security Policy and browser hardening headers from
+`next.config.ts`. The policy keeps scripts, frames, network connections, and
+assets on the SetBook origin; permits only local camera access for QR scanning;
+and allows `data:`/`blob:` images used by QR generation and downloads. It uses
+Next.js’s static-compatible CSP approach so public and application pages remain
+prerenderable. If a future feature adds a third-party browser connection,
+frame, font, image, or script, update the policy deliberately and add a browser
+test for the new source.
+
+The production deployment also removes the `X-Powered-By` header, denies
+framing, disables unused microphone and geolocation access, prevents MIME
+sniffing, limits referrer details, and enables HSTS. QR camera access remains
+restricted to the app’s own origin.
 
 ### Publication expiration and cleanup
 
@@ -173,4 +228,4 @@ Songs that visitors already imported remain in their private libraries.
 - `src/data` — Dexie database and repositories
 - `src/components` — application UI built from shadcn-style Radix primitives
 - `src/lib/sharing` — public snapshot serialization and blob storage adapter
-- `src/app/api` — published-snapshot API only
+- `src/app/api` — sharing, cleanup, feedback, and health route handlers

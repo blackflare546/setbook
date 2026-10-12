@@ -63,6 +63,18 @@ describe("settings theme defaults", () => {
     });
   });
 
+  it("preserves concurrent tutorial updates", async () => {
+    await Promise.all([
+      repository.markTutorialSeen("library", 1),
+      repository.markTutorialSeen("performance", 2),
+      repository.markTutorialSeen("setlists", 1),
+    ]);
+
+    await expect(repository.get()).resolves.toMatchObject({
+      tutorialVersions: { library: 1, performance: 2, setlists: 1 },
+    });
+  });
+
   it("resets one tutorial or all tutorials", async () => {
     await repository.markTutorialSeen("library", 1);
     await repository.markTutorialSeen("setlists", 1);

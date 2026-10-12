@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
+import * as Dialog from "@radix-ui/react-dialog";
 import {
   ArrowDown,
   ArrowLeft,
@@ -31,6 +33,22 @@ import { AreaTutorial } from "@/components/tutorials/area-tutorial";
 import { LoadingState } from "@/components/ui/loading-state";
 
 const example = `[Verse 1]\nG                 D\nI found a love for me\nEm                           C\nDarling, just dive right in\n\n[Chorus]\n[G]Take me into your [D]loving arms`;
+type SongLoadState = "loading" | "ready" | "not-found" | "error";
+
+function validateSong(candidate: Song): string | null {
+  if (!candidate.title.trim()) return "Add a song title before saving.";
+  for (const section of candidate.sections) {
+    if (!section.title.trim()) return "Every section needs a name.";
+    for (const line of section.lines) {
+      for (const chord of line.chords) {
+        if (!chord.symbol.trim()) return "Chord symbols cannot be empty.";
+        if (!Number.isInteger(chord.position) || chord.position < 0)
+          return "Chord positions must be whole numbers at or above zero.";
+      }
+    }
+  }
+  return null;
+}
 
 function detectedKeyValue(candidate: DetectedKeyCandidate): string {
   return (
@@ -53,7 +71,10 @@ function OriginalDetectedKey({
   candidate: DetectedKeyCandidate;
 }) {
   return (
-    <div className="rounded-[10px] border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm font-semibold text-indigo-950 dark:border-indigo-900 dark:bg-indigo-950/40 dark:text-indigo-100">
+    <div
+      role="status"
+      className="rounded-[10px] border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm font-semibold text-indigo-950 dark:border-indigo-900 dark:bg-indigo-950/40 dark:text-indigo-100"
+    >
       Detected Key: {detectedKeyLabel(candidate)}
     </div>
   );
@@ -64,56 +85,132 @@ export function SongEditor({ songId }: { songId?: string }) {
   const [song, setSong] = useState<Song | null>(
     songId ? null : createEmptySong(),
   );
+  const [loadState, setLoadState] = useState<SongLoadState>(
+    songId ? "loading" : "ready",
+  );
+  const [resolvedId, setResolvedId] = useState<string | null>(null);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [paste, setPaste] = useState("");
+  const [keyDetection, setKeyDetection] = useState<ReturnType<
+    typeof detectSongKey
+  > | null>(null);
   const [mode, setMode] = useState<"paste" | "edit">("paste");
   const [originalDetectedKey, setOriginalDetectedKey] =
     useState<DetectedKeyCandidate | null>(null);
   const [keyManuallyChanged, setKeyManuallyChanged] = useState(Boolean(songId));
   const [saving, setSaving] = useState(false);
+  const [discardDialogOpen, setDiscardDialogOpen] = useState(false);
+  const editRevisionRef = useRef(0);
+  const saveInFlightRef = useRef(false);
+  const mountedRef = useRef(true);
+  const navigationTimerRef = useRef<number | null>(null);
   const [feedback, setFeedback] = useState<{
     message: string;
     tone: "success" | "error";
   } | null>(null);
-  const keyDetection = useMemo(
-    () => (paste.trim() ? detectSongKey(parseText(paste)) : null),
-    [paste],
-  );
   useEffect(() => {
-    if (songId)
-      void songRepository.get(songId).then((found) => {
-        const loaded = found ?? createEmptySong();
-        const source = loaded.sourceText || sectionsToText(loaded.sections);
-        const detection = detectSongKey(parseText(source));
-        setSong(loaded);
-        setPaste(source);
-        if (detection.confidence === "confident" && detection.primary) {
-          setOriginalDetectedKey(detection.primary);
+    if (!songId) return;
+    let active = true;
+    void songRepository
+      .get(songId)
+      .then((found) => {
+        if (!active) return;
+        setResolvedId(songId);
+        if (!found) {
+          setSong(null);
+          setLoadState("not-found");
+          return;
         }
+        const source = found.sourceText || sectionsToText(found.sections);
+        const detection = detectSongKey(parseText(source));
+        setSong(found);
+        setPaste(source);
+        setKeyDetection(detection);
+        setOriginalDetectedKey(
+          detection.confidence === "confident" && detection.primary
+            ? detection.primary
+            : null,
+        );
+        setMode("paste");
+        setKeyManuallyChanged(true);
+        setFeedback(null);
+        setDiscardDialogOpen(false);
+        editRevisionRef.current = 0;
+        setLoadState("ready");
+      })
+      .catch(() => {
+        if (!active) return;
+        setResolvedId(songId);
+        setSong(null);
+        setLoadState("error");
       });
-  }, [songId]);
+    return () => {
+      active = false;
+    };
+  }, [loadAttempt, songId]);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      if (navigationTimerRef.current)
+        window.clearTimeout(navigationTimerRef.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    const warnAboutUnsavedChanges = (event: BeforeUnloadEvent) => {
+      if (!editRevisionRef.current) return;
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warnAboutUnsavedChanges);
+    return () =>
+      window.removeEventListener("beforeunload", warnAboutUnsavedChanges);
+  }, []);
+
+  function cancelPendingNavigation() {
+    if (!navigationTimerRef.current) return;
+    window.clearTimeout(navigationTimerRef.current);
+    navigationTimerRef.current = null;
+  }
 
   function update(next: Partial<Song>) {
+    editRevisionRef.current += 1;
+    cancelPendingNavigation();
+    setFeedback(null);
     setSong((current) =>
       current
         ? {
             ...current,
             ...next,
-            sourceText: next.sections
-              ? sectionsToText(next.sections)
-              : current.sourceText,
+            // Regenerate lazily when opening Smart Paste or saving so a long
+            // chart is not serialized on every structured-editor keystroke.
+            sourceText: next.sections ? "" : current.sourceText,
           }
         : current,
     );
   }
   function openSmartPaste() {
-    setPaste(song?.sourceText || sectionsToText(song?.sections ?? []));
+    const source = song?.sourceText || sectionsToText(song?.sections ?? []);
+    setPaste(source);
+    setKeyDetection(source.trim() ? detectSongKey(parseText(source)) : null);
     setMode("paste");
   }
   function changePaste(value: string) {
+    editRevisionRef.current += 1;
+    cancelPendingNavigation();
+    setFeedback(null);
     setPaste(value);
     if (originalDetectedKey) return;
-    const detection = detectSongKey(parseText(value));
-    if (detection.confidence !== "confident" || !detection.primary) return;
+    const detection = value.trim() ? detectSongKey(parseText(value)) : null;
+    setKeyDetection(detection);
+    if (
+      !detection ||
+      detection.confidence !== "confident" ||
+      !detection.primary
+    )
+      return;
 
     setOriginalDetectedKey(detection.primary);
     if (!keyManuallyChanged && !song?.originalKey) {
@@ -124,8 +221,18 @@ export function SongEditor({ songId }: { songId?: string }) {
     setKeyManuallyChanged(true);
     update({ originalKey });
   }
-  function leaveEditor() {
+  function confirmLeaveEditor() {
+    editRevisionRef.current = 0;
+    cancelPendingNavigation();
+    setDiscardDialogOpen(false);
     router.push(songId ? `/songs/${songId}` : "/library");
+  }
+  function leaveEditor() {
+    if (editRevisionRef.current) {
+      setDiscardDialogOpen(true);
+      return;
+    }
+    confirmLeaveEditor();
   }
   function parseDraft(): Song | null {
     if (!song || !paste.trim()) return null;
@@ -152,21 +259,45 @@ export function SongEditor({ songId }: { songId?: string }) {
     setMode("edit");
   }
   async function save(candidate: Song | null = song) {
-    if (!candidate || !candidate.title.trim()) return;
+    if (!candidate || saveInFlightRef.current) return;
+    const validationError = validateSong(candidate);
+    if (validationError) {
+      setFeedback({ message: validationError, tone: "error" });
+      return;
+    }
+    const revision = editRevisionRef.current;
+    saveInFlightRef.current = true;
     setSaving(true);
     setFeedback(null);
     try {
       const saved = await songRepository.save(candidate);
-      setSong(saved);
-      setFeedback({ message: "Song saved", tone: "success" });
-      window.setTimeout(() => router.push(`/songs/${saved.id}`), 700);
-    } catch {
+      if (!mountedRef.current) return;
+      const hasNewerEdits = editRevisionRef.current !== revision;
+      if (!hasNewerEdits) {
+        editRevisionRef.current = 0;
+        setSong(saved);
+      }
       setFeedback({
-        message: "Song could not be saved. Please try again.",
-        tone: "error",
+        message: hasNewerEdits
+          ? "Saved. Newer changes still need saving."
+          : "Song saved",
+        tone: "success",
       });
+      if (!hasNewerEdits) {
+        navigationTimerRef.current = window.setTimeout(
+          () => router.push(`/songs/${saved.id}`),
+          700,
+        );
+      }
+    } catch {
+      if (mountedRef.current)
+        setFeedback({
+          message: "Song could not be saved. Please try again.",
+          tone: "error",
+        });
     } finally {
-      setSaving(false);
+      saveInFlightRef.current = false;
+      if (mountedRef.current) setSaving(false);
     }
   }
   async function saveFromPaste() {
@@ -175,8 +306,70 @@ export function SongEditor({ songId }: { songId?: string }) {
     setSong(parsed);
     await save(parsed);
   }
+
+  if (songId && (loadState === "loading" || resolvedId !== songId))
+    return <LoadingState label="Loading chart…" className="min-h-[60dvh]" />;
+
+  if (songId && (loadState === "not-found" || loadState === "error"))
+    return (
+      <div className="mx-auto grid min-h-[60dvh] max-w-xl place-items-center px-4 py-12 text-center">
+        <Card className="w-full p-6 sm:p-8">
+          <h1 className="text-xl font-bold">
+            {loadState === "not-found"
+              ? "Song not found"
+              : "Song could not be loaded"}
+          </h1>
+          <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">
+            {loadState === "not-found"
+              ? "It may have been deleted from this browser."
+              : "No local data was changed. Try loading this song again."}
+          </p>
+          <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-center">
+            {loadState === "error" && (
+              <Button
+                onClick={() => {
+                  setLoadState("loading");
+                  setResolvedId(null);
+                  setLoadAttempt((attempt) => attempt + 1);
+                }}
+              >
+                Try again
+              </Button>
+            )}
+            <Button asChild variant="secondary">
+              <Link href="/library">Back to library</Link>
+            </Button>
+          </div>
+        </Card>
+      </div>
+    );
+
   if (!song)
     return <LoadingState label="Loading chart…" className="min-h-[60dvh]" />;
+
+  const discardDialog = (
+    <Dialog.Root open={discardDialogOpen} onOpenChange={setDiscardDialogOpen}>
+      <Dialog.Portal>
+        <Dialog.Overlay className="fixed inset-0 z-40 bg-slate-950/50 backdrop-blur-[1px]" />
+        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[min(calc(100vw-2rem),28rem)] -translate-x-1/2 -translate-y-1/2 rounded-xl border border-slate-200 bg-white p-5 shadow-2xl outline-none dark:border-slate-700 dark:bg-slate-900">
+          <Dialog.Title className="text-lg font-bold">
+            Discard unsaved changes?
+          </Dialog.Title>
+          <Dialog.Description className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
+            Changes made since the last save will be lost.
+          </Dialog.Description>
+          <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <Dialog.Close asChild>
+              <Button variant="secondary">Keep editing</Button>
+            </Dialog.Close>
+            <Button variant="danger" onClick={confirmLeaveEditor}>
+              Discard changes
+            </Button>
+          </div>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
+  );
 
   if (mode === "paste")
     return (
@@ -186,12 +379,13 @@ export function SongEditor({ songId }: { songId?: string }) {
           message={feedback?.message ?? null}
           tone={feedback?.tone}
         />
+        {discardDialog}
         <Button
           variant="ghost"
           onClick={leaveEditor}
           className="mb-5 -ml-3 h-11 min-w-11 self-start"
         >
-          <ArrowLeft size={17} />
+          <ArrowLeft size={17} aria-hidden="true" />
           Back
         </Button>
         <div
@@ -268,10 +462,14 @@ export function SongEditor({ songId }: { songId?: string }) {
             </label>
           </div>
           <div className="p-4 sm:p-6">
-            <label className="mb-2 block text-sm font-semibold">
+            <label
+              htmlFor="smart-paste-chart"
+              className="mb-2 block text-sm font-semibold"
+            >
               Chord sheet
             </label>
             <Textarea
+              id="smart-paste-chart"
               data-testid="smart-paste-input"
               data-tour="song-editor-paste"
               wrap="off"
@@ -286,7 +484,10 @@ export function SongEditor({ songId }: { songId?: string }) {
               </div>
             ) : (
               keyDetection && (
-                <div className="mt-5 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-900">
+                <div
+                  role="status"
+                  className="mt-5 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-900"
+                >
                   {keyDetection.confidence === "ambiguous" &&
                     keyDetection.primary && (
                       <p className="text-sm font-semibold">
@@ -322,9 +523,9 @@ export function SongEditor({ songId }: { songId?: string }) {
                   disabled={!paste.trim()}
                   onClick={smartPaste}
                 >
-                  <Sparkles size={18} />
+                  <Sparkles size={18} aria-hidden="true" />
                   Review chart
-                  <ChevronRight size={17} />
+                  <ChevronRight size={17} aria-hidden="true" />
                 </Button>
                 <Button
                   data-testid="save-song"
@@ -334,7 +535,7 @@ export function SongEditor({ songId }: { songId?: string }) {
                   loadingLabel="Saving…"
                   onClick={() => void saveFromPaste()}
                 >
-                  <Save size={18} />
+                  <Save size={18} aria-hidden="true" />
                   Save song
                 </Button>
                 <Button variant="ghost" size="lg" onClick={leaveEditor}>
@@ -353,9 +554,10 @@ export function SongEditor({ songId }: { songId?: string }) {
         message={feedback?.message ?? null}
         tone={feedback?.tone}
       />
+      {discardDialog}
       <div className="mb-7 flex flex-col items-stretch gap-3 border-b border-slate-200 pb-7 sm:flex-row sm:flex-wrap sm:items-center dark:border-slate-800">
-        <Button variant="ghost" onClick={() => router.back()} className="-ml-3">
-          <ArrowLeft size={17} />
+        <Button variant="ghost" onClick={leaveEditor} className="-ml-3">
+          <ArrowLeft size={17} aria-hidden="true" />
           Back
         </Button>
         <div className="min-w-0 flex-1">
@@ -368,7 +570,7 @@ export function SongEditor({ songId }: { songId?: string }) {
         </div>
         <div className="grid grid-cols-2 gap-2 sm:flex">
           <Button variant="secondary" onClick={openSmartPaste}>
-            <Sparkles size={16} />
+            <Sparkles size={16} aria-hidden="true" />
             Smart Paste
           </Button>
           <Button
@@ -378,7 +580,7 @@ export function SongEditor({ songId }: { songId?: string }) {
             isLoading={saving}
             loadingLabel="Saving…"
           >
-            <Save size={17} />
+            <Save size={17} aria-hidden="true" />
             Save song
           </Button>
         </div>
@@ -465,9 +667,13 @@ export function SongEditor({ songId }: { songId?: string }) {
           {song.sections.map((section, sectionIndex) => (
             <Card key={section.id} className="overflow-hidden shadow-none">
               <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-900">
-                <Music size={16} className="text-indigo-600" />
+                <Music
+                  size={16}
+                  className="text-indigo-600"
+                  aria-hidden="true"
+                />
                 <Input
-                  aria-label="Section name"
+                  aria-label={`Section ${sectionIndex + 1} name`}
                   className="min-w-0 flex-1 font-semibold sm:max-w-56"
                   value={section.title}
                   onChange={(e) =>
@@ -484,6 +690,7 @@ export function SongEditor({ songId }: { songId?: string }) {
                   <Button
                     size="icon"
                     variant="ghost"
+                    aria-label={`Move ${section.title || `section ${sectionIndex + 1}`} up`}
                     disabled={!sectionIndex}
                     onClick={() => {
                       const next = [...song.sections];
@@ -494,11 +701,12 @@ export function SongEditor({ songId }: { songId?: string }) {
                       update({ sections: next });
                     }}
                   >
-                    <ArrowUp size={15} />
+                    <ArrowUp size={15} aria-hidden="true" />
                   </Button>
                   <Button
                     size="icon"
                     variant="ghost"
+                    aria-label={`Move ${section.title || `section ${sectionIndex + 1}`} down`}
                     disabled={sectionIndex === song.sections.length - 1}
                     onClick={() => {
                       const next = [...song.sections];
@@ -509,11 +717,12 @@ export function SongEditor({ songId }: { songId?: string }) {
                       update({ sections: next });
                     }}
                   >
-                    <ArrowDown size={15} />
+                    <ArrowDown size={15} aria-hidden="true" />
                   </Button>
                   <Button
                     size="icon"
                     variant="ghost"
+                    aria-label={`Delete ${section.title || `section ${sectionIndex + 1}`}`}
                     onClick={() =>
                       update({
                         sections: song.sections.filter(
@@ -522,24 +731,25 @@ export function SongEditor({ songId }: { songId?: string }) {
                       })
                     }
                   >
-                    <Trash2 size={15} />
+                    <Trash2 size={15} aria-hidden="true" />
                   </Button>
                 </div>
               </div>
               <div className="space-y-3 p-4 sm:p-5">
-                {section.lines.map((line) => (
+                {section.lines.map((line, lineIndex) => (
                   <div
                     key={line.id}
                     className="min-w-0 rounded-lg border border-slate-200 p-3 dark:border-slate-800"
                   >
                     <div className="mb-2 flex flex-wrap gap-2">
-                      {line.chords.map((chord) => (
+                      {line.chords.map((chord, chordIndex) => (
                         <div
                           key={chord.id}
                           className="flex items-center rounded-md bg-amber-50 text-amber-900 dark:bg-amber-950/60 dark:text-amber-200"
                         >
                           <input
-                            aria-label="Chord symbol"
+                            aria-label={`Chord ${chordIndex + 1} symbol, ${section.title || `section ${sectionIndex + 1}`} line ${lineIndex + 1}`}
+                            aria-invalid={!chord.symbol.trim() || undefined}
                             className="w-14 bg-transparent px-2 py-1 font-mono text-sm font-bold outline-none"
                             value={chord.symbol}
                             onChange={(e) =>
@@ -570,7 +780,7 @@ export function SongEditor({ songId }: { songId?: string }) {
                             }
                           />
                           <input
-                            aria-label="Chord position"
+                            aria-label={`Chord ${chordIndex + 1} position, ${section.title || `section ${sectionIndex + 1}`} line ${lineIndex + 1}`}
                             type="number"
                             min={0}
                             className="w-12 border-l border-amber-200 bg-transparent px-1 py-1 text-xs outline-none"
@@ -589,8 +799,13 @@ export function SongEditor({ songId }: { songId?: string }) {
                                                   c.id === chord.id
                                                     ? {
                                                         ...c,
-                                                        position: Number(
-                                                          e.target.value,
+                                                        position: Math.max(
+                                                          0,
+                                                          Math.floor(
+                                                            Number(
+                                                              e.target.value,
+                                                            ) || 0,
+                                                          ),
                                                         ),
                                                       }
                                                     : c,
@@ -605,8 +820,9 @@ export function SongEditor({ songId }: { songId?: string }) {
                             }
                           />
                           <button
+                            type="button"
                             className="min-h-9 min-w-9 px-1.5 text-lg"
-                            aria-label="Delete chord"
+                            aria-label={`Delete chord ${chord.symbol || chordIndex + 1} from ${section.title || `section ${sectionIndex + 1}`} line ${lineIndex + 1}`}
                             onClick={() =>
                               update({
                                 sections: song.sections.map((s) =>
@@ -663,13 +879,13 @@ export function SongEditor({ songId }: { songId?: string }) {
                           })
                         }
                       >
-                        <Plus size={14} />
+                        <Plus size={14} aria-hidden="true" />
                         Chord
                       </Button>
                     </div>
                     <div className="flex min-w-0 gap-2">
                       <Input
-                        aria-label="Lyrics"
+                        aria-label={`Lyrics, ${section.title || `section ${sectionIndex + 1}`} line ${lineIndex + 1}`}
                         className="font-mono"
                         value={line.lyrics}
                         onChange={(e) =>
@@ -692,6 +908,7 @@ export function SongEditor({ songId }: { songId?: string }) {
                       <Button
                         size="icon"
                         variant="ghost"
+                        aria-label={`Delete line ${lineIndex + 1} from ${section.title || `section ${sectionIndex + 1}`}`}
                         onClick={() =>
                           update({
                             sections: song.sections.map((s) =>
@@ -707,7 +924,7 @@ export function SongEditor({ songId }: { songId?: string }) {
                           })
                         }
                       >
-                        <Trash2 size={15} />
+                        <Trash2 size={15} aria-hidden="true" />
                       </Button>
                     </div>
                   </div>
@@ -731,7 +948,7 @@ export function SongEditor({ songId }: { songId?: string }) {
                     })
                   }
                 >
-                  <Plus size={15} />
+                  <Plus size={15} aria-hidden="true" />
                   Add line
                 </Button>
               </div>
@@ -753,7 +970,7 @@ export function SongEditor({ songId }: { songId?: string }) {
               })
             }
           >
-            <Plus size={16} />
+            <Plus size={16} aria-hidden="true" />
             Add section
           </Button>
           {originalDetectedKey && (

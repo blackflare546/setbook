@@ -1,18 +1,36 @@
 import { describe, expect, it } from "vitest";
-import { publicTokenFromSharedLink } from "@/lib/sharing/shared-link";
+import {
+  publicPerformancePath,
+  publicTokenFromSharedLink,
+} from "@/lib/sharing/shared-link";
 
 describe("public shared links", () => {
   const origin = "https://setbook.example";
 
   it("accepts only same-origin public setlist links", () => {
     expect(
+      publicTokenFromSharedLink(
+        "https://setbook.example/shared/abc123/performance",
+        origin,
+      ),
+    ).toBe("abc123");
+    expect(
       publicTokenFromSharedLink("https://setbook.example/s/abc123", origin),
     ).toBe("abc123");
     expect(publicTokenFromSharedLink("/s/ABCdef789", origin)).toBe("ABCdef789");
     expect(
-      publicTokenFromSharedLink("https://other.example/s/abc123", origin),
+      publicTokenFromSharedLink(
+        "https://other.example/shared/abc123/performance",
+        origin,
+      ),
     ).toBeNull();
     expect(publicTokenFromSharedLink("/shared/abc123", origin)).toBeNull();
+  });
+
+  it("builds readable public performance paths", () => {
+    expect(publicPerformancePath("ABCdef789")).toBe(
+      "/shared/ABCdef789/performance",
+    );
   });
 
   it("rejects capability fragments, query strings, and malformed tokens", () => {

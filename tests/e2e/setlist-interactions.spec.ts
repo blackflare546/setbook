@@ -91,16 +91,26 @@ async function restoreSetlistFixture(page: Page) {
 async function keyboardDrag(
   page: Page,
   accessibleName: string,
-  arrows: string[],
+  moves: Array<{ key: string; targetEntryId: string }>,
 ) {
   const handle = page.getByRole("button", { name: accessibleName });
   await handle.focus();
   await page.keyboard.press("Space");
-  for (const arrow of arrows) {
-    await page.keyboard.press(arrow);
-    await page.waitForTimeout(150);
+  await expect(handle).toHaveAttribute("aria-pressed", "true");
+
+  for (const move of moves) {
+    await page.keyboard.press(move.key);
+    await expect(
+      page
+        .getByTestId(`setlist-entry-${move.targetEntryId}`)
+        .locator("div.bg-indigo-500"),
+    ).toBeVisible();
   }
+
   await page.keyboard.press("Space");
+  await expect(
+    page.locator('[aria-roledescription="sortable"][aria-pressed="true"]'),
+  ).toHaveCount(0);
 }
 
 async function pointerDrag(
@@ -152,8 +162,14 @@ test("setlist cards show actions and open without hijacking them", async ({
   expect(cardBox).not.toBeNull();
   expect(cardBox!.height).toBeLessThan(150);
 
+  const duplicateButton = card.getByRole("button", {
+    name: "Duplicate Sortable Setlist",
+  });
+  await expect(duplicateButton).toBeVisible();
+  await duplicateButton.click();
+  await expect(page.getByText("“Sortable Setlist” duplicated")).toBeVisible();
   await expect(
-    card.getByRole("button", { name: "Duplicate Sortable Setlist" }),
+    page.getByRole("heading", { name: "Sortable Setlist copy" }),
   ).toBeVisible();
   await expect(deleteButton).toBeVisible();
   await expect(deleteButton).toHaveClass(/text-rose-600/);
@@ -180,7 +196,10 @@ test("setlist cards show actions and open without hijacking them", async ({
   await expect(page).toHaveURL(`/setlists/${setlistId}`);
   await page.goto("/setlists");
 
-  const cardLink = page.getByRole("link", { name: "Open Sortable Setlist" });
+  const cardLink = card.getByRole("link", {
+    name: "Open Sortable Setlist",
+    exact: true,
+  });
   await cardLink.focus();
   await page.keyboard.press("Space");
   await expect(page).toHaveURL(`/setlists/${setlistId}`);
@@ -199,7 +218,7 @@ test("confirms song deletion without deleting on dismissal", async ({
   await deleteButton.click();
   const dialog = page.getByRole("dialog", { name: "Delete Song?" });
   await expect(dialog).toContainText(
-    "Are you sure you want to delete “Alpha Song”? This action cannot be undone.",
+    "Any entries for this song will also be removed from your setlists.",
   );
   await page.keyboard.press("Escape");
   await expect(dialog).toBeHidden();
@@ -219,7 +238,15 @@ test("confirms song deletion without deleting on dismissal", async ({
   await deleteButton.click();
   await dialog.getByRole("button", { name: "Delete", exact: true }).click();
   await expect(row).toHaveCount(0);
-  await expect(page.getByText("Song deleted")).toBeVisible();
+  await expect(
+    page.getByText("Song deleted and removed from 1 setlist"),
+  ).toBeVisible();
+
+  await page.getByRole("button", { name: "Undo" }).click();
+  await expect(page.getByText("Song restored")).toBeVisible();
+  await expect(row).toBeVisible();
+  await page.goto(`/setlists/${setlistId}`);
+  await expect(page.getByText("3 songs")).toBeVisible();
 });
 
 test("keeps owned setlist actions accessible on touch devices", async ({
@@ -301,6 +328,27 @@ test("keeps the mobile back button left aligned and adds editor bottom clearance
   }
 });
 
+test("shows recovery paths when a local setlist no longer exists", async ({
+  page,
+}) => {
+  await page.goto("/setlists/missing-local-setlist");
+
+  await expect(
+    page.getByRole("heading", { name: "Setlist not found" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Back to setlists" }),
+  ).toHaveAttribute("href", "/setlists");
+
+  await page.goto("/performance/missing-local-setlist");
+  await expect(
+    page.getByRole("heading", { name: "Setlist not found" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Back to setlists" }),
+  ).toHaveAttribute("href", "/setlists");
+});
+
 test("dragging reorders complete entries and persists only after Save", async ({
   page,
 }) => {
@@ -331,8 +379,8 @@ test("dragging reorders complete entries and persists only after Save", async ({
   );
 
   await keyboardDrag(page, "Drag song 1: Charlie Song", [
-    "ArrowDown",
-    "ArrowDown",
+    { key: "ArrowDown", targetEntryId: "entry-a" },
+    { key: "ArrowDown", targetEntryId: "entry-b" },
   ]);
   await expectEntryOrder(page, ["Alpha Song", "Bravo Song", "Charlie Song"]);
   await expect(

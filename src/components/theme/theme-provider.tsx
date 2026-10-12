@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 import type { AppSettings } from "@/core/setlists/types";
 import { settingsRepository } from "@/data/repositories/settings-repository";
 
@@ -36,12 +36,23 @@ function applyTheme(theme: Theme): ResolvedTheme {
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setThemeState] = useState<Theme>("light");
   const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>("light");
+  const themeChangeVersion = useRef(0);
 
   useEffect(() => {
-    void settingsRepository.get().then((settings) => {
-      setThemeState(settings.theme);
-      setResolvedTheme(applyTheme(settings.theme));
-    });
+    let active = true;
+    void settingsRepository
+      .get()
+      .then((settings) => {
+        if (!active || themeChangeVersion.current > 0) return;
+        setThemeState(settings.theme);
+        setResolvedTheme(applyTheme(settings.theme));
+      })
+      .catch(() => {
+        // Keep the accessible light default when local settings are unavailable.
+      });
+    return () => {
+      active = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -52,9 +63,17 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, [theme]);
 
   async function setTheme(nextTheme: Theme) {
-    await settingsRepository.saveTheme(nextTheme);
+    const changeVersion = ++themeChangeVersion.current;
+    const previousTheme = theme;
     setThemeState(nextTheme);
     setResolvedTheme(applyTheme(nextTheme));
+    try {
+      await settingsRepository.saveTheme(nextTheme);
+    } catch {
+      if (themeChangeVersion.current !== changeVersion) return;
+      setThemeState(previousTheme);
+      setResolvedTheme(applyTheme(previousTheme));
+    }
   }
 
   return (

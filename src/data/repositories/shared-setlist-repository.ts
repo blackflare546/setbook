@@ -2,6 +2,13 @@ import type { FollowedSharedSetlist } from "@/core/setlists/types";
 import type { PublishedSnapshot } from "@/lib/validation/schemas";
 import { publishedSnapshotSchema } from "@/lib/validation/schemas";
 import { db, type SongbookDatabase } from "@/data/db/songbook-db";
+import { z } from "zod";
+
+const remoteMetadataSchema = z.object({
+  revision: z.number().int().positive(),
+  updatedAt: z.string(),
+  expiresAt: z.string().optional(),
+});
 
 export interface RemoteSharedSetlist {
   snapshot: PublishedSnapshot;
@@ -26,12 +33,16 @@ export async function fetchSharedSetlist(
   }
   const body = await response.json();
   const snapshot = publishedSnapshotSchema.parse(body);
+  const metadata =
+    body.version === 2
+      ? remoteMetadataSchema.parse(body)
+      : { revision: 1, updatedAt: body.publishedAt, expiresAt: undefined };
   return {
     snapshot,
-    revision: body.version === 2 ? body.revision : 1,
+    revision: metadata.revision,
     etag: response.headers.get("etag") ?? "legacy",
-    updatedAt: body.version === 2 ? body.updatedAt : body.publishedAt,
-    expiresAt: body.version === 2 ? body.expiresAt : undefined,
+    updatedAt: metadata.updatedAt,
+    expiresAt: metadata.expiresAt,
   };
 }
 

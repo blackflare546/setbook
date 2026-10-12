@@ -93,4 +93,26 @@ describe("shared song imports", () => {
     });
     await expect(database.songs.count()).resolves.toBe(2);
   });
+
+  it("lists only imports belonging to one shared setlist", async () => {
+    const first = await importSharedSong(
+      "public-token",
+      1,
+      sharedSong,
+      false,
+      repository,
+    );
+    await importSharedSong(
+      "another-token",
+      1,
+      { ...sharedSong, sharedSongId: "other-song" },
+      false,
+      repository,
+    );
+
+    const matches = await repository.listBySharedToken("public-token");
+
+    expect(matches).toHaveLength(1);
+    expect(matches[0].id).toBe(first.song.id);
+  });
 });

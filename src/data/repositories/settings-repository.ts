@@ -26,11 +26,15 @@ export class SettingsRepository {
   constructor(private readonly database: SongbookDatabase = db) {}
 
   private async update(
-    changes: Partial<Omit<AppSettings, "id">>,
+    changes:
+      | Partial<Omit<AppSettings, "id">>
+      | ((current: AppSettings) => Partial<Omit<AppSettings, "id">>),
   ): Promise<AppSettings> {
     return this.database.transaction("rw", this.database.settings, async () => {
       const current = await this.get();
-      return this.save({ ...current, ...changes });
+      const resolvedChanges =
+        typeof changes === "function" ? changes(current) : changes;
+      return this.save({ ...current, ...resolvedChanges });
     });
   }
 
@@ -84,19 +88,19 @@ export class SettingsRepository {
     tutorialId: TutorialId,
     version: number,
   ): Promise<AppSettings> {
-    const current = await this.get();
-    return this.update({
+    return this.update((current) => ({
       tutorialVersions: {
         ...current.tutorialVersions,
         [tutorialId]: version,
       },
-    });
+    }));
   }
   async resetTutorial(tutorialId: TutorialId): Promise<AppSettings> {
-    const current = await this.get();
-    const tutorialVersions = { ...current.tutorialVersions };
-    delete tutorialVersions[tutorialId];
-    return this.update({ tutorialVersions });
+    return this.update((current) => {
+      const tutorialVersions = { ...current.tutorialVersions };
+      delete tutorialVersions[tutorialId];
+      return { tutorialVersions };
+    });
   }
   async resetAllTutorials(): Promise<AppSettings> {
     return this.update({ tutorialVersions: {} });

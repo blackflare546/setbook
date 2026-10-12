@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
 import * as Dialog from "@radix-ui/react-dialog";
@@ -49,8 +49,181 @@ function sharedStatusLabel(status: FollowedSharedSetlist["status"]): string {
 }
 
 type SetlistCard =
-  | { kind: "owned"; sortAt: string; setlist: Setlist }
-  | { kind: "shared"; sortAt: string; shared: FollowedSharedSetlist };
+  | {
+      kind: "owned";
+      name: string;
+      searchText: string;
+      sortAt: string;
+      setlist: Setlist;
+    }
+  | {
+      kind: "shared";
+      name: string;
+      searchText: string;
+      sortAt: string;
+      shared: FollowedSharedSetlist;
+    };
+
+const OwnedSetlistCard = memo(function OwnedSetlistCard({
+  setlist,
+  deleting,
+  duplicating,
+  onDelete,
+  onDuplicate,
+}: {
+  setlist: Setlist;
+  deleting: boolean;
+  duplicating: boolean;
+  onDelete: (setlist: Setlist) => void;
+  onDuplicate: (setlist: Setlist) => void;
+}) {
+  return (
+    <Card
+      data-testid={`setlist-card-${setlist.id}`}
+      className="group relative p-4 transition-[border-color,box-shadow,transform] hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_18px_50px_-38px_rgba(0,0,0,0.55)] dark:hover:border-slate-700"
+    >
+      <Link
+        href={`/setlists/${setlist.id}`}
+        aria-label={`Open ${setlist.name}`}
+        className="absolute inset-0 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-500"
+        onKeyDown={(event) => {
+          if (event.key === " ") {
+            event.preventDefault();
+            event.currentTarget.click();
+          }
+        }}
+      />
+      <div className="pointer-events-none relative mb-3 flex items-start justify-between">
+        <span className="grid h-10 w-10 place-items-center rounded-lg bg-indigo-50 text-indigo-600 dark:bg-indigo-950/50 dark:text-indigo-300">
+          <ListMusic size={20} aria-hidden="true" />
+        </span>
+        <div
+          className="pointer-events-auto relative z-10 flex"
+          data-testid={`setlist-actions-${setlist.id}`}
+        >
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            className="h-11 w-11 sm:h-9 sm:w-9"
+            aria-label={`Duplicate ${setlist.name}`}
+            isLoading={duplicating}
+            loadingLabel={`Duplicating ${setlist.name}…`}
+            onClick={() => onDuplicate(setlist)}
+          >
+            <Copy size={16} aria-hidden="true" />
+          </Button>
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            className="h-11 w-11 text-rose-600 hover:bg-rose-50 hover:text-rose-700 sm:h-9 sm:w-9 dark:text-rose-400 dark:hover:bg-rose-950/40 dark:hover:text-rose-300"
+            aria-label={`Delete ${setlist.name}`}
+            disabled={deleting}
+            onClick={() => onDelete(setlist)}
+          >
+            <Trash2 size={16} aria-hidden="true" />
+          </Button>
+        </div>
+      </div>
+      <div className="pointer-events-none relative">
+        <h2 className="break-words text-lg font-bold group-hover:text-indigo-700 dark:group-hover:text-indigo-300">
+          {setlist.name}
+        </h2>
+        <p className="mt-1 text-sm text-slate-500">
+          {setlist.entries.length}{" "}
+          {setlist.entries.length === 1 ? "song" : "songs"}
+          {setlist.venue ? ` · ${setlist.venue}` : ""}
+        </p>
+        {setlist.date && (
+          <p className="mt-2 flex items-center gap-2 text-xs font-medium text-slate-500">
+            <CalendarDays size={14} aria-hidden="true" />
+            {new Date(`${setlist.date}T00:00:00`).toLocaleDateString()}
+          </p>
+        )}
+      </div>
+    </Card>
+  );
+});
+
+const SharedSetlistCard = memo(function SharedSetlistCard({
+  shared,
+  updating,
+  updateBlocked,
+  onUpdate,
+  onUnfollow,
+}: {
+  shared: FollowedSharedSetlist;
+  updating: boolean;
+  updateBlocked: boolean;
+  onUpdate: (shared: FollowedSharedSetlist) => void;
+  onUnfollow: (shared: FollowedSharedSetlist) => void;
+}) {
+  return (
+    <Card className="group relative min-h-48 p-5 transition-[border-color,box-shadow,transform] hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_18px_50px_-38px_rgba(0,0,0,0.55)] dark:hover:border-slate-700">
+      <Link
+        href={`/shared/${shared.publicToken}`}
+        aria-label={`Open shared setlist ${shared.snapshot.name}`}
+        className="absolute inset-0 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-500"
+      />
+      <div className="pointer-events-none relative mb-3 flex items-start justify-between gap-3">
+        <span className="grid h-10 w-10 place-items-center rounded-lg bg-violet-50 text-violet-600 dark:bg-violet-950/50 dark:text-violet-300">
+          <Share2 size={20} aria-hidden="true" />
+        </span>
+        <div className="flex flex-wrap justify-end gap-1.5">
+          <span className="rounded-full bg-violet-100 px-2 py-1 text-[11px] font-bold uppercase text-violet-800 dark:bg-violet-950/60 dark:text-violet-200">
+            Shared
+          </span>
+          <span
+            aria-label={`Status: ${sharedStatusLabel(shared.status)}`}
+            className={`rounded-full px-2 py-1 text-[11px] font-bold uppercase ${sharedStatusStyles[shared.status]}`}
+          >
+            {sharedStatusLabel(shared.status)}
+          </span>
+        </div>
+      </div>
+      <div className="pointer-events-none relative">
+        <h2 className="break-words text-lg font-bold group-hover:text-indigo-700 dark:group-hover:text-indigo-300">
+          {shared.snapshot.name}
+        </h2>
+        {shared.snapshot.version === 2 && shared.snapshot.sharedBy && (
+          <p className="mt-1 text-sm text-slate-500">
+            Shared by {shared.snapshot.sharedBy}
+          </p>
+        )}
+        <p className="mt-2 text-sm text-slate-500">
+          {shared.snapshot.songs.length}{" "}
+          {shared.snapshot.songs.length === 1 ? "song" : "songs"}
+          {shared.snapshot.venue ? ` · ${shared.snapshot.venue}` : ""}
+        </p>
+      </div>
+      <div className="pointer-events-auto relative z-10 mt-3 flex flex-wrap gap-2">
+        {shared.status === "update-available" && (
+          <Button
+            type="button"
+            size="sm"
+            variant="secondary"
+            isLoading={updating}
+            loadingLabel="Updating…"
+            disabled={updateBlocked}
+            onClick={() => onUpdate(shared)}
+          >
+            <CloudDownload size={15} aria-hidden="true" /> Update
+          </Button>
+        )}
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          className="text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:text-rose-300 dark:hover:bg-rose-950/40 dark:hover:text-rose-200"
+          onClick={() => onUnfollow(shared)}
+        >
+          <Trash2 size={15} aria-hidden="true" /> Unfollow
+        </Button>
+      </div>
+    </Card>
+  );
+});
 
 export function SetlistList() {
   const router = useRouter();
@@ -68,6 +241,7 @@ export function SetlistList() {
   const [sort, setSort] = useState<"updated" | "name">("updated");
   const [name, setName] = useState("");
   const [creating, setCreating] = useState(false);
+  const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
   const [updatingToken, setUpdatingToken] = useState<string | null>(null);
   const [unfollowingBusy, setUnfollowingBusy] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -79,40 +253,54 @@ export function SetlistList() {
     message: string;
     tone: "success" | "error";
   } | null>(null);
+  const duplicateInFlightRef = useRef(false);
+  const updateInFlightRef = useRef(false);
+  const checkingTokensRef = useRef(new Set<string>());
 
-  const cards = useMemo<SetlistCard[]>(() => {
-    const normalizedQuery = query.trim().toLocaleLowerCase();
-    const found = [
+  const indexedCards = useMemo<SetlistCard[]>(
+    () => [
       ...setlists.map((setlist): SetlistCard => ({
         kind: "owned",
+        name: setlist.name,
+        searchText: `${setlist.name} ${setlist.venue}`.toLocaleLowerCase(),
         sortAt: setlist.updatedAt,
         setlist,
       })),
-      ...sharedSetlists.map((shared): SetlistCard => ({
-        kind: "shared",
-        sortAt: shared.snapshot.publishedAt,
-        shared,
-      })),
-    ].filter((card) => {
-      if (!normalizedQuery) return true;
-      const value =
-        card.kind === "owned"
-          ? `${card.setlist.name} ${card.setlist.venue}`
-          : `${card.shared.snapshot.name} ${card.shared.snapshot.venue} ${card.shared.snapshot.version === 2 ? (card.shared.snapshot.sharedBy ?? "") : ""}`;
-      return value.toLocaleLowerCase().includes(normalizedQuery);
-    });
+      ...sharedSetlists.map((shared): SetlistCard => {
+        const sharedBy =
+          shared.snapshot.version === 2 ? (shared.snapshot.sharedBy ?? "") : "";
+        return {
+          kind: "shared",
+          name: shared.snapshot.name,
+          searchText:
+            `${shared.snapshot.name} ${shared.snapshot.venue} ${sharedBy}`.toLocaleLowerCase(),
+          sortAt: shared.snapshot.publishedAt,
+          shared,
+        };
+      }),
+    ],
+    [setlists, sharedSetlists],
+  );
+  const normalizedQuery = query.trim().toLocaleLowerCase();
+  const cards = useMemo<SetlistCard[]>(() => {
+    const found = normalizedQuery
+      ? indexedCards.filter(({ searchText }) =>
+          searchText.includes(normalizedQuery),
+        )
+      : indexedCards;
     return found.toSorted((left, right) => {
       if (sort === "updated") return right.sortAt.localeCompare(left.sortAt);
-      const leftName =
-        left.kind === "owned" ? left.setlist.name : left.shared.snapshot.name;
-      const rightName =
-        right.kind === "owned"
-          ? right.setlist.name
-          : right.shared.snapshot.name;
-      return leftName.localeCompare(rightName);
+      return left.name.localeCompare(right.name);
     });
-  }, [query, setlists, sharedSetlists, sort]);
-  const progressive = useProgressiveCollection(cards, `${query}\u0000${sort}`);
+  }, [indexedCards, normalizedQuery, sort]);
+  const progressive = useProgressiveCollection(
+    cards,
+    `${normalizedQuery}\u0000${sort}`,
+  );
+  const sharedTokensKey = sharedSetlists
+    .map(({ publicToken }) => publicToken)
+    .toSorted()
+    .join("\u0000");
 
   useEffect(() => {
     if (!feedback || feedback.tone !== "success") return;
@@ -121,18 +309,21 @@ export function SetlistList() {
   }, [feedback]);
 
   useEffect(() => {
+    const tokens = sharedTokensKey ? sharedTokensKey.split("\u0000") : [];
     const checkAll = () => {
-      for (const shared of sharedSetlists)
+      for (const token of tokens) {
+        if (checkingTokensRef.current.has(token)) continue;
+        checkingTokensRef.current.add(token);
         void sharedSetlistRepository
-          .check(shared.publicToken)
-          .catch(() => undefined);
+          .check(token)
+          .catch(() => undefined)
+          .finally(() => checkingTokensRef.current.delete(token));
+      }
     };
     checkAll();
     window.addEventListener("focus", checkAll);
     return () => window.removeEventListener("focus", checkAll);
-    // Checking changes statuses but not the number of followed setlists.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sharedSetlists.length]);
+  }, [sharedTokensKey]);
 
   async function create() {
     if (!name.trim() || creating) return;
@@ -187,8 +378,34 @@ export function SetlistList() {
     }
   }
 
-  async function updateShared(shared: FollowedSharedSetlist) {
-    if (updatingToken) return;
+  const duplicateSetlist = useCallback(async (setlist: Setlist) => {
+    if (duplicateInFlightRef.current) return;
+
+    duplicateInFlightRef.current = true;
+    setDuplicatingId(setlist.id);
+    setFeedback(null);
+    try {
+      const duplicate = await setlistRepository.duplicate(setlist.id);
+      if (!duplicate) throw new Error("Setlist not found");
+      setFeedback({
+        message: `“${setlist.name}” duplicated`,
+        tone: "success",
+      });
+    } catch {
+      setFeedback({
+        message: "Setlist could not be duplicated. Please try again.",
+        tone: "error",
+      });
+    } finally {
+      duplicateInFlightRef.current = false;
+      setDuplicatingId(null);
+    }
+  }, []);
+
+  const updateShared = useCallback(async (shared: FollowedSharedSetlist) => {
+    if (updateInFlightRef.current) return;
+
+    updateInFlightRef.current = true;
     setUpdatingToken(shared.publicToken);
     setFeedback(null);
     try {
@@ -206,9 +423,10 @@ export function SetlistList() {
         tone: "error",
       });
     } finally {
+      updateInFlightRef.current = false;
       setUpdatingToken(null);
     }
-  }
+  }, []);
 
   async function confirmUnfollow() {
     if (!unfollowing || unfollowingBusy) return;
@@ -255,6 +473,7 @@ export function SetlistList() {
         className="mb-6 flex flex-col gap-3 p-4 sm:flex-row sm:p-5"
       >
         <Input
+          aria-label="New setlist name"
           placeholder="New setlist name…"
           value={name}
           onChange={(event) => setName(event.target.value)}
@@ -267,7 +486,7 @@ export function SetlistList() {
           isLoading={creating}
           loadingLabel="Creating…"
         >
-          <Plus size={17} /> Create setlist
+          <Plus size={17} aria-hidden="true" /> Create setlist
         </Button>
         <QrScannerDialog />
       </Card>
@@ -280,8 +499,11 @@ export function SetlistList() {
           <Search
             className="absolute left-3 top-2.5 text-slate-400"
             size={18}
+            aria-hidden="true"
           />
           <Input
+            type="search"
+            aria-label="Search setlists"
             className="pl-10"
             placeholder="Search setlists, venue, or owner…"
             value={query}
@@ -291,9 +513,14 @@ export function SetlistList() {
         <Button
           type="button"
           variant="secondary"
+          aria-label={
+            sort === "updated"
+              ? "Sort setlists by name"
+              : "Sort setlists by most recent"
+          }
           onClick={() => setSort(sort === "updated" ? "name" : "updated")}
         >
-          <ArrowDownAZ size={17} />
+          <ArrowDownAZ size={17} aria-hidden="true" />
           {sort === "updated" ? "Recent first" : "Name A–Z"}
         </Button>
       </Card>
@@ -303,159 +530,45 @@ export function SetlistList() {
           <div className="grid grid-flow-dense gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {progressive.visibleItems.map((card) => {
               if (card.kind === "owned") {
-                const { setlist } = card;
                 return (
-                  <Card
-                    key={`owned-${setlist.id}`}
-                    data-testid={`setlist-card-${setlist.id}`}
-                    className="group relative p-4 transition-[border-color,box-shadow,transform] hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_18px_50px_-38px_rgba(0,0,0,0.55)] dark:hover:border-slate-700"
-                  >
-                    <Link
-                      href={`/setlists/${setlist.id}`}
-                      aria-label={`Open ${setlist.name}`}
-                      className="absolute inset-0 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-500"
-                      onKeyDown={(event) => {
-                        if (event.key === " ") {
-                          event.preventDefault();
-                          event.currentTarget.click();
-                        }
-                      }}
-                    />
-                    <div className="pointer-events-none relative mb-3 flex items-start justify-between">
-                      <span className="grid h-10 w-10 place-items-center rounded-lg bg-indigo-50 text-indigo-600 dark:bg-indigo-950/50 dark:text-indigo-300">
-                        <ListMusic size={20} />
-                      </span>
-                      <div
-                        className="pointer-events-auto relative z-10 flex"
-                        data-testid={`setlist-actions-${setlist.id}`}
-                      >
-                        <Button
-                          type="button"
-                          size="icon"
-                          variant="ghost"
-                          className="h-11 w-11 sm:h-9 sm:w-9"
-                          aria-label={`Duplicate ${setlist.name}`}
-                          onClick={() =>
-                            void setlistRepository.duplicate(setlist.id)
-                          }
-                        >
-                          <Copy size={16} />
-                        </Button>
-                        <Button
-                          type="button"
-                          size="icon"
-                          variant="ghost"
-                          className="h-11 w-11 text-rose-600 hover:bg-rose-50 hover:text-rose-700 sm:h-9 sm:w-9 dark:text-rose-400 dark:hover:bg-rose-950/40 dark:hover:text-rose-300"
-                          aria-label={`Delete ${setlist.name}`}
-                          disabled={deletingId === setlist.id}
-                          onClick={() => setDeletingSetlist(setlist)}
-                        >
-                          <Trash2 size={16} />
-                        </Button>
-                      </div>
-                    </div>
-                    <div className="pointer-events-none relative">
-                      <h2 className="break-words text-lg font-bold group-hover:text-indigo-700 dark:group-hover:text-indigo-300">
-                        {setlist.name}
-                      </h2>
-                      <p className="mt-1 text-sm text-slate-500">
-                        {setlist.entries.length}{" "}
-                        {setlist.entries.length === 1 ? "song" : "songs"}
-                        {setlist.venue ? ` · ${setlist.venue}` : ""}
-                      </p>
-                      {setlist.date && (
-                        <p className="mt-2 flex items-center gap-2 text-xs font-medium text-slate-500">
-                          <CalendarDays size={14} />
-                          {new Date(
-                            `${setlist.date}T00:00:00`,
-                          ).toLocaleDateString()}
-                        </p>
-                      )}
-                    </div>
-                  </Card>
+                  <OwnedSetlistCard
+                    key={`owned-${card.setlist.id}`}
+                    setlist={card.setlist}
+                    deleting={deletingId === card.setlist.id}
+                    duplicating={duplicatingId === card.setlist.id}
+                    onDelete={setDeletingSetlist}
+                    onDuplicate={duplicateSetlist}
+                  />
                 );
               }
 
-              const { shared } = card;
               return (
-                <Card
-                  key={`shared-${shared.publicToken}`}
-                  className="group relative min-h-48 p-5 transition-[border-color,box-shadow,transform] hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_18px_50px_-38px_rgba(0,0,0,0.55)] dark:hover:border-slate-700"
-                >
-                  <Link
-                    href={`/shared/${shared.publicToken}`}
-                    aria-label={`Open shared setlist ${shared.snapshot.name}`}
-                    className="absolute inset-0 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-500"
-                  />
-                  <div className="pointer-events-none relative mb-3 flex items-start justify-between gap-3">
-                    <span className="grid h-10 w-10 place-items-center rounded-lg bg-violet-50 text-violet-600 dark:bg-violet-950/50 dark:text-violet-300">
-                      <Share2 size={20} />
-                    </span>
-                    <div className="flex flex-wrap justify-end gap-1.5">
-                      <span className="rounded-full bg-violet-100 px-2 py-1 text-[11px] font-bold uppercase text-violet-800 dark:bg-violet-950/60 dark:text-violet-200">
-                        Shared
-                      </span>
-                      <span
-                        aria-label={`Status: ${sharedStatusLabel(shared.status)}`}
-                        className={`rounded-full px-2 py-1 text-[11px] font-bold uppercase ${sharedStatusStyles[shared.status]}`}
-                      >
-                        {sharedStatusLabel(shared.status)}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="pointer-events-none relative">
-                    <h2 className="break-words text-lg font-bold group-hover:text-indigo-700 dark:group-hover:text-indigo-300">
-                      {shared.snapshot.name}
-                    </h2>
-                    {shared.snapshot.version === 2 &&
-                      shared.snapshot.sharedBy && (
-                        <p className="mt-1 text-sm text-slate-500">
-                          Shared by {shared.snapshot.sharedBy}
-                        </p>
-                      )}
-                    <p className="mt-2 text-sm text-slate-500">
-                      {shared.snapshot.songs.length}{" "}
-                      {shared.snapshot.songs.length === 1 ? "song" : "songs"}
-                      {shared.snapshot.venue
-                        ? ` · ${shared.snapshot.venue}`
-                        : ""}
-                    </p>
-                  </div>
-                  <div className="pointer-events-auto relative z-10 mt-3 flex flex-wrap gap-2">
-                    {shared.status === "update-available" && (
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="secondary"
-                        isLoading={updatingToken === shared.publicToken}
-                        loadingLabel="Updating…"
-                        disabled={Boolean(updatingToken)}
-                        onClick={() => void updateShared(shared)}
-                      >
-                        <CloudDownload size={15} /> Update
-                      </Button>
-                    )}
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="ghost"
-                      className="text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:text-rose-300 dark:hover:bg-rose-950/40 dark:hover:text-rose-200"
-                      onClick={() => setUnfollowing(shared)}
-                    >
-                      <Trash2 size={15} /> Unfollow
-                    </Button>
-                  </div>
-                </Card>
+                <SharedSetlistCard
+                  key={`shared-${card.shared.publicToken}`}
+                  shared={card.shared}
+                  updating={updatingToken === card.shared.publicToken}
+                  updateBlocked={Boolean(updatingToken)}
+                  onUpdate={updateShared}
+                  onUnfollow={setUnfollowing}
+                />
               );
             })}
           </div>
         ) : (
           <Card className="grid min-h-72 place-items-center p-8 text-center">
             <div>
-              <ListMusic className="mx-auto mb-3 text-indigo-500" size={34} />
-              <h2 className="font-bold">No setlists yet</h2>
+              <ListMusic
+                className="mx-auto mb-3 text-indigo-500"
+                size={34}
+                aria-hidden="true"
+              />
+              <h2 className="font-bold">
+                {normalizedQuery ? "No setlists found" : "No setlists yet"}
+              </h2>
               <p className="mt-1 text-sm text-slate-500">
-                Create a setlist above or scan a shared setlist QR code.
+                {normalizedQuery
+                  ? "Try a different name, venue, or owner."
+                  : "Create a setlist above or scan a shared setlist QR code."}
               </p>
             </div>
           </Card>
@@ -504,7 +617,7 @@ export function SetlistList() {
                 loadingLabel="Removing…"
                 onClick={() => void confirmUnfollow()}
               >
-                <Trash2 size={16} /> Unfollow
+                <Trash2 size={16} aria-hidden="true" /> Unfollow
               </Button>
             </div>
           </Dialog.Content>
@@ -551,7 +664,7 @@ export function SetlistList() {
                   deletingSetlist && void deleteSetlist(deletingSetlist)
                 }
               >
-                <Trash2 size={16} />
+                <Trash2 size={16} aria-hidden="true" />
                 Delete setlist
               </Button>
             </div>

@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { SetBookLogo } from "@/components/brand/setbook-logo";
 import { Button } from "@/components/ui/button";
-export default function SharedNotFound() {
+
+export default function SharedPerformanceNotFound() {
   return (
     <main className="grid min-h-screen place-items-center bg-slate-950 px-6 text-center text-white">
       <div className="max-w-md">

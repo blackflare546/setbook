@@ -7,6 +7,7 @@ import {
 } from "@/app/api/published-setlists/[token]/route";
 import { POST as extendShare } from "@/app/api/published-setlists/[token]/extend/route";
 import { createPublishedSnapshot } from "@/lib/sharing/snapshot";
+import { MAX_SHARED_SETLIST_BODY_BYTES } from "@/lib/sharing/request-body";
 
 function snapshot() {
   return createPublishedSnapshot(
@@ -58,6 +59,7 @@ describe("shared setlist owner access", () => {
       }),
     );
     expect(createdResponse.status).toBe(201);
+    expect(createdResponse.headers.get("cache-control")).toBe("no-store");
     const created = await createdResponse.json();
     expect(created.ownerCapability).toBeTruthy();
     expect(created.expiresAt).toBeTruthy();
@@ -74,7 +76,8 @@ describe("shared setlist owner access", () => {
     expect(publicBody.editorCapability).toBeUndefined();
     expect(publicBody.accessMode).toBeUndefined();
     expect(publicBody.revision).toBe(1);
-    expect(publicBody.expiresAt).toBeUndefined();
+    expect(publicBody.expiresAt).toBe(created.expiresAt);
+    expect(publicBody.updatedAt).toBeTruthy();
 
     const deniedExtend = await extendShare(
       new Request(
@@ -94,7 +97,7 @@ describe("shared setlist owner access", () => {
         {
           method: "POST",
           headers: {
-            authorization: `Bearer ${created.ownerCapability}`,
+            authorization: `bEaReR   ${created.ownerCapability}`,
           },
         },
       ),
@@ -228,6 +231,35 @@ describe("shared setlist owner access", () => {
       context,
     );
     expect(repeatedDelete.status).toBe(204);
+  });
+
+  it("rejects oversized and malformed publish payloads before storage", async () => {
+    const oversized = await createShare(
+      new Request("http://localhost/api/published-setlists", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "content-length": String(MAX_SHARED_SETLIST_BODY_BYTES + 1),
+        },
+        body: "{}",
+      }),
+    );
+    expect(oversized.status).toBe(413);
+    await expect(oversized.json()).resolves.toEqual({
+      error: "Shared setlist is too large to publish.",
+    });
+
+    const malformed = await createShare(
+      new Request("http://localhost/api/published-setlists", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: "{",
+      }),
+    );
+    expect(malformed.status).toBe(400);
+    await expect(malformed.json()).resolves.toEqual({
+      error: "Invalid JSON request body.",
+    });
   });
 
   it("hides an expired publication and lets its owner extend it before cleanup", async () => {

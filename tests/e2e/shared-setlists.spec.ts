@@ -23,6 +23,30 @@ const snapshot = {
   publishedAt: "2026-01-01T00:00:00.000Z",
 };
 
+test("shows a useful recovery path when a shared link cannot load", async ({
+  page,
+}) => {
+  await page.route("**/api/published-setlists/MissingShare", (route) =>
+    route.fulfill({
+      status: 503,
+      contentType: "application/json",
+      body: JSON.stringify({ error: "Sharing is temporarily unavailable." }),
+    }),
+  );
+
+  await page.goto("/shared/MissingShare");
+  await expect(
+    page.getByRole("heading", { name: "Shared setlist unavailable" }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Sharing is temporarily unavailable."),
+  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "Try again" })).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Back to setlists" }),
+  ).toHaveAttribute("href", "/setlists");
+});
+
 test("uses one setlist grid and applies shared updates explicitly", async ({
   page,
 }) => {
@@ -31,8 +55,10 @@ test("uses one setlist grid and applies shared updates explicitly", async ({
   });
   expect(createdResponse.status()).toBe(201);
   const created = await createdResponse.json();
+  expect(created.url).toBe(`/shared/${created.token}/performance`);
 
-  await page.goto(created.url);
+  await page.goto(`/s/${created.token}`);
+  await expect(page).toHaveURL(created.url);
   await expect(
     page.getByRole("link", { name: "Open in SetBook" }),
   ).toBeVisible();
@@ -62,8 +88,12 @@ test("uses one setlist grid and applies shared updates explicitly", async ({
   await expect(perform.locator("svg.lucide-play")).toBeVisible();
   await expect(page.getByRole("button", { name: "Update" })).toHaveCount(0);
 
-  page.on("dialog", (dialog) => void dialog.accept());
   await page.getByRole("button", { name: /Import all 1 song/ }).click();
+  const importDialog = page.getByRole("dialog", { name: "Import all songs?" });
+  await expect(importDialog).toContainText(
+    "This creates 1 private copy in My Library.",
+  );
+  await importDialog.getByRole("button", { name: "Import songs" }).click();
   await expect(page.getByRole("status")).toContainText("1 song imported");
   await expect(page.getByRole("status")).toHaveCount(0, { timeout: 4000 });
 

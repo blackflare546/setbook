@@ -243,6 +243,15 @@ export function AreaTutorial({
         const { driver } = await import("driver.js");
         if (cancelled) return;
 
+        let finishing = false;
+        const finishTutorial = (driverObject: ReturnType<typeof driver>) => {
+          if (finishing) return;
+          finishing = true;
+          void settingsRepository
+            .markTutorialSeen(id, version)
+            .catch(() => undefined)
+            .finally(() => driverObject.destroy());
+        };
         const driverObject = driver({
           steps: steps[id],
           animate: !window.matchMedia("(prefers-reduced-motion: reduce)")
@@ -262,12 +271,14 @@ export function AreaTutorial({
           stagePadding: 8,
           stageRadius: 12,
           popoverClass: "setbook-tutorial",
+          onDestroyStarted: (_element, _step, { driver: activeDriver }) => {
+            finishTutorial(activeDriver);
+          },
           onDestroyed: () => {
             onActiveChange?.(false);
-            void settingsRepository.markTutorialSeen(id, version);
           },
         });
-        destroy = () => driverObject.destroy();
+        destroy = () => finishTutorial(driverObject);
         onActiveChange?.(true);
         driverObject.drive();
       } catch {
