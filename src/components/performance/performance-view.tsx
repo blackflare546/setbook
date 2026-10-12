@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import * as Dialog from "@radix-ui/react-dialog";
 import {
@@ -21,7 +21,6 @@ import {
   X,
 } from "lucide-react";
 import type { PublishedSnapshot } from "@/lib/validation/schemas";
-import type { SongLine } from "@/core/songs/types";
 import {
   adjustChartFontScale,
   adjustChartLineHeight,
@@ -39,114 +38,17 @@ import {
 import {
   CHART_BACKGROUNDS,
   contrastRatio,
-  getChartContrastOutline,
   needsChartContrastSupport,
 } from "@/core/songs/chart-color-contrast";
 import { formatMusicalKey, transposeMusicalKey } from "@/core/chords/keys";
-import {
-  semitoneDistance,
-  transposeChordSymbol,
-} from "@/core/transpose/transpose";
+import { semitoneDistance } from "@/core/transpose/transpose";
 import { Button } from "@/components/ui/button";
 import { settingsRepository } from "@/data/repositories/settings-repository";
 import { useTheme } from "@/components/theme/theme-provider";
 import { cn } from "@/lib/utils";
 import { AreaTutorial } from "@/components/tutorials/area-tutorial";
 import { useResponsiveAutoHideControls } from "./use-responsive-auto-hide-controls";
-
-const ChartLine = memo(function ChartLine({
-  line,
-  semitones,
-  fontSettings,
-  colors,
-  chartBackground,
-}: {
-  line: SongLine;
-  semitones: number;
-  fontSettings: ChartFontSettings;
-  colors: ChartColors;
-  chartBackground: string;
-}) {
-  const chords = [...line.chords]
-    .sort((a, b) => a.position - b.position)
-    .map((chord) => ({
-      ...chord,
-      displaySymbol: transposeChordSymbol(chord.symbol, semitones),
-    }));
-  const chordToLyricScale = fontSettings.chordScale / fontSettings.lyricScale;
-  const columns = Math.max(
-    1,
-    line.lyrics.length,
-    ...chords.map(
-      (chord) =>
-        chord.position +
-        Math.ceil(chord.displaySymbol.length * chordToLyricScale),
-    ),
-  );
-
-  return (
-    <div
-      data-performance-scroll-container
-      className="max-w-full overflow-x-auto overflow-y-hidden overscroll-x-contain"
-    >
-      <div
-        className="min-w-full"
-        data-testid="chart-line"
-        style={{
-          width: `${columns}ch`,
-          fontSize: `${fontSettings.lyricScale / 100}em`,
-        }}
-      >
-        {chords.length > 0 && (
-          <div
-            className="relative leading-none"
-            style={{
-              height: `${Math.max(fontSettings.lineHeight, 1.2 * chordToLyricScale)}em`,
-            }}
-          >
-            {chords.map((chord) => (
-              <span
-                key={chord.id}
-                data-chord-position={chord.position}
-                className="absolute"
-                style={{ left: `${chord.position}ch` }}
-              >
-                <span
-                  className="font-extrabold"
-                  style={{
-                    color: colors.chord,
-                    fontSize: `${chordToLyricScale}em`,
-                    textShadow: getChartContrastOutline(
-                      colors.chord,
-                      chartBackground,
-                    ),
-                  }}
-                >
-                  {chord.displaySymbol}
-                </span>
-              </span>
-            ))}
-          </div>
-        )}
-        {(line.lyrics || chords.length === 0) && (
-          <div
-            className="whitespace-pre"
-            style={{
-              color: colors.lyric,
-              lineHeight: fontSettings.lineHeight,
-              textShadow: getChartContrastOutline(
-                colors.lyric,
-                chartBackground,
-              ),
-            }}
-          >
-            {line.lyrics || " "}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-});
+import { ResponsiveChartSection } from "./responsive-chart";
 
 const FONT_ROWS: Array<{ category: ChartFontCategory; label: string }> = [
   { category: "section", label: "Sections" },
@@ -1028,36 +930,14 @@ export function PerformanceView({
             )}
           >
             {song.sections.map((section) => (
-              <section
+              <ResponsiveChartSection
                 key={section.id}
-                className="mb-0 inline-block w-full min-w-0 break-inside-avoid"
-              >
-                <h2
-                  className="mb-0 font-extrabold uppercase tracking-[.16em] dark:tracking-[.08em]"
-                  style={{
-                    color: displayedChartColors.section,
-                    fontSize: `${0.75 * (fontSettings.sectionScale / 100)}rem`,
-                    textShadow: getChartContrastOutline(
-                      displayedChartColors.section,
-                      CHART_BACKGROUNDS[resolvedTheme],
-                    ),
-                  }}
-                >
-                  {section.title}
-                </h2>
-                <div className="space-y-0 font-mono text-base leading-7 sm:text-xl sm:leading-8">
-                  {section.lines.map((line) => (
-                    <ChartLine
-                      key={line.id}
-                      line={line}
-                      semitones={semitones}
-                      fontSettings={fontSettings}
-                      colors={displayedChartColors}
-                      chartBackground={CHART_BACKGROUNDS[resolvedTheme]}
-                    />
-                  ))}
-                </div>
-              </section>
+                section={section}
+                semitones={semitones}
+                fontSettings={fontSettings}
+                colors={displayedChartColors}
+                chartBackground={CHART_BACKGROUNDS[resolvedTheme]}
+              />
             ))}
           </div>
         </article>
