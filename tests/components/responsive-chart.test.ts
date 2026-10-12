@@ -84,7 +84,7 @@ describe("responsive chart rendering", () => {
     );
 
     await waitFor(() =>
-      expect(screen.getAllByTestId("chart-line-fragment")).toHaveLength(2),
+      expect(screen.getAllByTestId("chart-line-fragment")).toHaveLength(3),
     );
     expect(screen.getByText("G").parentElement).toHaveAttribute(
       "data-chord-position",
@@ -115,7 +115,7 @@ describe("responsive chart rendering", () => {
       }),
     );
     await waitFor(() =>
-      expect(screen.getAllByTestId("chart-line-fragment")).toHaveLength(2),
+      expect(screen.getAllByTestId("chart-line-fragment")).toHaveLength(3),
     );
     expect(source).toEqual(section);
   });

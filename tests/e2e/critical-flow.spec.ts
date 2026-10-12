@@ -163,6 +163,34 @@ async function expectNoPageOverflow(page: Page) {
     .toBe(true);
 }
 
+async function expectNoClippedChartContent(page: Page) {
+  await expect
+    .poll(() =>
+      page.getByTestId("chart-line-fragment").evaluateAll((fragments) =>
+        fragments.every((fragment) => {
+          if (fragment.hasAttribute("data-performance-scroll-container")) {
+            return true;
+          }
+          const bounds = fragment.getBoundingClientRect();
+          const lyricsFit = Array.from(
+            fragment.querySelectorAll<HTMLElement>(".whitespace-pre"),
+          ).every((lyrics) => lyrics.scrollWidth <= fragment.clientWidth + 1);
+          const chordsFit = Array.from(
+            fragment.querySelectorAll<HTMLElement>("[data-chord-position]"),
+          ).every((chord) => {
+            const chordBounds = chord.getBoundingClientRect();
+            return (
+              chordBounds.left >= bounds.left - 1 &&
+              chordBounds.right <= bounds.right + 1
+            );
+          });
+          return lyricsFit && chordsFit;
+        }),
+      ),
+    )
+    .toBe(true);
+}
+
 async function selectKey(
   page: Page,
   label: "Song key" | "Performance key",
@@ -283,9 +311,16 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
     "aria-pressed",
     "true",
   );
-  await expect(
-    wideChartLine.locator('[data-chord-position="45"]'),
-  ).toHaveAttribute("style", /left: 45ch/);
+  const scaledWideChord = wideChartLine.locator(
+    '[data-chord-position="45"]',
+  );
+  const scaledRenderedPosition = await scaledWideChord.getAttribute(
+    "data-chord-render-position",
+  );
+  await expect(scaledWideChord).toHaveAttribute(
+    "style",
+    new RegExp(`left: ${scaledRenderedPosition}ch`),
+  );
   await page.getByLabel("Close font size controls").click();
   await page.reload();
   await page.getByLabel("Chart font sizes").click();
@@ -873,6 +908,22 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(performanceUrl);
+  await page.getByLabel("Open performance menu").click();
+  await page.getByRole("button", { name: "2 Columns" }).click();
+  await page.getByLabel("Close performance menu").click();
+  for (const [width, height] of [
+    [390, 844],
+    [768, 1024],
+    [1280, 900],
+  ]) {
+    await page.setViewportSize({ width, height });
+    await expect(page.locator('[data-chart-layout="two"]')).toHaveCSS(
+      "column-count",
+      "2",
+    );
+    await expectNoClippedChartContent(page);
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
   await page.getByLabel("Open performance menu").click();
   await page.getByRole("button", { name: "1 Column" }).click();
   await page.getByLabel("Close performance menu").click();

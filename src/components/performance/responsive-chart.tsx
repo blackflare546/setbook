@@ -168,7 +168,10 @@ export function ResponsiveChartSection({
     const sectionWidth = sectionRef.current?.getBoundingClientRect().width ?? 0;
     const probeWidth = probeRef.current?.getBoundingClientRect().width ?? 0;
     if (sectionWidth <= 0 || probeWidth <= 0) return;
-    const next = Math.max(1, Math.floor(sectionWidth / (probeWidth / 100)));
+    const next = Math.max(
+      1,
+      Math.floor(sectionWidth / (probeWidth / 100)) - 1,
+    );
     setAvailableColumns((current) => (current === next ? current : next));
   }, []);
 
@@ -189,15 +192,21 @@ export function ResponsiveChartSection({
   return (
     <section
       ref={sectionRef}
+      data-available-chart-columns={availableColumns ?? undefined}
       className="relative mb-0 inline-block w-full min-w-0 break-inside-avoid"
     >
       <span
-        ref={probeRef}
         aria-hidden="true"
-        className="pointer-events-none absolute left-0 top-0 h-0 overflow-hidden whitespace-pre font-mono text-base opacity-0 sm:text-xl"
-        style={{ fontSize: `${fontSettings.lyricScale / 100}em` }}
+        className="pointer-events-none absolute left-0 top-0 h-0 overflow-hidden font-mono text-base opacity-0 sm:text-xl"
       >
-        {COLUMN_PROBE}
+        <span
+          ref={probeRef}
+          data-chart-column-probe
+          className="whitespace-pre"
+          style={{ fontSize: `${fontSettings.lyricScale / 100}em` }}
+        >
+          {COLUMN_PROBE}
+        </span>
       </span>
       <h2
         className="mb-0 font-extrabold uppercase tracking-[.16em] dark:tracking-[.08em]"
