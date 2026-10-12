@@ -224,4 +224,4 @@ Songs that visitors already imported remain in their private libraries.
 - `src/data` — Dexie database and repositories
 - `src/components` — application UI built from shadcn-style Radix primitives
 - `src/lib/sharing` — public snapshot serialization and blob storage adapter
-- `src/app/api` — published-snapshot API only
+- `src/app/api` — sharing, cleanup, feedback, and health route handlers
