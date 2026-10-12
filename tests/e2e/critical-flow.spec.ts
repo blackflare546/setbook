@@ -445,16 +445,20 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
     .evaluateAll((chords) =>
       chords.map((chord) => ({
         position: chord.getAttribute("data-chord-position"),
+        renderedPosition: chord.getAttribute("data-chord-render-position"),
         left: (chord as HTMLElement).style.left,
       })),
     );
   expect(mobilePositions).toEqual([
-    { position: "8", left: "8ch" },
-    { position: "26", left: "26ch" },
-    { position: "35", left: "35ch" },
-    { position: "41", left: "41ch" },
-    { position: "45", left: "45ch" },
+    { position: "8", renderedPosition: "8", left: "8ch" },
+    { position: "26", renderedPosition: "26", left: "26ch" },
+    { position: "35", renderedPosition: "4", left: "4ch" },
+    { position: "41", renderedPosition: "10", left: "10ch" },
+    { position: "45", renderedPosition: "14", left: "14ch" },
   ]);
+  await expect(
+    mobileWideLine.getByTestId("chart-line-fragment"),
+  ).toHaveCount(2);
 
   await page
     .locator("[data-performance-chart-scroll]")
@@ -488,7 +492,10 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
     "rgb(32, 38, 46)",
   );
   const darkLyrics = page
-    .getByText("How great is our God, sing with me,")
+    .getByTestId("chart-line")
+    .filter({ hasText: "How great is our God, sing with me," })
+    .first()
+    .locator(".whitespace-pre")
     .first();
   await expect(darkLyrics).toHaveCSS("color", "rgb(255, 255, 255)");
   await expect(darkLyrics).toHaveCSS("text-shadow", "none");
@@ -609,7 +616,12 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
   await page.goto(songViewUrl);
   await expect(page.getByLabel("Current key")).toHaveText("G Major");
   await expect(
-    page.getByText("How great is our God, sing with me,").first(),
+    page
+      .getByTestId("chart-line")
+      .filter({ hasText: "How great is our God, sing with me," })
+      .first()
+      .locator(".whitespace-pre")
+      .first(),
   ).toHaveCSS("color", "rgb(255, 255, 255)");
   await expect(page.locator("[data-chord-position] > span").first()).toHaveCSS(
     "color",
@@ -825,7 +837,7 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
         await expect(page.getByLabel("Current key")).toBeVisible();
         await expect(
           page
-            .locator('[data-testid="chart-line"] > div.whitespace-pre')
+            .locator('[data-testid="chart-line"] .whitespace-pre')
             .first(),
         ).toHaveCSS("color", "rgb(255, 255, 255)");
         await expect(
@@ -834,10 +846,72 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
         await expect(
           page.locator("[data-performance-chart-article] h2").first(),
         ).toHaveCSS("color", "rgb(255, 255, 255)");
+        if (width <= 430) {
+          const wrappedLine = page
+            .getByTestId("chart-line")
+            .filter({ has: page.locator('[data-chord-position="45"]') })
+            .first();
+          await expect
+            .poll(() => wrappedLine.getByTestId("chart-line-fragment").count())
+            .toBeGreaterThan(1);
+          const alignment = await wrappedLine
+            .locator("[data-chord-position]")
+            .evaluateAll((chords) =>
+              chords.every((chord) => {
+                const position = chord.getAttribute(
+                  "data-chord-render-position",
+                );
+                return (chord as HTMLElement).style.left === `${position}ch`;
+              }),
+            );
+          expect(alignment).toBe(true);
+        }
       }
       await expectNoPageOverflow(page);
     }
   }
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(performanceUrl);
+  await page.getByLabel("Open performance menu").click();
+  await page.getByRole("button", { name: "1 Column" }).click();
+  await page.getByLabel("Close performance menu").click();
+  const responsiveWideLine = page
+    .getByTestId("chart-line")
+    .filter({ has: page.locator('[data-chord-position="45"]') })
+    .first();
+  await expect
+    .poll(() => responsiveWideLine.getByTestId("chart-line-fragment").count())
+    .toBeGreaterThan(1);
+  const mobileFragmentStarts = await responsiveWideLine
+    .getByTestId("chart-line-fragment")
+    .evaluateAll((fragments) =>
+      fragments.map((fragment) => fragment.getAttribute("data-fragment-start")),
+    );
+  await page.setViewportSize({ width: 768, height: 390 });
+  await expect
+    .poll(() =>
+      responsiveWideLine
+        .getByTestId("chart-line-fragment")
+        .evaluateAll((fragments) =>
+          fragments.map((fragment) =>
+            fragment.getAttribute("data-fragment-start"),
+          ),
+        ),
+    )
+    .not.toEqual(mobileFragmentStarts);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect
+    .poll(() =>
+      responsiveWideLine
+        .getByTestId("chart-line-fragment")
+        .evaluateAll((fragments) =>
+          fragments.map((fragment) =>
+            fragment.getAttribute("data-fragment-start"),
+          ),
+        ),
+    )
+    .toEqual(mobileFragmentStarts);
 
   for (const [width, height] of [
     [375, 667],
