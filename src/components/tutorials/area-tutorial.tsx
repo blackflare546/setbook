@@ -40,7 +40,7 @@ const steps: Record<TutorialId, DriveStep[]> = {
       popover: {
         title: "Open and manage charts",
         description:
-          "Open a song to perform it. Its actions let you edit, duplicate, share, or delete the chart.",
+          "Open a song to perform it. Its actions let you edit, duplicate, or delete the chart.",
       },
     },
   ],

@@ -6,9 +6,7 @@ import type { Song } from "@/core/songs/types";
 import { songRepository } from "@/data/repositories/song-repository";
 import type { PublishedSnapshot } from "@/lib/validation/schemas";
 import { PerformanceView } from "@/components/performance/performance-view";
-import { SongQrExportDialog } from "@/components/songs/song-qr-export-dialog";
 import { Button } from "@/components/ui/button";
-import { QrCode } from "lucide-react";
 import { LoadingState } from "@/components/ui/loading-state";
 
 type SongViewerState =
@@ -44,9 +42,7 @@ export function SongViewer({ id }: { id: string }) {
   }, [id, loadAttempt]);
 
   const displayState: SongViewerState =
-    state.requestedId === id
-      ? state
-      : { status: "loading", requestedId: id };
+    state.requestedId === id ? state : { status: "loading", requestedId: id };
 
   if (displayState.status === "loading")
     return <LoadingState label="Loading song…" className="min-h-dvh" />;
@@ -111,14 +107,6 @@ export function SongViewer({ id }: { id: string }) {
       backHref="/library"
       editHref={`/songs/${song.id}/edit`}
       singleSong
-      singleSongAction={
-        <SongQrExportDialog song={song}>
-          <Button type="button" variant="secondary" size="sm" className="h-11">
-            <QrCode size={16} aria-hidden="true" />
-            <span className="hidden sm:inline">Show QR</span>
-          </Button>
-        </SongQrExportDialog>
-      }
     />
   );
 }

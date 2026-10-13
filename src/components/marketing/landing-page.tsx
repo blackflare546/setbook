@@ -63,8 +63,8 @@ const benefits = [
   {
     title: "Share the set without rebuilding it",
     description:
-      "Publish a read-only setlist or move a song directly between devices when the team needs it.",
-    detail: "Public setlists · QR transfer · local library",
+      "Publish a read-only setlist and give the team one dependable link or QR code.",
+    detail: "Public setlists · QR sharing · local library",
     icon: Share2,
     className: "lg:col-span-4",
     tone: "light",

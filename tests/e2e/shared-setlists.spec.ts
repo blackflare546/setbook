@@ -1,4 +1,5 @@
 import { expect, test } from "./fixtures";
+import QRCode from "qrcode";
 
 const snapshot = {
   version: 2,
@@ -45,6 +46,52 @@ test("shows a useful recovery path when a shared link cannot load", async ({
   await expect(
     page.getByRole("link", { name: "Back to setlists" }),
   ).toHaveAttribute("href", "/setlists");
+});
+
+test("opens a setlist from an uploaded QR image", async ({ page }) => {
+  const createdResponse = await page.request.post("/api/published-setlists", {
+    data: { snapshot },
+  });
+  expect(createdResponse.status()).toBe(201);
+  const created = await createdResponse.json();
+  const publicUrl = `http://localhost:3000/shared/${created.token}/performance`;
+
+  await page.goto("/setlists");
+  await page.getByRole("button", { name: "Scan QR" }).click();
+  await page.getByLabel("Upload QR image").setInputFiles({
+    name: "setlist-qr.png",
+    mimeType: "image/png",
+    buffer: await QRCode.toBuffer(publicUrl, {
+      errorCorrectionLevel: "H",
+      margin: 4,
+      width: 920,
+    }),
+  });
+
+  await expect(page).toHaveURL(`/shared/${created.token}`);
+  await expect(
+    page.getByRole("heading", { name: snapshot.name }),
+  ).toBeVisible();
+});
+
+test("shows an upload error instead of crashing on an image without a QR", async ({
+  page,
+}) => {
+  await page.goto("/setlists");
+  await page.getByRole("button", { name: "Scan QR" }).click();
+  await page.getByLabel("Upload QR image").setInputFiles({
+    name: "blank.png",
+    mimeType: "image/png",
+    buffer: Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl2nVQAAAAASUVORK5CYII=",
+      "base64",
+    ),
+  });
+  await expect(
+    page.getByRole("alert").filter({
+      hasText: "No readable SetBook QR code was found in that image.",
+    }),
+  ).toBeVisible();
 });
 
 test("uses one setlist grid and applies shared updates explicitly", async ({

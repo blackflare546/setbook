@@ -692,15 +692,14 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
   ).toHaveCount(0);
   await page.getByRole("button", { name: "QR code" }).click();
   const qrDialog = page.getByRole("dialog", {
-    name: "Public setlist QR code",
+    name: "Share Friday Night",
   });
   await expect(qrDialog).toContainText(
-    "This QR contains only the read-only public link.",
+    "Scan to open the read-only public setlist.",
   );
-  await expect(qrDialog.getByAltText("Public setlist QR code")).toHaveAttribute(
-    "src",
-    /^data:image\/png/,
-  );
+  await expect(
+    qrDialog.getByAltText("Public setlist QR code for Friday Night"),
+  ).toHaveAttribute("src", /^data:image\/png/);
   await qrDialog.getByRole("button", { name: "Done" }).click();
   await page.setViewportSize({ width: 768, height: 900 });
   await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));

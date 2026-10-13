@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Camera, ImageUp, LoaderCircle } from "lucide-react";
 import type { IScannerControls } from "@zxing/browser";
+import { decodeQrImageFile } from "@/lib/qr-code/qr-image";
 
 export function QrReader({
   onRead,
@@ -88,26 +89,11 @@ export function QrReader({
     setReadingImage(true);
     setError(null);
     acceptingRef.current = false;
-    let bitmap: ImageBitmap | null = null;
     try {
-      const { BrowserQRCodeReader } = await import("@zxing/browser");
-      bitmap = await createImageBitmap(file);
-      const canvas = document.createElement("canvas");
-      canvas.width = bitmap.width;
-      canvas.height = bitmap.height;
-      const context = canvas.getContext("2d", { willReadFrequently: true });
-      if (!context) throw new Error("Image canvas is unavailable");
-      context.drawImage(bitmap, 0, 0);
-      const result = new BrowserQRCodeReader().decodeFromCanvas(canvas);
-      await accept(result.getText());
-    } catch (readError) {
-      setError(
-        readError instanceof Error && readError.message.startsWith("This ")
-          ? readError.message
-          : "No readable SetBook QR code was found in that image.",
-      );
+      await accept(await decodeQrImageFile(file));
+    } catch {
+      setError("No readable SetBook QR code was found in that image.");
     } finally {
-      bitmap?.close();
       setReadingImage(false);
     }
   }
