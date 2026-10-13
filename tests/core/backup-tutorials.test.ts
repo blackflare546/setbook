@@ -136,7 +136,27 @@ describe("tutorial settings in backups", () => {
     });
     await expect(settingsRepository.get()).resolves.toMatchObject({
       theme: "light",
+      lastBackupReminderAt: expect.any(String),
     });
+  });
+
+  it("starts a new backup reminder cooldown after a successful import", async () => {
+    const beforeImport = Date.now();
+
+    await importLibrary(
+      JSON.stringify({
+        version: 1,
+        exportedAt: new Date().toISOString(),
+        songs: [],
+        setlists: [],
+        settings: [],
+      }),
+    );
+
+    const { lastBackupReminderAt } = await settingsRepository.get();
+    expect(Date.parse(lastBackupReminderAt ?? "")).toBeGreaterThanOrEqual(
+      beforeImport,
+    );
   });
 
   it("rejects dangling setlist entries without partially importing data", async () => {
@@ -168,6 +188,7 @@ describe("tutorial settings in backups", () => {
     ).rejects.toThrow("missing song");
     await expect(db.songs.count()).resolves.toBe(0);
     await expect(db.setlists.count()).resolves.toBe(0);
+    await expect(db.settings.count()).resolves.toBe(0);
   });
 
   it("strips publishing credentials when importing a backup", async () => {
