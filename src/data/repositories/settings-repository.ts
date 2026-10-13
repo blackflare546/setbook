@@ -84,6 +84,12 @@ export class SettingsRepository {
   async markLandingPageSeen(): Promise<AppSettings> {
     return this.update({ hasSeenLandingPage: true });
   }
+  async snoozeInstallPrompt(until: Date): Promise<AppSettings> {
+    return this.update({ installPromptSnoozedUntil: until.toISOString() });
+  }
+  async markBackupReminderSeen(at = new Date()): Promise<AppSettings> {
+    return this.update({ lastBackupReminderAt: at.toISOString() });
+  }
   async markTutorialSeen(
     tutorialId: TutorialId,
     version: number,

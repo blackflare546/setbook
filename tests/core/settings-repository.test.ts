@@ -90,6 +90,20 @@ describe("settings theme defaults", () => {
     });
   });
 
+  it("persists PWA prompt and backup reminder timestamps without losing settings", async () => {
+    const installSnooze = new Date("2026-10-26T12:00:00.000Z");
+    const backupSeen = new Date("2026-10-12T12:00:00.000Z");
+
+    await repository.snoozeInstallPrompt(installSnooze);
+    await repository.markBackupReminderSeen(backupSeen);
+
+    await expect(repository.get()).resolves.toMatchObject({
+      theme: "light",
+      installPromptSnoozedUntil: installSnooze.toISOString(),
+      lastBackupReminderAt: backupSeen.toISOString(),
+    });
+  });
+
   it("persists dark chart colors without changing light chart colors", async () => {
     const settings = await repository.get();
     const darkChartColors = { ...settings.darkChartColors, chord: "#BFDBFE" };

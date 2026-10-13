@@ -1,8 +1,9 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AppShell } from "@/components/shell/app-shell";
 import { ThemeProvider } from "@/components/theme/theme-provider";
+import { PwaProvider } from "@/components/pwa/pwa-provider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -15,8 +16,22 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  applicationName: "SetBook",
   title: { default: "SetBook", template: "%s · SetBook" },
   description: "A local-first song chart and setlist workspace for musicians.",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "SetBook",
+  },
+  formatDetection: { telephone: false },
+};
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#fafafa" },
+    { media: "(prefers-color-scheme: dark)", color: "#12161b" },
+  ],
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
@@ -27,9 +42,11 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full">
-        <ThemeProvider>
-          <AppShell>{children}</AppShell>
-        </ThemeProvider>
+        <PwaProvider>
+          <ThemeProvider>
+            <AppShell>{children}</AppShell>
+          </ThemeProvider>
+        </PwaProvider>
       </body>
     </html>
   );

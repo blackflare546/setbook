@@ -4,6 +4,7 @@ import { BookOpen, Coffee } from "lucide-react";
 import { SetBookMark } from "@/components/brand/setbook-logo";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
+import { InstallCard } from "@/components/pwa/install-card";
 
 export const metadata: Metadata = { title: "About" };
 
@@ -90,7 +91,9 @@ export default function AboutPage() {
           </ul>
         </section>
 
-        <Button asChild variant="secondary" className="min-h-11">
+        <InstallCard />
+
+        <Button asChild variant="secondary" className="mt-8 min-h-11">
           <Link href="/welcome">
             <BookOpen size={17} /> View Welcome Page
           </Link>

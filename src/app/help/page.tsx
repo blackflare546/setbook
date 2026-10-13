@@ -3,6 +3,7 @@ import { BookOpenCheck, MessageSquareText } from "lucide-react";
 import { FeedbackForm } from "@/components/help/feedback-form";
 import { PageHeader } from "@/components/ui/page-header";
 import { TutorialControls } from "@/components/help/tutorial-controls";
+import { InstallCard } from "@/components/pwa/install-card";
 
 export const metadata: Metadata = { title: "Help" };
 
@@ -64,6 +65,10 @@ const sections = [
     title: "Display settings",
     body: "Choose Light, Dark, or System theme. Adjust section, chord, and lyric sizes, line height, and Auto, 1 Column, or 2 Columns chart layout from the chart appearance controls.",
   },
+  {
+    title: "Installed app and local data",
+    body: "Installing SetBook gives you an app window and offline access, but songs and setlists still live on this device. Persistent storage reduces automatic cleanup; it cannot protect against clearing app or site data, uninstalling the app, or resetting the device. Download backups regularly and import them on a replacement device.",
+  },
 ];
 
 export default function HelpPage() {
@@ -116,6 +121,10 @@ export default function HelpPage() {
               )}
             </section>
           ))}
+        </div>
+
+        <div className="mt-10">
+          <InstallCard />
         </div>
 
         <TutorialControls />
