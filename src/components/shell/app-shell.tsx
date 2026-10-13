@@ -28,39 +28,51 @@ const keyboardInputSelector = [
   "textarea",
   '[contenteditable="true"]',
 ].join(",");
+const KEYBOARD_HEIGHT_THRESHOLD = 120;
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [mobileKeyboardActive, setMobileKeyboardActive] = useState(false);
   useEffect(() => {
     let frame = 0;
-    const syncKeyboardState = (target: EventTarget | null) => {
-      const editableFocused =
-        target instanceof Element && target.matches(keyboardInputSelector);
-      setMobileKeyboardActive(
-        window.matchMedia("(max-width: 1023px)").matches && editableFocused,
-      );
-    };
-    const handleFocusIn = (event: FocusEvent) => {
-      window.cancelAnimationFrame(frame);
-      syncKeyboardState(event.target);
-    };
-    const handleFocusOut = () => {
-      window.cancelAnimationFrame(frame);
-      frame = window.requestAnimationFrame(() =>
-        syncKeyboardState(document.activeElement),
-      );
-    };
-    const handleResize = () => syncKeyboardState(document.activeElement);
+    const viewport = window.visualViewport;
+    const viewportHeight = () => viewport?.height ?? window.innerHeight;
+    let expandedViewportHeight = viewportHeight();
 
-    document.addEventListener("focusin", handleFocusIn);
-    document.addEventListener("focusout", handleFocusOut);
-    window.addEventListener("resize", handleResize);
+    const syncKeyboardState = () => {
+      const activeElement = document.activeElement;
+      const editableFocused =
+        activeElement instanceof Element &&
+        activeElement.matches(keyboardInputSelector);
+      const currentViewportHeight = viewportHeight();
+      const viewportReduction =
+        expandedViewportHeight - currentViewportHeight;
+      const keyboardOpen = viewportReduction >= KEYBOARD_HEIGHT_THRESHOLD;
+
+      if (!editableFocused && !keyboardOpen) {
+        expandedViewportHeight = currentViewportHeight;
+      } else if (currentViewportHeight > expandedViewportHeight) {
+        expandedViewportHeight = currentViewportHeight;
+      }
+      setMobileKeyboardActive(
+        window.matchMedia("(max-width: 1023px)").matches && keyboardOpen,
+      );
+    };
+    const handleFocusChange = () => {
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(syncKeyboardState);
+    };
+
+    document.addEventListener("focusin", handleFocusChange);
+    document.addEventListener("focusout", handleFocusChange);
+    window.addEventListener("resize", syncKeyboardState);
+    viewport?.addEventListener("resize", syncKeyboardState);
     return () => {
       window.cancelAnimationFrame(frame);
-      document.removeEventListener("focusin", handleFocusIn);
-      document.removeEventListener("focusout", handleFocusOut);
-      window.removeEventListener("resize", handleResize);
+      document.removeEventListener("focusin", handleFocusChange);
+      document.removeEventListener("focusout", handleFocusChange);
+      window.removeEventListener("resize", syncKeyboardState);
+      viewport?.removeEventListener("resize", syncKeyboardState);
     };
   }, []);
   const isActive = (href: string) =>

@@ -54,9 +54,12 @@ test("keeps the mobile shell compact while editing", async ({ page }) => {
   await expect(chordSheet).toHaveAttribute("autocomplete", "off");
 
   await title.focus();
-  await expect(mobileNavigation).toBeHidden();
-  await title.evaluate((element) => element.blur());
   await expect(mobileNavigation).toBeVisible();
+  await page.setViewportSize({ width: 390, height: 544 });
+  await expect(mobileNavigation).toBeHidden();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(mobileNavigation).toBeVisible();
+  await title.evaluate((element) => element.blur());
 
   const header = page.getByTestId("app-header");
   await expect(header).toHaveCSS("position", "relative");
