@@ -11,6 +11,31 @@ pnpm dev
 
 Open [http://localhost:3000](http://localhost:3000). No account or network connection is required for normal library, editing, setlist, or performance use.
 
+## Progressive Web App
+
+Production builds generate an installable service worker after Next.js finishes
+prerendering the application. Install SetBook from the suggestion shown after
+the first Library tutorial, or use the permanent installation card on the Help
+or About page. On iPhone and iPad, use the browser Share menu and choose **Add
+to Home Screen**.
+
+The app shell and static workspace routes are cached during installation.
+Recently visited song, setlist, editor, and performance routes are retained for
+up to 30 days. Publishing, feedback, health, and other `/api` responses are
+always network-only. Service workers are disabled during `pnpm dev` to avoid
+development cache interference; test the production PWA with:
+
+```bash
+pnpm build
+pnpm test:pwa
+```
+
+Songs and private setlists remain in IndexedDB on the current device. Installing
+the PWA and granting persistent storage reduce automatic eviction risk, but do
+not protect data when site/app data is explicitly cleared, the PWA is removed,
+or the device is reset. Use **Back up** in the Song Library regularly and keep
+the downloaded file somewhere safe.
+
 ## Feedback form
 
 The Help page sends feedback through Formspree. Copy `.env.example` to
@@ -32,6 +57,7 @@ pnpm typecheck
 pnpm lint
 pnpm build
 pnpm bundle:report
+pnpm test:pwa
 pnpm exec playwright install chromium
 pnpm test:e2e
 ```

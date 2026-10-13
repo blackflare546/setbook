@@ -26,7 +26,7 @@ for (const viewport of viewports) {
         name: "Your whole set, ready for the stage.",
       }),
     ).toBeVisible();
-    await expect(page.getByRole("button", { name: "Open App" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Open App" })).toBeVisible();
     await expect(
       page.getByLabel("SetBook responsive performance screenshots"),
     ).toBeVisible();
@@ -73,7 +73,7 @@ for (const viewport of viewports) {
 test("landing calls to action reach the benefits and app", async ({ page }) => {
   await page.goto("/welcome");
 
-  await page.getByRole("link", { name: "See how it works" }).click();
+  await page.getByRole("link", { name: "Why SetBook" }).click();
   await expect(page).toHaveURL(/#benefits$/);
   await expect(
     page.getByRole("heading", {
@@ -81,7 +81,15 @@ test("landing calls to action reach the benefits and app", async ({ page }) => {
     }),
   ).toBeVisible();
 
-  await page.getByRole("button", { name: /Open Song Library/ }).click();
+  await expect(
+    page.getByRole("button", { name: "Install SetBook" }).first(),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Install SetBook" }).first().click();
+  await expect(
+    page.getByText("Use the install icon in the address bar", { exact: false }),
+  ).toBeVisible();
+
+  await page.getByRole("link", { name: /Open Song Library/ }).click();
   await expect(page).toHaveURL(/\/library$/);
   await expect(
     page.getByRole("heading", { name: "Song library" }),

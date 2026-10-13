@@ -36,6 +36,7 @@ import { ProgressiveCollectionFooter } from "@/components/ui/progressive-collect
 import { ScrollToTopButton } from "@/components/ui/scroll-to-top-button";
 import { AreaTutorial } from "@/components/tutorials/area-tutorial";
 import { LoadingState } from "@/components/ui/loading-state";
+import { settingsRepository } from "@/data/repositories/settings-repository";
 
 function SongActions({
   song,
@@ -278,6 +279,7 @@ export function SongLibrary() {
       } finally {
         window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 0);
       }
+      await settingsRepository.markBackupReminderSeen();
       setFeedback({ message: "Backup downloaded", tone: "success" });
     } catch {
       setFeedback({
@@ -431,6 +433,7 @@ export function SongLibrary() {
                 }}
               />
               <Button
+                id="library-backup"
                 variant="secondary"
                 onClick={() => importRef.current?.click()}
                 disabled={restoring}

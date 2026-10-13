@@ -4,6 +4,10 @@ import { useEffect } from "react";
 import type { DriveStep } from "driver.js";
 import { TUTORIAL_VERSIONS, type TutorialId } from "@/core/tutorials/types";
 import { settingsRepository } from "@/data/repositories/settings-repository";
+import {
+  TUTORIAL_COMPLETED_EVENT,
+  type TutorialCompletedDetail,
+} from "@/core/tutorials/events";
 
 const steps: Record<TutorialId, DriveStep[]> = {
   library: [
@@ -250,7 +254,15 @@ export function AreaTutorial({
           void settingsRepository
             .markTutorialSeen(id, version)
             .catch(() => undefined)
-            .finally(() => driverObject.destroy());
+            .finally(() => {
+              driverObject.destroy();
+              window.dispatchEvent(
+                new CustomEvent<TutorialCompletedDetail>(
+                  TUTORIAL_COMPLETED_EVENT,
+                  { detail: { id, forced } },
+                ),
+              );
+            });
         };
         const driverObject = driver({
           steps: steps[id],

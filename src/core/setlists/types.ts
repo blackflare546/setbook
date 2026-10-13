@@ -53,4 +53,6 @@ export interface AppSettings {
   chartLayout: ChartLayout;
   hasSeenLandingPage: boolean;
   tutorialVersions: TutorialVersions;
+  installPromptSnoozedUntil?: string;
+  lastBackupReminderAt?: string;
 }

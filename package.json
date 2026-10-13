@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "next build && serwist build serwist.config.mjs && pnpm pwa:audit",
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "node -e \"require('node:fs').rmSync('.next/dev/types',{recursive:true,force:true})\" && next typegen && tsc --noEmit",
@@ -12,11 +12,13 @@
     "test:run": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "test:pwa": "playwright test --config playwright.pwa.config.ts",
     "check": "pnpm lint && pnpm typecheck",
     "env:check": "node scripts/check-production-env.mjs",
     "health:smoke": "node scripts/smoke-deployment.mjs",
     "bundle:report": "node scripts/report-bundle-size.mjs",
-    "release:check": "pnpm audit --prod && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm bundle:report && pnpm test:e2e",
+    "pwa:audit": "node scripts/audit-pwa.mjs",
+    "release:check": "pnpm audit --prod && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm bundle:report && pnpm test:pwa && pnpm test:e2e",
     "format": "prettier --write ."
   },
   "dependencies": {
@@ -43,6 +45,8 @@
   "devDependencies": {
     "@next/env": "16.3.8",
     "@playwright/test": "^1.63.0",
+    "@serwist/cli": "9.5.13",
+    "@serwist/next": "9.5.13",
     "@tailwindcss/postcss": "^4",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.3",
@@ -50,11 +54,13 @@
     "@types/qrcode": "^1.5.6",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "esbuild": "0.28.2",
     "eslint": "^9",
     "eslint-config-next": "16.3.8",
     "fake-indexeddb": "^6.2.5",
     "jsdom": "^30.1.1",
     "prettier": "^3.9.9",
+    "serwist": "9.5.13",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^5.0.1"
