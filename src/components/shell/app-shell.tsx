@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { BookOpen, CircleHelp, Info, ListMusic, Plus } from "lucide-react";
@@ -15,8 +16,53 @@ const nav = [
   { href: "/about", label: "About", icon: Info },
 ];
 
+const keyboardInputSelector = [
+  "input:not([type])",
+  'input[type="text"]',
+  'input[type="search"]',
+  'input[type="email"]',
+  'input[type="url"]',
+  'input[type="tel"]',
+  'input[type="number"]',
+  'input[type="password"]',
+  "textarea",
+  '[contenteditable="true"]',
+].join(",");
+
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const [mobileKeyboardActive, setMobileKeyboardActive] = useState(false);
+  useEffect(() => {
+    let frame = 0;
+    const syncKeyboardState = (target: EventTarget | null) => {
+      const editableFocused =
+        target instanceof Element && target.matches(keyboardInputSelector);
+      setMobileKeyboardActive(
+        window.matchMedia("(max-width: 1023px)").matches && editableFocused,
+      );
+    };
+    const handleFocusIn = (event: FocusEvent) => {
+      window.cancelAnimationFrame(frame);
+      syncKeyboardState(event.target);
+    };
+    const handleFocusOut = () => {
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(() =>
+        syncKeyboardState(document.activeElement),
+      );
+    };
+    const handleResize = () => syncKeyboardState(document.activeElement);
+
+    document.addEventListener("focusin", handleFocusIn);
+    document.addEventListener("focusout", handleFocusOut);
+    window.addEventListener("resize", handleResize);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      document.removeEventListener("focusin", handleFocusIn);
+      document.removeEventListener("focusout", handleFocusOut);
+      window.removeEventListener("resize", handleResize);
+    };
+  }, []);
   const isActive = (href: string) =>
     pathname === href || pathname.startsWith(`${href}/`);
   const songView =
@@ -36,7 +82,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       >
         Skip to content
       </a>
-      <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/92 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/92">
+      <header
+        data-testid="app-header"
+        className="relative z-30 border-b border-slate-200 bg-white/92 backdrop-blur-xl lg:sticky lg:top-0 dark:border-slate-800 dark:bg-slate-950/92"
+      >
         <div className="mx-auto flex min-h-16 max-w-[1440px] items-center gap-2 px-3 py-2 sm:gap-6 sm:px-6 lg:px-8">
           <Link
             href="/library"
@@ -82,7 +131,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </main>
       <nav
         aria-label="Primary navigation"
-        className="fixed inset-x-0 bottom-0 z-30 flex border-t border-slate-200 bg-white/95 p-2 pb-[max(.5rem,env(safe-area-inset-bottom))] shadow-[0_-12px_32px_-24px_rgba(0,0,0,0.35)] backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/95 lg:hidden"
+        data-testid="mobile-primary-navigation"
+        className={cn(
+          "fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 p-1 pb-[max(.25rem,env(safe-area-inset-bottom))] shadow-[0_-12px_32px_-24px_rgba(0,0,0,0.35)] backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/95 lg:hidden",
+          mobileKeyboardActive ? "hidden" : "flex",
+        )}
       >
         {nav.map(({ href, label, icon: Icon }) => (
           <Link
@@ -90,13 +143,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             href={href}
             aria-current={isActive(href) ? "page" : undefined}
             className={cn(
-              "flex min-h-12 min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-[10px] px-0.5 py-1 text-[10px] font-semibold min-[390px]:text-xs",
+              "flex min-h-11 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-lg px-0.5 py-0.5 text-[10px] font-semibold",
               isActive(href)
                 ? "bg-slate-100 text-slate-950 dark:bg-slate-800 dark:text-white"
                 : "text-slate-500 dark:text-slate-400",
             )}
           >
-            <Icon size={20} aria-hidden="true" />
+            <Icon size={18} aria-hidden="true" />
             <span className="max-w-full truncate">
               {label === "Song library" ? "Library" : label}
             </span>

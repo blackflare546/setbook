@@ -6,6 +6,7 @@ export const Input = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <input
     ref={ref}
+    autoComplete="off"
     className={cn(
       "h-11 w-full min-w-0 rounded-[10px] border border-slate-300 bg-white px-3.5 text-base text-slate-950 shadow-[0_1px_2px_rgba(0,0,0,0.03)] outline-none placeholder:text-slate-400 hover:border-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 sm:h-10 sm:text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:hover:border-slate-600 dark:focus:ring-indigo-950",
       className,
@@ -21,6 +22,7 @@ export const Textarea = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <textarea
     ref={ref}
+    autoComplete="off"
     className={cn(
       "min-h-24 w-full min-w-0 rounded-[10px] border border-slate-300 bg-white px-3.5 py-2.5 text-base text-slate-950 shadow-[0_1px_2px_rgba(0,0,0,0.03)] outline-none placeholder:text-slate-400 hover:border-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 sm:text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:hover:border-slate-600 dark:focus:ring-indigo-950",
       className,

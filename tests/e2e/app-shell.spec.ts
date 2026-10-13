@@ -40,3 +40,28 @@ test("offers recovery from an unknown route", async ({ page }) => {
     page.getByRole("link", { name: "Back to library" }),
   ).toHaveAttribute("href", "/library");
 });
+
+test("keeps the mobile shell compact while editing", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/songs/new");
+
+  const mobileNavigation = page.getByTestId("mobile-primary-navigation");
+  const title = page.getByLabel("Title", { exact: true });
+  const chordSheet = page.getByLabel("Chord sheet", { exact: true });
+
+  await expect(mobileNavigation).toBeVisible();
+  await expect(title).toHaveAttribute("autocomplete", "off");
+  await expect(chordSheet).toHaveAttribute("autocomplete", "off");
+
+  await title.focus();
+  await expect(mobileNavigation).toBeHidden();
+  await title.evaluate((element) => element.blur());
+  await expect(mobileNavigation).toBeVisible();
+
+  const header = page.getByTestId("app-header");
+  await expect(header).toHaveCSS("position", "relative");
+  await page.evaluate(() => window.scrollTo(0, 300));
+  await expect
+    .poll(async () => (await header.boundingBox())?.y ?? 0)
+    .toBeLessThan(0);
+});
