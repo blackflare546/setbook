@@ -26,6 +26,13 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform: string }>;
 }
 
+declare global {
+  interface Window {
+    __setbookInstallCaptureReady?: boolean;
+    __setbookInstallPrompt?: BeforeInstallPromptEvent | null;
+  }
+}
+
 type InstallMode = "installed" | "available" | "ios" | "unavailable";
 type PersistenceState = "unknown" | "granted" | "denied" | "unsupported";
 
@@ -116,7 +123,13 @@ export function PwaProvider({ children }: { children: ReactNode }) {
     queueMicrotask(() => {
       if (active) {
         setInstallMode(
-          standalone ? "installed" : isIosDevice() ? "ios" : "unavailable",
+          standalone
+            ? "installed"
+            : window.__setbookInstallPrompt
+              ? "available"
+              : isIosDevice()
+                ? "ios"
+                : "unavailable",
         );
       }
     });
@@ -136,10 +149,18 @@ export function PwaProvider({ children }: { children: ReactNode }) {
     const handleBeforeInstallPrompt = (event: Event) => {
       const promptEvent = event as BeforeInstallPromptEvent;
       promptEvent.preventDefault();
+      window.__setbookInstallPrompt = promptEvent;
       setDeferredPrompt(promptEvent);
       if (!isStandalone()) setInstallMode("available");
     };
+    const handleCapturedInstallPrompt = () => {
+      const promptEvent = window.__setbookInstallPrompt;
+      if (!promptEvent || isStandalone()) return;
+      setDeferredPrompt(promptEvent);
+      setInstallMode("available");
+    };
     const handleInstalled = () => {
+      window.__setbookInstallPrompt = null;
       setDeferredPrompt(null);
       setInstallMode("installed");
       setShowAutomaticPrompt(false);
@@ -151,11 +172,20 @@ export function PwaProvider({ children }: { children: ReactNode }) {
     };
 
     window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+    window.addEventListener(
+      "setbook:install-prompt-available",
+      handleCapturedInstallPrompt,
+    );
     window.addEventListener("appinstalled", handleInstalled);
     window.addEventListener(TUTORIAL_COMPLETED_EVENT, handleTutorialCompleted);
+    handleCapturedInstallPrompt();
     return () => {
       active = false;
       window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+      window.removeEventListener(
+        "setbook:install-prompt-available",
+        handleCapturedInstallPrompt,
+      );
       window.removeEventListener("appinstalled", handleInstalled);
       window.removeEventListener(
         TUTORIAL_COMPLETED_EVENT,
@@ -193,6 +223,7 @@ export function PwaProvider({ children }: { children: ReactNode }) {
     if (!deferredPrompt) return "unavailable" as const;
     await deferredPrompt.prompt();
     const choice = await deferredPrompt.userChoice;
+    window.__setbookInstallPrompt = null;
     setDeferredPrompt(null);
     if (choice.outcome === "dismissed") {
       await snooze(30);

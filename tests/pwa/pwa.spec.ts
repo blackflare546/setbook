@@ -174,6 +174,44 @@ test("offers installation after organic library onboarding and remembers dismiss
   ).toBeVisible();
 });
 
+test("keeps an install prompt captured before React hydration", async ({
+  context,
+  page,
+}) => {
+  await context.addInitScript(() => {
+    const promptEvent = new Event("beforeinstallprompt", { cancelable: true });
+    Object.assign(promptEvent, {
+      prompt: async () => {
+        window.sessionStorage.setItem("setbook-install-prompt-called", "yes");
+      },
+      userChoice: Promise.resolve({ outcome: "accepted", platform: "web" }),
+    });
+    window.__setbookInstallPrompt = promptEvent as unknown as NonNullable<
+      typeof window.__setbookInstallPrompt
+    >;
+  });
+
+  await page.goto("/help");
+  await page.getByRole("button", { name: "Install SetBook" }).click();
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        window.sessionStorage.getItem("setbook-install-prompt-called"),
+      ),
+    )
+    .toBe("yes");
+});
+
+test("gives manual browser instructions when no native prompt is available", async ({
+  page,
+}) => {
+  await page.goto("/about");
+  await page.getByRole("button", { name: "Show install options" }).click();
+  await expect(
+    page.getByText("Chrome has not made its native prompt available yet."),
+  ).toBeVisible();
+});
+
 test("detects standalone mode and handles persistent storage outcomes", async ({
   browser,
 }) => {

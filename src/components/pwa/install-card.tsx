@@ -8,10 +8,12 @@ import { usePwa } from "@/components/pwa/pwa-provider";
 export function InstallCard() {
   const { installMode, persistenceState, install, requestPersistence } = usePwa();
   const [showIosInstructions, setShowIosInstructions] = useState(false);
+  const [showBrowserInstructions, setShowBrowserInstructions] = useState(false);
 
   async function handleInstall() {
     const result = await install();
     if (result === "instructions") setShowIosInstructions(true);
+    if (result === "unavailable") setShowBrowserInstructions(true);
   }
 
   return (
@@ -40,6 +42,16 @@ export function InstallCard() {
               In the browser, tap Share and choose Add to Home Screen.
             </p>
           ) : null}
+          {showBrowserInstructions ? (
+            <p
+              className="mt-3 rounded-lg bg-indigo-50 px-3 py-2 text-sm leading-6 text-indigo-950 dark:bg-indigo-950/50 dark:text-indigo-100"
+              role="status"
+            >
+              Chrome has not made its native prompt available yet. Use the
+              install icon in the address bar, or open the browser menu and
+              choose its install-app option.
+            </p>
+          ) : null}
           <p className="mt-3 flex items-start gap-2 text-xs leading-5 text-slate-500 dark:text-slate-400">
             <ShieldCheck className="mt-0.5 shrink-0" size={15} aria-hidden="true" />
             Local data can still be erased by clearing app or site storage.
@@ -63,9 +75,9 @@ export function InstallCard() {
             {installMode === "ios" ? "How to install" : "Install SetBook"}
           </Button>
         ) : (
-          <p className="max-w-48 text-sm leading-5 text-slate-500 dark:text-slate-400">
-            Use your browser menu and choose Install app or Add to Home Screen.
-          </p>
+          <Button type="button" variant="secondary" onClick={() => void handleInstall()}>
+            Show install options
+          </Button>
         )}
         {installMode === "installed" && persistenceState !== "granted" ? (
           <Button

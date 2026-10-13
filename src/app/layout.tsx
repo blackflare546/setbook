@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
 import { AppShell } from "@/components/shell/app-shell";
 import { ThemeProvider } from "@/components/theme/theme-provider";
@@ -47,6 +48,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             <AppShell>{children}</AppShell>
           </ThemeProvider>
         </PwaProvider>
+        <Script src="/pwa-install-capture.js" strategy="beforeInteractive" />
       </body>
     </html>
   );
