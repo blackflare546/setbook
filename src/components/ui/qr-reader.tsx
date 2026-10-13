@@ -15,6 +15,7 @@ export function QrReader({
   const videoRef = useRef<HTMLVideoElement>(null);
   const controlsRef = useRef<IScannerControls | null>(null);
   const acceptingRef = useRef(false);
+  const readingImageRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const [starting, setStarting] = useState(true);
   const [readingImage, setReadingImage] = useState(false);
@@ -85,15 +86,24 @@ export function QrReader({
   }, [accept, stopCamera]);
 
   async function readImage(file?: File) {
-    if (!file || readingImage) return;
+    if (!file || readingImageRef.current) return;
+    readingImageRef.current = true;
+    acceptingRef.current = true;
     setReadingImage(true);
     setError(null);
-    acceptingRef.current = false;
     try {
-      await accept(await decodeQrImageFile(file));
-    } catch {
-      setError("No readable SetBook QR code was found in that image.");
+      const value = await decodeQrImageFile(file);
+      acceptingRef.current = false;
+      await accept(value);
+    } catch (readError) {
+      acceptingRef.current = false;
+      setError(
+        readError instanceof Error
+          ? readError.message
+          : "No readable SetBook QR code was found in that image.",
+      );
     } finally {
+      readingImageRef.current = false;
       setReadingImage(false);
     }
   }

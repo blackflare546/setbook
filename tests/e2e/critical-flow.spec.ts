@@ -9,10 +9,11 @@ function publicTokenFromPerformancePath(pathname: string | null): string {
   return match[1];
 }
 
-test("keeps the landing, help, and about pages accessible", async ({
+test("routes returning visitors into the app and keeps public pages accessible", async ({
   page,
 }) => {
   await page.goto("/");
+  await expect(page).toHaveURL(/\/welcome$/);
   await expect(
     page.getByRole("heading", {
       name: "Your whole set, ready for the stage.",
@@ -27,18 +28,17 @@ test("keeps the landing, help, and about pages accessible", async ({
   );
   await expect(page.getByRole("link", { name: "Facebook" })).toHaveCount(0);
 
+  await page.goto("/");
+  await expect(page).toHaveURL(/\/library$/);
+  await expect(
+    page.getByRole("heading", { name: "Song library" }),
+  ).toBeVisible();
+
+  await page.goto("/welcome");
   await page.getByRole("link", { name: /Open Song Library/ }).click();
   await expect(page).toHaveURL(/\/library$/);
   await expect(page.getByLabel("Theme")).toHaveValue("light");
   await expect(page.locator("html")).not.toHaveClass(/dark/);
-  await page.goto("/");
-  await expect(
-    page.getByRole("heading", {
-      name: "Your whole set, ready for the stage.",
-    }),
-  ).toBeVisible();
-
-  await page.goto("/library");
 
   await page.getByLabel("Theme").selectOption("dark");
   await expect(

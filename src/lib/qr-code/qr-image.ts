@@ -6,6 +6,7 @@ const QR_OFFSET = 20;
 const SINGLE_LINE_HEIGHT = 1040;
 const DOUBLE_LINE_HEIGHT = 1090;
 const MAX_DECODE_SIZE = 1600;
+const MAX_UPLOAD_BYTES = 20 * 1024 * 1024;
 
 function loadImage(source: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
@@ -17,6 +18,12 @@ function loadImage(source: string): Promise<HTMLImageElement> {
 }
 
 async function loadFileImage(file: File): Promise<HTMLImageElement> {
+  if (file.type && !file.type.startsWith("image/")) {
+    throw new Error("Choose an image file containing a SetBook QR code.");
+  }
+  if (file.size > MAX_UPLOAD_BYTES) {
+    throw new Error("Choose a QR image smaller than 20 MB.");
+  }
   const objectUrl = URL.createObjectURL(file);
   try {
     return await loadImage(objectUrl);
@@ -98,8 +105,9 @@ export async function createSetlistQrImageDataUrl({
   venue?: string;
   date?: string;
 }): Promise<string> {
-  const [dataUrl, logoImage] = await Promise.all([
-    QRCode.toDataURL(value, {
+  const qrCanvas = document.createElement("canvas");
+  const [, logoImage] = await Promise.all([
+    QRCode.toCanvas(qrCanvas, value, {
       width: QR_SIZE,
       margin: 4,
       errorCorrectionLevel: "H",
@@ -107,7 +115,6 @@ export async function createSetlistQrImageDataUrl({
     }),
     loadImage("/setbook-mark.svg").catch(() => null),
   ]);
-  const qrImage = await loadImage(dataUrl);
   const canvas = document.createElement("canvas");
   canvas.width = IMAGE_WIDTH;
   const context = canvas.getContext("2d");
@@ -125,7 +132,7 @@ export async function createSetlistQrImageDataUrl({
   context.fillStyle = "#FFFFFF";
   context.fillRect(0, 0, IMAGE_WIDTH, canvas.height);
   context.imageSmoothingEnabled = false;
-  context.drawImage(qrImage, QR_OFFSET, QR_OFFSET, QR_SIZE, QR_SIZE);
+  context.drawImage(qrCanvas, QR_OFFSET, QR_OFFSET, QR_SIZE, QR_SIZE);
   context.imageSmoothingEnabled = true;
 
   const plateSize = 116;
@@ -202,34 +209,49 @@ export async function decodeQrImageFile(file: File): Promise<string> {
   ]);
   const reader = new BrowserQRCodeReader();
 
-  try {
-    return (await reader.decodeFromImageElement(image)).getText();
-  } catch {
-    // Continue with bounded canvas candidates for large or captioned images.
-  }
-
   const width = image.naturalWidth;
   const height = image.naturalHeight;
-  const candidates = [imageCanvas(image)];
+  if (width < 1 || height < 1) {
+    throw new Error("That image is empty or unsupported.");
+  }
+  if (Math.max(width, height) <= MAX_DECODE_SIZE) {
+    try {
+      return (await reader.decodeFromImageElement(image)).getText();
+    } catch {
+      // Canvas decoding below can recover QR codes surrounded by captions.
+    }
+  }
+
+  const candidates: Array<
+    [sourceX: number, sourceY: number, width: number, height: number]
+  > = [[0, 0, width, height]];
   if (width !== height) {
     const square = Math.min(width, height);
     const centeredX = (width - square) / 2;
     const centeredY = (height - square) / 2;
-    candidates.push(imageCanvas(image, centeredX, 0, square, square));
+    candidates.push([centeredX, 0, square, square]);
     if (centeredY > 0) {
-      candidates.push(imageCanvas(image, centeredX, centeredY, square, square));
-      candidates.push(
-        imageCanvas(image, centeredX, height - square, square, square),
-      );
+      candidates.push([centeredX, centeredY, square, square]);
+      candidates.push([centeredX, height - square, square, square]);
     }
   }
 
-  for (const canvas of candidates) {
+  for (const [sourceX, sourceY, sourceWidth, sourceHeight] of candidates) {
+    const canvas = imageCanvas(
+      image,
+      sourceX,
+      sourceY,
+      sourceWidth,
+      sourceHeight,
+    );
     try {
       return reader.decodeFromCanvas(canvas).getText();
     } catch {
       // Continue until every useful crop has been checked.
+    } finally {
+      canvas.width = 1;
+      canvas.height = 1;
     }
   }
-  throw new Error("No readable QR code was found in that image.");
+  throw new Error("No readable SetBook QR code was found in that image.");
 }

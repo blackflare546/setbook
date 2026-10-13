@@ -75,6 +75,23 @@ describe("settings theme defaults", () => {
     });
   });
 
+  it("keeps landing, tutorial, and PWA settings isolated during concurrent updates", async () => {
+    const snoozedUntil = new Date("2026-11-12T12:00:00.000Z");
+
+    await Promise.all([
+      repository.markLandingPageSeen(),
+      repository.markTutorialSeen("library", 1),
+      repository.snoozeInstallPrompt(snoozedUntil),
+    ]);
+    await repository.markLandingPageSeen();
+
+    await expect(repository.get()).resolves.toMatchObject({
+      hasSeenLandingPage: true,
+      tutorialVersions: { library: 1 },
+      installPromptSnoozedUntil: snoozedUntil.toISOString(),
+    });
+  });
+
   it("resets one tutorial or all tutorials", async () => {
     await repository.markTutorialSeen("library", 1);
     await repository.markTutorialSeen("setlists", 1);

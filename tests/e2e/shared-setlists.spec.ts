@@ -74,6 +74,90 @@ test("opens a setlist from an uploaded QR image", async ({ page }) => {
   ).toBeVisible();
 });
 
+test("round-trips the decorated setlist QR image through upload", async ({
+  page,
+}) => {
+  const setlistId = "decorated-qr-setlist";
+  await page.goto("/setlists");
+  await page.evaluate(async (id) => {
+    await new Promise<void>((resolve, reject) => {
+      const request = indexedDB.open("musician-songbook");
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => {
+        const database = request.result;
+        const transaction = database.transaction(
+          ["songs", "setlists"],
+          "readwrite",
+        );
+        transaction.objectStore("songs").put({
+          id: "decorated-qr-song",
+          title: "Opening Song",
+          artist: "SetBook",
+          originalKey: "C",
+          capo: null,
+          tags: [],
+          sections: [],
+          notes: "",
+          links: {},
+          sourceText: "",
+          createdAt: "2026-10-13T10:00:00.000Z",
+          updatedAt: "2026-10-13T10:00:00.000Z",
+        });
+        transaction.objectStore("setlists").put({
+          id,
+          name: "Autumn Worship Night",
+          venue: "Main Sanctuary",
+          date: "2026-10-13",
+          notes: "",
+          entries: [
+            {
+              id: "decorated-qr-entry",
+              songId: "decorated-qr-song",
+              performanceKey: "C",
+              arrangementCue: "",
+            },
+          ],
+          createdAt: "2026-10-13T10:00:00.000Z",
+          updatedAt: "2026-10-13T10:00:00.000Z",
+        });
+        transaction.onerror = () => reject(transaction.error);
+        transaction.oncomplete = () => {
+          database.close();
+          resolve();
+        };
+      };
+    });
+  }, setlistId);
+
+  await page.goto(`/setlists/${setlistId}`);
+  await page.getByRole("button", { name: "Publish setlist" }).click();
+  await expect(page.getByText("Setlist shared", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "QR code" }).click();
+
+  const qrImage = page.getByAltText(
+    "Public setlist QR code for Autumn Worship Night",
+  );
+  await expect(qrImage).toHaveAttribute("src", /^data:image\/png/);
+  await expect(qrImage).toHaveJSProperty("naturalWidth", 960);
+  const dataUrl = await qrImage.getAttribute("src");
+  expect(dataUrl).not.toBeNull();
+  const qrBuffer = Buffer.from(dataUrl!.split(",", 2)[1], "base64");
+
+  await page.getByRole("button", { name: "Done" }).click();
+  await page.goto("/setlists");
+  await page.getByRole("button", { name: "Scan QR" }).click();
+  await page.getByLabel("Upload QR image").setInputFiles({
+    name: "autumn-worship-night-qr.png",
+    mimeType: "image/png",
+    buffer: qrBuffer,
+  });
+
+  await expect(page).toHaveURL(/\/shared\/[A-Za-z0-9]+$/);
+  await expect(
+    page.getByRole("heading", { name: "Autumn Worship Night" }),
+  ).toBeVisible();
+});
+
 test("shows an upload error instead of crashing on an image without a QR", async ({
   page,
 }) => {
