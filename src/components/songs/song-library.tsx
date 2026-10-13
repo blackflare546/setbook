@@ -12,7 +12,6 @@ import {
   FileMusic,
   MoreHorizontal,
   Pencil,
-  QrCode,
   Search,
   Trash2,
   Upload,
@@ -29,8 +28,6 @@ import { FeedbackToast } from "@/components/ui/feedback-toast";
 import { PageHeader } from "@/components/ui/page-header";
 import { formatMusicalKey } from "@/core/chords/keys";
 import type { Song } from "@/core/songs/types";
-import { SongQrExportDialog } from "@/components/songs/song-qr-export-dialog";
-import { SongQrImportDialog } from "@/components/songs/song-qr-import-dialog";
 import { useProgressiveCollection } from "@/lib/hooks/use-progressive-collection";
 import { ProgressiveCollectionFooter } from "@/components/ui/progressive-collection-footer";
 import { ScrollToTopButton } from "@/components/ui/scroll-to-top-button";
@@ -53,15 +50,6 @@ function SongActions({
   return (
     <>
       <div className="hidden gap-1 sm:flex">
-        <SongQrExportDialog song={song}>
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label={`Show QR for ${song.title}`}
-          >
-            <QrCode size={17} aria-hidden="true" />
-          </Button>
-        </SongQrExportDialog>
         <Button
           asChild
           variant="ghost"
@@ -127,21 +115,6 @@ function SongActions({
               {duplicating ? "Duplicating…" : "Duplicate"}
             </DropdownMenu.Item>
             <DropdownMenu.Separator className="my-1 h-px bg-slate-200 dark:bg-slate-700" />
-            <SongQrExportDialog
-              song={song}
-              onOpenChange={(open) => {
-                if (!open) setMobileMenuOpen(false);
-              }}
-            >
-              <DropdownMenu.Item
-                className="flex min-h-11 cursor-pointer items-center gap-3 rounded-md px-3 text-sm font-semibold outline-none hover:bg-slate-100 focus:bg-slate-100 dark:hover:bg-slate-800 dark:focus:bg-slate-800"
-                onSelect={(event) => event.preventDefault()}
-              >
-                <QrCode size={17} aria-hidden="true" />
-                Show QR
-              </DropdownMenu.Item>
-            </SongQrExportDialog>
-            <DropdownMenu.Separator className="my-1 h-px bg-slate-200 dark:bg-slate-700" />
             <DropdownMenu.Item
               className="flex min-h-11 cursor-pointer items-center gap-3 rounded-md px-3 text-sm font-semibold text-rose-600 outline-none hover:bg-rose-50 focus:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/40 dark:focus:bg-rose-950/40"
               onSelect={() => onDelete(song)}
@@ -204,8 +177,9 @@ export function SongLibrary() {
   const [sort, setSort] = useState<"updated" | "title">("updated");
   const [deletingSong, setDeletingSong] = useState<Song | null>(null);
   const [deleting, setDeleting] = useState(false);
-  const [pendingDeletion, setPendingDeletion] =
-    useState<SongDeletion | null>(null);
+  const [pendingDeletion, setPendingDeletion] = useState<SongDeletion | null>(
+    null,
+  );
   const [restoringDeletion, setRestoringDeletion] = useState(false);
   const [duplicatingSongId, setDuplicatingSongId] = useState<string | null>(
     null,
@@ -450,11 +424,6 @@ export function SongLibrary() {
                 <Download size={16} aria-hidden="true" />
                 Back up
               </Button>
-              <SongQrImportDialog
-                onImported={(message) =>
-                  setFeedback({ message, tone: "success" })
-                }
-              />
               <Button asChild>
                 <Link href="/songs/new">Add song</Link>
               </Button>

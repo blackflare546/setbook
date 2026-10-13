@@ -1,6 +1,5 @@
 "use client";
 
-import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import * as Dialog from "@radix-ui/react-dialog";
@@ -294,7 +293,6 @@ export function PerformanceView({
   publicMode = false,
   publicToken,
   singleSong = false,
-  singleSongAction,
 }: {
   snapshot: PublishedSnapshot;
   backHref?: string;
@@ -302,7 +300,6 @@ export function PerformanceView({
   publicMode?: boolean;
   publicToken?: string;
   singleSong?: boolean;
-  singleSongAction?: ReactNode;
 }) {
   const { theme, resolvedTheme, setTheme } = useTheme();
   const [current, setCurrent] = useState(0);
@@ -610,7 +607,6 @@ export function PerformanceView({
               </Link>
             </Button>
           )}
-          {singleSongAction}
           {editHref && (
             <Button asChild variant="secondary" size="sm" className="h-11">
               <Link href={editHref}>

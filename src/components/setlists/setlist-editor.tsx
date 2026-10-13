@@ -41,7 +41,6 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import QRCode from "qrcode";
 import type { Setlist, SetlistSongEntry } from "@/core/setlists/types";
 import type { Song } from "@/core/songs/types";
 import { reorderEntries } from "@/core/setlists/operations";
@@ -69,6 +68,7 @@ import { ProgressiveCollectionFooter } from "@/components/ui/progressive-collect
 import { ScrollToTopButton } from "@/components/ui/scroll-to-top-button";
 import { AreaTutorial } from "@/components/tutorials/area-tutorial";
 import { LoadingState } from "@/components/ui/loading-state";
+import { createSetlistQrImageDataUrl } from "@/lib/qr-code/qr-image";
 
 type SaveState = "idle" | "dirty" | "saving" | "saved" | "error";
 type LoadState = "loading" | "ready" | "not-found" | "error";
@@ -574,9 +574,11 @@ export function SetlistEditor({ id }: { id: string }) {
     setGeneratingQr(true);
     try {
       setQrDataUrl(
-        await QRCode.toDataURL(absoluteUrl(publicPerformancePath(token)), {
-          width: 640,
-          margin: 2,
+        await createSetlistQrImageDataUrl({
+          value: absoluteUrl(publicPerformancePath(token)),
+          title: currentSetlist.name,
+          venue: currentSetlist.venue,
+          date: currentSetlist.date,
         }),
       );
     } catch {
@@ -1033,26 +1035,28 @@ export function SetlistEditor({ id }: { id: string }) {
               >
                 <Dialog.Portal>
                   <Dialog.Overlay className="fixed inset-0 z-40 bg-slate-950/50" />
-                  <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[min(calc(100vw-2rem),28rem)] -translate-x-1/2 -translate-y-1/2 rounded-xl border border-slate-200 bg-white p-5 text-center shadow-2xl dark:border-slate-700 dark:bg-slate-900">
-                    <Dialog.Title className="text-lg font-bold">
-                      Public setlist QR code
+                  <Dialog.Content className="fixed left-1/2 top-1/2 z-50 max-h-[calc(100dvh-2rem)] w-[min(calc(100vw-2rem),34rem)] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-5 text-center shadow-2xl outline-none sm:p-6 dark:border-slate-700 dark:bg-slate-900">
+                    <Dialog.Title className="text-xl font-semibold tracking-[-0.02em]">
+                      Share {currentSetlist.name}
                     </Dialog.Title>
-                    <Dialog.Description className="mt-1 text-sm text-slate-500">
-                      This QR contains only the read-only public link.
+                    <Dialog.Description className="mt-1 text-sm leading-6 text-slate-500 dark:text-slate-400">
+                      Scan to open the read-only public setlist.
                     </Dialog.Description>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={qrDataUrl}
-                      alt="Public setlist QR code"
-                      className="mx-auto mt-4 w-full max-w-72 rounded-lg"
-                    />
-                    <div className="mt-4 flex justify-center gap-2">
+                    <div className="mx-auto mt-5 w-full max-w-md overflow-hidden bg-white">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={qrDataUrl}
+                        alt={`Public setlist QR code for ${currentSetlist.name}`}
+                        className="block h-auto w-full"
+                      />
+                    </div>
+                    <div className="mt-5 flex flex-col-reverse justify-center gap-2 sm:flex-row">
                       <Button asChild variant="secondary">
                         <a
                           href={qrDataUrl}
-                          download={`${setlist.name}-setlist-qr.png`}
+                          download={`${currentSetlist.name}-setlist-qr.png`}
                         >
-                          Download QR
+                          Download QR image
                         </a>
                       </Button>
                       <Button onClick={() => setQrDataUrl(null)}>Done</Button>

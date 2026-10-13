@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Camera, ImageUp, LoaderCircle } from "lucide-react";
 import type { IScannerControls } from "@zxing/browser";
+import { decodeQrImageFile } from "@/lib/qr-code/qr-image";
 
 export function QrReader({
   onRead,
@@ -14,6 +15,7 @@ export function QrReader({
   const videoRef = useRef<HTMLVideoElement>(null);
   const controlsRef = useRef<IScannerControls | null>(null);
   const acceptingRef = useRef(false);
+  const readingImageRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const [starting, setStarting] = useState(true);
   const [readingImage, setReadingImage] = useState(false);
@@ -84,30 +86,24 @@ export function QrReader({
   }, [accept, stopCamera]);
 
   async function readImage(file?: File) {
-    if (!file || readingImage) return;
+    if (!file || readingImageRef.current) return;
+    readingImageRef.current = true;
+    acceptingRef.current = true;
     setReadingImage(true);
     setError(null);
-    acceptingRef.current = false;
-    let bitmap: ImageBitmap | null = null;
     try {
-      const { BrowserQRCodeReader } = await import("@zxing/browser");
-      bitmap = await createImageBitmap(file);
-      const canvas = document.createElement("canvas");
-      canvas.width = bitmap.width;
-      canvas.height = bitmap.height;
-      const context = canvas.getContext("2d", { willReadFrequently: true });
-      if (!context) throw new Error("Image canvas is unavailable");
-      context.drawImage(bitmap, 0, 0);
-      const result = new BrowserQRCodeReader().decodeFromCanvas(canvas);
-      await accept(result.getText());
+      const value = await decodeQrImageFile(file);
+      acceptingRef.current = false;
+      await accept(value);
     } catch (readError) {
+      acceptingRef.current = false;
       setError(
-        readError instanceof Error && readError.message.startsWith("This ")
+        readError instanceof Error
           ? readError.message
           : "No readable SetBook QR code was found in that image.",
       );
     } finally {
-      bitmap?.close();
+      readingImageRef.current = false;
       setReadingImage(false);
     }
   }
