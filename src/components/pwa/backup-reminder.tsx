@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { useLiveQuery } from "dexie-react-hooks";
 import { Download, X } from "lucide-react";
@@ -12,35 +12,23 @@ const THIRTY_DAYS = 30 * 24 * 60 * 60 * 1000;
 
 export function BackupReminder({ installed }: { installed: boolean }) {
   const songCount = useLiveQuery(() => db.songs.count(), [], 0);
-  const [visible, setVisible] = useState(false);
-  const checkedThisSession = useRef(false);
-
-  useEffect(() => {
-    if (
-      checkedThisSession.current ||
-      !installed ||
-      songCount < 1
-    ) {
-      return;
-    }
-    checkedThisSession.current = true;
-    let active = true;
-    void settingsRepository.get().then((settings) => {
-      if (!active) return;
-      const lastSeen = settings.lastBackupReminderAt
-        ? Date.parse(settings.lastBackupReminderAt)
-        : 0;
-      if (!Number.isFinite(lastSeen) || Date.now() - lastSeen >= THIRTY_DAYS) {
-        setVisible(true);
-      }
-    });
-    return () => {
-      active = false;
-    };
-  }, [installed, songCount]);
+  const settings = useLiveQuery(() => settingsRepository.get(), []);
+  const [dismissedThisSession, setDismissedThisSession] = useState(false);
+  const [sessionStartedAt] = useState(() => Date.now());
+  const lastSeen = settings?.lastBackupReminderAt
+    ? Date.parse(settings.lastBackupReminderAt)
+    : 0;
+  const reminderIsDue =
+    !Number.isFinite(lastSeen) || sessionStartedAt - lastSeen >= THIRTY_DAYS;
+  const visible =
+    installed &&
+    songCount > 0 &&
+    Boolean(settings) &&
+    reminderIsDue &&
+    !dismissedThisSession;
 
   async function dismiss() {
-    setVisible(false);
+    setDismissedThisSession(true);
     await settingsRepository.markBackupReminderSeen();
   }
 

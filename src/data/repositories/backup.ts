@@ -5,6 +5,7 @@ import {
   DEFAULT_CHART_COLORS,
   DEFAULT_CHART_FONT_SETTINGS,
 } from "@/core/songs/chart-font-settings";
+import { settingsRepository } from "@/data/repositories/settings-repository";
 import { z } from "zod";
 
 const backupSchema = z.object({
@@ -160,6 +161,7 @@ export async function importLibrary(raw: string): Promise<ImportLibraryResult> {
     if (songsToAdd.length) await db.songs.bulkAdd(songsToAdd);
     if (setlistsToAdd.length) await db.setlists.bulkAdd(setlistsToAdd);
     if (settingsImported && settings) await db.settings.add(settings);
+    await settingsRepository.markBackupReminderSeen();
 
     return {
       songsAdded: songsToAdd.length,

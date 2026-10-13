@@ -248,7 +248,7 @@ test("detects standalone mode and handles persistent storage outcomes", async ({
   }
 });
 
-test("reminds installed users with local songs to back up and honors cooldown", async ({
+test("a successful backup import starts the installed-app reminder cooldown", async ({
   page,
 }) => {
   await page.addInitScript(emulateStandalone);
@@ -294,7 +294,30 @@ test("reminds installed users with local songs to back up and honors cooldown", 
   await expect(
     page.getByRole("heading", { name: "Keep a fresh backup" }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Remind me later" }).click();
+  await page
+    .locator('input[type="file"][accept="application/json"]')
+    .setInputFiles({
+      name: "recent-backup.json",
+      mimeType: "application/json",
+      buffer: Buffer.from(
+        JSON.stringify({
+          version: 1,
+          exportedAt: new Date().toISOString(),
+          songs: [],
+          setlists: [],
+          settings: [],
+        }),
+      ),
+    });
+  await page
+    .getByRole("dialog", { name: "Import this backup?" })
+    .getByRole("button", { name: "Import new items" })
+    .click();
+  await expect(
+    page.getByText("Nothing new to import; duplicates were skipped", {
+      exact: true,
+    }),
+  ).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "Keep a fresh backup" }),
   ).toHaveCount(0);
