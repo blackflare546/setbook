@@ -35,11 +35,7 @@ declare global {
 type InstallMode = "installed" | "available" | "ios" | "unavailable";
 type PersistenceState = "unknown" | "granted" | "denied" | "unsupported";
 type InstallResult =
-  | "accepted"
-  | "dismissed"
-  | "instructions"
-  | "unavailable"
-  | "installed";
+  "accepted" | "dismissed" | "instructions" | "unavailable" | "installed";
 
 interface PwaContextValue {
   installMode: InstallMode;
@@ -84,29 +80,33 @@ export function PwaProvider({ children }: { children: ReactNode }) {
     ) {
       return;
     }
-    void navigator.serviceWorker.register("/sw.js", {
-      scope: "/",
-      type: "module",
-      updateViaCache: "none",
-    });
+    void navigator.serviceWorker
+      .register("/sw.js", {
+        scope: "/",
+        type: "module",
+        updateViaCache: "none",
+      })
+      .catch(() => undefined);
   }, []);
 
-  const requestPersistence = useCallback(async (): Promise<PersistenceState> => {
-    if (!navigator.storage?.persist) {
-      setPersistenceState("unsupported");
-      return "unsupported";
-    }
-    try {
-      const alreadyPersistent = await navigator.storage.persisted?.();
-      const granted = alreadyPersistent || (await navigator.storage.persist());
-      const next = granted ? "granted" : "denied";
-      setPersistenceState(next);
-      return next;
-    } catch {
-      setPersistenceState("denied");
-      return "denied";
-    }
-  }, []);
+  const requestPersistence =
+    useCallback(async (): Promise<PersistenceState> => {
+      if (!navigator.storage?.persist) {
+        setPersistenceState("unsupported");
+        return "unsupported";
+      }
+      try {
+        const alreadyPersistent = await navigator.storage.persisted?.();
+        const granted =
+          alreadyPersistent || (await navigator.storage.persist());
+        const next = granted ? "granted" : "denied";
+        setPersistenceState(next);
+        return next;
+      } catch {
+        setPersistenceState("denied");
+        return "denied";
+      }
+    }, []);
 
   useEffect(() => {
     let active = true;
@@ -125,17 +125,20 @@ export function PwaProvider({ children }: { children: ReactNode }) {
       }
     });
 
-    void settingsRepository.get().then((settings) => {
-      if (!active) return;
-      setTutorialComplete(
-        (settings.tutorialVersions.library ?? 0) >= TUTORIAL_VERSIONS.library,
-      );
-      setSnoozedUntil(
-        settings.installPromptSnoozedUntil
-          ? Date.parse(settings.installPromptSnoozedUntil)
-          : 0,
-      );
-    });
+    void settingsRepository
+      .get()
+      .then((settings) => {
+        if (!active) return;
+        setTutorialComplete(
+          (settings.tutorialVersions.library ?? 0) >= TUTORIAL_VERSIONS.library,
+        );
+        setSnoozedUntil(
+          settings.installPromptSnoozedUntil
+            ? Date.parse(settings.installPromptSnoozedUntil)
+            : 0,
+        );
+      })
+      .catch(() => undefined);
 
     const handleBeforeInstallPrompt = (event: Event) => {
       const promptEvent = event as BeforeInstallPromptEvent;
@@ -158,7 +161,8 @@ export function PwaProvider({ children }: { children: ReactNode }) {
       void requestPersistence();
     };
     const handleTutorialCompleted = (event: Event) => {
-      const { id, forced } = (event as CustomEvent<TutorialCompletedDetail>).detail;
+      const { id, forced } = (event as CustomEvent<TutorialCompletedDetail>)
+        .detail;
       if (id === "library" && !forced) setTutorialComplete(true);
     };
 
@@ -172,7 +176,10 @@ export function PwaProvider({ children }: { children: ReactNode }) {
     handleCapturedInstallPrompt();
     return () => {
       active = false;
-      window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+      window.removeEventListener(
+        "beforeinstallprompt",
+        handleBeforeInstallPrompt,
+      );
       window.removeEventListener(
         "setbook:install-prompt-available",
         handleCapturedInstallPrompt,
@@ -213,7 +220,14 @@ export function PwaProvider({ children }: { children: ReactNode }) {
     if (installMode === "installed") return "installed" as const;
     if (installMode === "ios") return "instructions" as const;
     if (!deferredPrompt) return "unavailable" as const;
-    await deferredPrompt.prompt();
+    try {
+      await deferredPrompt.prompt();
+    } catch {
+      window.__setbookInstallPrompt = null;
+      setDeferredPrompt(null);
+      setInstallMode("unavailable");
+      return "unavailable" as const;
+    }
     const choice = await deferredPrompt.userChoice;
     window.__setbookInstallPrompt = null;
     setDeferredPrompt(null);
@@ -264,17 +278,17 @@ function InstallPromptPanel({ onDismiss }: { onDismiss: () => void }) {
         </span>
       </button>
       <div className="pr-9">
-          <h2
-            id="install-setbook-title"
-            className="text-lg font-semibold tracking-[-0.02em] text-slate-950 dark:text-white"
-          >
-            Keep SetBook ready for the stage
-          </h2>
-          <p className="mt-1.5 text-sm leading-6 text-slate-600 dark:text-slate-300">
-            {installMode === "ios"
-              ? "Tap Share, then Add to Home Screen to install SetBook."
-              : "Install SetBook for a focused app window and reliable offline access."}
-          </p>
+        <h2
+          id="install-setbook-title"
+          className="text-lg font-semibold tracking-[-0.02em] text-slate-950 dark:text-white"
+        >
+          Keep SetBook ready for the stage
+        </h2>
+        <p className="mt-1.5 text-sm leading-6 text-slate-600 dark:text-slate-300">
+          {installMode === "ios"
+            ? "Tap Share, then Add to Home Screen to install SetBook."
+            : "Install SetBook for a focused app window and reliable offline access."}
+        </p>
       </div>
       <p className="mt-4 rounded-xl bg-amber-50 px-3 py-2.5 text-xs leading-5 text-amber-950 dark:bg-amber-950/35 dark:text-amber-100">
         Songs stay on this device. Clearing app or site data can remove them, so

@@ -19,18 +19,14 @@ import { SetBookLogo } from "@/components/brand/setbook-logo";
 import { OpenAppButton } from "@/components/marketing/open-app-button";
 import { Button } from "@/components/ui/button";
 
-function LandingInstallButton({
-  id,
-}: {
-  id: string;
-}) {
+function LandingInstallButton() {
   return (
     <div className="flex flex-col items-start gap-2">
       <Button
         type="button"
         size="lg"
         variant="secondary"
-        data-setbook-install={id}
+        data-setbook-install="offline"
         className="min-h-12 rounded-[10px] border-[#cfd1dc] bg-white px-6 text-[#252631] shadow-sm hover:border-[#afb3c2] hover:bg-[#fafafd] active:translate-y-px dark:border-[#cfd1dc] dark:bg-white dark:text-[#252631] dark:hover:bg-[#fafafd]"
       >
         Install SetBook
@@ -38,7 +34,7 @@ function LandingInstallButton({
       <p
         hidden
         role="status"
-        data-setbook-install-status={id}
+        data-setbook-install-status="offline"
         className="max-w-sm text-sm leading-6 text-[#616571]"
       />
     </div>
@@ -153,7 +149,7 @@ export function LandingPage() {
       <header className="sticky top-0 z-30 border-b border-[#e3e5e8] bg-white/88 backdrop-blur-xl">
         <div className="mx-auto flex min-h-16 max-w-[1440px] items-center gap-5 px-4 sm:px-6 lg:px-8">
           <Link
-            href="/welcome"
+            href="/"
             aria-label="SetBook home"
             className="rounded-lg text-[#17181c] outline-none focus-visible:ring-2 focus-visible:ring-[#5555cf] focus-visible:ring-offset-4"
           >
@@ -362,17 +358,17 @@ export function LandingPage() {
                   <HardDriveDownload size={22} aria-hidden="true" />
                 </span>
                 <div className="mt-auto pt-16">
-                <h2 className="text-3xl font-semibold leading-[1.08] tracking-[-0.042em] text-[#24252c]">
-                  Local-first means you stay in control.
-                </h2>
-                <p className="mt-4 text-base leading-7 text-[#5d606a]">
-                  Songs and setlists live on this device. Export backups
-                  regularly: clearing site or app data, deleting the PWA, or
-                  resetting the device can remove them.
-                </p>
-                <div className="mt-7">
-                  <LandingInstallButton id="offline" />
-                </div>
+                  <h2 className="text-3xl font-semibold leading-[1.08] tracking-[-0.042em] text-[#24252c]">
+                    Local-first means you stay in control.
+                  </h2>
+                  <p className="mt-4 text-base leading-7 text-[#5d606a]">
+                    Songs and setlists live on this device. Export backups
+                    regularly: clearing site or app data, deleting the PWA, or
+                    resetting the device can remove them.
+                  </p>
+                  <div className="mt-7">
+                    <LandingInstallButton />
+                  </div>
                 </div>
               </div>
             </article>
