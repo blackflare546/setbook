@@ -5,17 +5,45 @@ import {
   BookOpen,
   Check,
   Coffee,
+  HardDriveDownload,
   ListChecks,
   ListMusic,
   Maximize2,
   Music2,
   Share2,
+  WifiOff,
 } from "lucide-react";
 import performanceDesktop from "@/assets/landing/perform-desktop-tablet-view.jpeg";
 import performanceMobile from "@/assets/landing/perform-mobile-view.jpeg";
 import { SetBookLogo } from "@/components/brand/setbook-logo";
 import { OpenAppButton } from "@/components/marketing/open-app-button";
 import { Button } from "@/components/ui/button";
+
+function LandingInstallButton({
+  id,
+}: {
+  id: string;
+}) {
+  return (
+    <div className="flex flex-col items-start gap-2">
+      <Button
+        type="button"
+        size="lg"
+        variant="secondary"
+        data-setbook-install={id}
+        className="min-h-12 rounded-[10px] border-[#cfd1dc] bg-white px-6 text-[#252631] shadow-sm hover:border-[#afb3c2] hover:bg-[#fafafd] active:translate-y-px dark:border-[#cfd1dc] dark:bg-white dark:text-[#252631] dark:hover:bg-[#fafafd]"
+      >
+        Install SetBook
+      </Button>
+      <p
+        hidden
+        role="status"
+        data-setbook-install-status={id}
+        className="max-w-sm text-sm leading-6 text-[#616571]"
+      />
+    </div>
+  );
+}
 
 const benefits = [
   {
@@ -37,13 +65,22 @@ const benefits = [
     tone: "coral",
   },
   {
-    title: "Share without rebuilding",
+    title: "Share the set without rebuilding it",
     description:
       "Publish a read-only setlist or move a song directly between devices when the team needs it.",
     detail: "Public setlists · QR transfer · local library",
     icon: Share2,
-    className: "lg:col-span-5",
+    className: "lg:col-span-4",
     tone: "light",
+  },
+  {
+    title: "Keep working when the signal drops",
+    description:
+      "Install SetBook and return to your library, setlists, and recently visited charts without depending on venue Wi-Fi.",
+    detail: "Installable · offline-ready · recently visited charts",
+    icon: WifiOff,
+    className: "lg:col-span-4",
+    tone: "indigo",
   },
   {
     title: "Perform from a view built for the room",
@@ -51,8 +88,8 @@ const benefits = [
       "Move through the set with readable charts, fast transposition, and the controls you need without the editor getting in the way.",
     detail: "Performance mode · responsive charts · transpose",
     icon: Maximize2,
-    className: "lg:col-span-7",
-    tone: "indigo",
+    className: "lg:col-span-4",
+    tone: "dark",
   },
 ] as const;
 
@@ -185,14 +222,6 @@ export function LandingPage() {
                   Open Song Library
                   <ArrowRight size={18} aria-hidden="true" />
                 </OpenAppButton>
-                <Button
-                  asChild
-                  size="lg"
-                  variant="secondary"
-                  className="min-h-12 rounded-[10px] border-[#d4d7dc] bg-white text-[#17181c] shadow-sm hover:border-[#aeb3bb] hover:bg-[#f5f5f7] active:translate-y-px dark:border-[#d4d7dc] dark:bg-white dark:text-[#17181c] dark:hover:bg-[#f5f5f7]"
-                >
-                  <a href="#benefits">See how it works</a>
-                </Button>
               </div>
               <p className="mt-7 flex max-w-lg items-start gap-2 text-sm leading-6 text-[#666d79]">
                 <Check
@@ -200,8 +229,8 @@ export function LandingPage() {
                   className="mt-1 shrink-0 text-[#5555cf]"
                   aria-hidden="true"
                 />
-                Local-first for the music you keep private, with deliberate
-                sharing when the band needs it.
+                No account and no forced sync. Your working library stays on
+                this device until you deliberately share or export it.
               </p>
             </div>
 
@@ -289,8 +318,70 @@ export function LandingPage() {
         </section>
 
         <section
-          id="workflow"
+          id="offline"
           className="scroll-mt-20 border-y border-[#e3e5e8] bg-[#f8f8fa] py-20 sm:py-24 lg:py-28"
+        >
+          <div className="mx-auto grid max-w-[1440px] gap-3 px-4 sm:px-6 lg:grid-cols-12 lg:px-8">
+            <article className="relative overflow-hidden rounded-2xl border border-[#202126] bg-[#15161a] p-6 text-white shadow-[0_28px_80px_-52px_rgba(0,0,0,0.9)] sm:p-8 lg:col-span-7 lg:min-h-[430px]">
+              <div
+                className="pointer-events-none absolute inset-0"
+                aria-hidden="true"
+                style={{
+                  background:
+                    "radial-gradient(circle at 88% 12%, rgba(114,114,236,0.34), transparent 32%), radial-gradient(circle at 8% 90%, rgba(239,126,105,0.16), transparent 28%)",
+                }}
+              />
+              <div className="relative flex h-full flex-col">
+                <span className="grid h-12 w-12 place-items-center rounded-xl border border-white/15 bg-white/10 text-white">
+                  <WifiOff size={22} aria-hidden="true" />
+                </span>
+                <div className="mt-auto max-w-2xl pt-20">
+                  <h2 className="text-3xl font-semibold leading-[1.06] tracking-[-0.045em] sm:text-[2.75rem]">
+                    Ready before the room loses its signal.
+                  </h2>
+                  <p className="mt-5 max-w-xl text-base leading-7 text-[#d1d5db] sm:text-[17px] sm:leading-8">
+                    Install once, open the charts you need while online, and
+                    SetBook keeps the application shell and recent working
+                    routes ready for unreliable connections.
+                  </p>
+                </div>
+              </div>
+            </article>
+
+            <article className="relative flex overflow-hidden rounded-2xl border border-[#dedee7] bg-[#f4f4f7] p-6 shadow-[0_24px_64px_-50px_rgba(36,38,54,0.38)] sm:p-8 lg:col-span-5 lg:min-h-[430px]">
+              <div
+                className="pointer-events-none absolute inset-0"
+                aria-hidden="true"
+                style={{
+                  background:
+                    "radial-gradient(circle at 92% 8%, rgba(85,85,207,0.08), transparent 36%), radial-gradient(circle at 6% 96%, rgba(239,126,105,0.05), transparent 38%)",
+                }}
+              />
+              <div className="relative flex w-full flex-col">
+                <span className="grid h-12 w-12 place-items-center rounded-xl border border-[#d8d8e5] bg-white/75 text-[#5555cf] shadow-sm backdrop-blur-sm">
+                  <HardDriveDownload size={22} aria-hidden="true" />
+                </span>
+                <div className="mt-auto pt-16">
+                <h2 className="text-3xl font-semibold leading-[1.08] tracking-[-0.042em] text-[#24252c]">
+                  Local-first means you stay in control.
+                </h2>
+                <p className="mt-4 text-base leading-7 text-[#5d606a]">
+                  Songs and setlists live on this device. Export backups
+                  regularly: clearing site or app data, deleting the PWA, or
+                  resetting the device can remove them.
+                </p>
+                <div className="mt-7">
+                  <LandingInstallButton id="offline" />
+                </div>
+                </div>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section
+          id="workflow"
+          className="scroll-mt-20 bg-white py-20 sm:py-24 lg:py-28"
         >
           <div className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-8">
             <div className="max-w-4xl">
@@ -341,12 +432,14 @@ export function LandingPage() {
                 dependable place.
               </p>
             </div>
-            <OpenAppButton
-              size="lg"
-              className="min-h-12 shrink-0 rounded-[10px] bg-white px-6 text-[#101114] hover:bg-[#eceef1] active:translate-y-px dark:bg-white dark:text-[#101114] dark:hover:bg-[#eceef1]"
-            >
-              Open SetBook <ArrowRight size={18} aria-hidden="true" />
-            </OpenAppButton>
+            <div className="lg:shrink-0">
+              <OpenAppButton
+                size="lg"
+                className="min-h-12 shrink-0 rounded-[10px] bg-white px-6 text-[#101114] hover:bg-[#eceef1] active:translate-y-px dark:bg-white dark:text-[#101114] dark:hover:bg-[#eceef1]"
+              >
+                Open SetBook <ArrowRight size={18} aria-hidden="true" />
+              </OpenAppButton>
+            </div>
           </div>
         </section>
       </main>

@@ -5,13 +5,11 @@ import {
   useCallback,
   useContext,
   useEffect,
-  useMemo,
   useRef,
   useState,
   type ReactNode,
 } from "react";
 import { usePathname } from "next/navigation";
-import { Download, Share2, ShieldCheck, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { settingsRepository } from "@/data/repositories/settings-repository";
 import { TUTORIAL_VERSIONS } from "@/core/tutorials/types";
@@ -30,16 +28,23 @@ declare global {
   interface Window {
     __setbookInstallCaptureReady?: boolean;
     __setbookInstallPrompt?: BeforeInstallPromptEvent | null;
+    __setbookInstall?: () => Promise<InstallResult>;
   }
 }
 
 type InstallMode = "installed" | "available" | "ios" | "unavailable";
 type PersistenceState = "unknown" | "granted" | "denied" | "unsupported";
+type InstallResult =
+  | "accepted"
+  | "dismissed"
+  | "instructions"
+  | "unavailable"
+  | "installed";
 
 interface PwaContextValue {
   installMode: InstallMode;
   persistenceState: PersistenceState;
-  install(): Promise<"accepted" | "dismissed" | "instructions" | "unavailable">;
+  install(): Promise<InstallResult>;
   requestPersistence(): Promise<PersistenceState>;
 }
 
@@ -85,20 +90,6 @@ export function PwaProvider({ children }: { children: ReactNode }) {
       updateViaCache: "none",
     });
   }, []);
-
-  useEffect(() => {
-    if (
-      process.env.NODE_ENV !== "production" ||
-      !navigator.onLine ||
-      !navigator.serviceWorker?.controller
-    ) {
-      return;
-    }
-    navigator.serviceWorker.controller.postMessage({
-      type: "CACHE_URLS",
-      payload: { urlsToCache: [pathname] },
-    });
-  }, [pathname]);
 
   const requestPersistence = useCallback(async (): Promise<PersistenceState> => {
     if (!navigator.storage?.persist) {
@@ -219,6 +210,7 @@ export function PwaProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const install = useCallback(async () => {
+    if (installMode === "installed") return "installed" as const;
     if (installMode === "ios") return "instructions" as const;
     if (!deferredPrompt) return "unavailable" as const;
     await deferredPrompt.prompt();
@@ -234,13 +226,17 @@ export function PwaProvider({ children }: { children: ReactNode }) {
     return "accepted" as const;
   }, [deferredPrompt, installMode, requestPersistence, snooze]);
 
-  const value = useMemo(
-    () => ({ installMode, persistenceState, install, requestPersistence }),
-    [install, installMode, persistenceState, requestPersistence],
-  );
+  useEffect(() => {
+    window.__setbookInstall = install;
+    return () => {
+      delete window.__setbookInstall;
+    };
+  }, [install]);
 
   return (
-    <PwaContext.Provider value={value}>
+    <PwaContext.Provider
+      value={{ installMode, persistenceState, install, requestPersistence }}
+    >
       {children}
       {showAutomaticPrompt ? (
         <InstallPromptPanel onDismiss={() => void snooze(14)} />
@@ -263,17 +259,11 @@ function InstallPromptPanel({ onDismiss }: { onDismiss: () => void }) {
         className="absolute right-3 top-3 grid h-10 w-10 place-items-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
         aria-label="Dismiss install suggestion"
       >
-        <X size={18} aria-hidden="true" />
-      </button>
-      <div className="flex items-start gap-4 pr-9">
-        <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-300">
-          {installMode === "ios" ? (
-            <Share2 size={21} aria-hidden="true" />
-          ) : (
-            <Download size={21} aria-hidden="true" />
-          )}
+        <span aria-hidden="true" className="text-xl leading-none">
+          ×
         </span>
-        <div>
+      </button>
+      <div className="pr-9">
           <h2
             id="install-setbook-title"
             className="text-lg font-semibold tracking-[-0.02em] text-slate-950 dark:text-white"
@@ -285,10 +275,8 @@ function InstallPromptPanel({ onDismiss }: { onDismiss: () => void }) {
               ? "Tap Share, then Add to Home Screen to install SetBook."
               : "Install SetBook for a focused app window and reliable offline access."}
           </p>
-        </div>
       </div>
-      <p className="mt-4 flex gap-2 rounded-xl bg-amber-50 px-3 py-2.5 text-xs leading-5 text-amber-950 dark:bg-amber-950/35 dark:text-amber-100">
-        <ShieldCheck className="mt-0.5 shrink-0" size={16} aria-hidden="true" />
+      <p className="mt-4 rounded-xl bg-amber-50 px-3 py-2.5 text-xs leading-5 text-amber-950 dark:bg-amber-950/35 dark:text-amber-100">
         Songs stay on this device. Clearing app or site data can remove them, so
         keep a recent backup.
       </p>
@@ -298,7 +286,6 @@ function InstallPromptPanel({ onDismiss }: { onDismiss: () => void }) {
         </Button>
         {installMode === "available" ? (
           <Button type="button" onClick={() => void install()}>
-            <Download size={17} aria-hidden="true" />
             Install SetBook
           </Button>
         ) : (
