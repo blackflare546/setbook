@@ -41,6 +41,10 @@ const backupSchema = z.object({
         })
         .default(DARK_CHART_COLORS),
       chartLayout: z.enum(["auto", "one", "two"]).default("auto"),
+      chartNotation: z.enum(["chords", "nashville"]).default("chords"),
+      nashvilleMinorMode: z
+        .enum(["relative-major", "tonic-one"])
+        .default("relative-major"),
       hasSeenLandingPage: z.boolean().default(false),
       tutorialVersions: z
         .object({
@@ -56,38 +60,30 @@ const backupSchema = z.object({
 });
 
 export async function exportLibrary(): Promise<string> {
-  return db.transaction(
-    "r",
-    db.songs,
-    db.setlists,
-    db.settings,
-    async () => {
-      const songs = await db.songs.toArray();
-      const songIds = new Set(songs.map((song) => song.id));
-      const setlists = (await db.setlists.toArray()).map((setlist) => {
-        const safe = {
-          ...setlist,
-          entries: setlist.entries.filter((entry) =>
-            songIds.has(entry.songId),
-          ),
-        };
-        delete safe.shareBinding;
-        delete safe.publishToken;
-        return safe;
-      });
-      return JSON.stringify(
-        {
-          version: 1,
-          exportedAt: new Date().toISOString(),
-          songs,
-          setlists,
-          settings: await db.settings.toArray(),
-        },
-        null,
-        2,
-      );
-    },
-  );
+  return db.transaction("r", db.songs, db.setlists, db.settings, async () => {
+    const songs = await db.songs.toArray();
+    const songIds = new Set(songs.map((song) => song.id));
+    const setlists = (await db.setlists.toArray()).map((setlist) => {
+      const safe = {
+        ...setlist,
+        entries: setlist.entries.filter((entry) => songIds.has(entry.songId)),
+      };
+      delete safe.shareBinding;
+      delete safe.publishToken;
+      return safe;
+    });
+    return JSON.stringify(
+      {
+        version: 1,
+        exportedAt: new Date().toISOString(),
+        songs,
+        setlists,
+        settings: await db.settings.toArray(),
+      },
+      null,
+      2,
+    );
+  });
 }
 
 export interface ImportLibraryResult {

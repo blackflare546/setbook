@@ -133,7 +133,7 @@ describe("chart appearance settings", () => {
       React.createElement(PerformanceView, { snapshot, singleSong: true }),
     );
 
-    fireEvent.click(screen.getByLabelText("Chart font sizes"));
+    fireEvent.click(screen.getByLabelText("Chart settings"));
     expect(
       await screen.findByLabelText("Sections font scale"),
     ).toHaveTextContent("130%");
@@ -171,10 +171,57 @@ describe("chart appearance settings", () => {
     await waitFor(() =>
       expect(screen.getByText("Test lyrics")).toHaveStyle({ color: "#654321" }),
     );
-    fireEvent.click(screen.getByLabelText("Chart font sizes"));
+    fireEvent.click(screen.getByLabelText("Chart settings"));
     expect(
       await screen.findByLabelText("Sections font scale"),
     ).toHaveTextContent("120%");
     expect(screen.getByLabelText("Lyrics color")).toHaveValue("#654321");
+  });
+
+  it("switches to Nashville numbers and persists the notation choice", async () => {
+    const view = render(
+      React.createElement(PerformanceView, { snapshot, singleSong: true }),
+    );
+
+    fireEvent.click(screen.getByLabelText("Chart settings"));
+    fireEvent.click(screen.getByRole("button", { name: "Nashville numbers" }));
+
+    expect(screen.getByText("1")).toBeVisible();
+    expect(screen.getByLabelText("Nashville reference 1 = G")).toBeVisible();
+    expect(screen.getByLabelText("Nashville minor-key convention")).toHaveValue(
+      "relative-major",
+    );
+    await waitFor(async () => {
+      await expect(db.settings.get("app")).resolves.toMatchObject({
+        chartNotation: "nashville",
+      });
+    });
+
+    view.unmount();
+    render(
+      React.createElement(PerformanceView, { snapshot, singleSong: true }),
+    );
+    await waitFor(() => expect(screen.getByText("1")).toBeVisible());
+  });
+
+  it("falls back to chord names when the song has no valid key", async () => {
+    const keylessSnapshot = structuredClone(snapshot);
+    keylessSnapshot.songs[0].originalKey = "";
+    keylessSnapshot.songs[0].performanceKey = "";
+    await settingsRepository.saveChartNotation("nashville");
+
+    render(
+      React.createElement(PerformanceView, {
+        snapshot: keylessSnapshot,
+        singleSong: true,
+      }),
+    );
+
+    expect(
+      await screen.findByText(
+        "Set a valid key to use Nashville numbers. Chord names are shown for this song.",
+      ),
+    ).toBeVisible();
+    expect(screen.getByText("G")).toBeVisible();
   });
 });

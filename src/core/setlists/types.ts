@@ -2,6 +2,8 @@ import type {
   ChartColors,
   ChartFontSettings,
   ChartLayout,
+  ChartNotation,
+  NashvilleMinorMode,
 } from "@/core/songs/chart-font-settings";
 import type { TutorialVersions } from "@/core/tutorials/types";
 
@@ -51,6 +53,8 @@ export interface AppSettings {
   chartColors: ChartColors;
   darkChartColors: ChartColors;
   chartLayout: ChartLayout;
+  chartNotation: ChartNotation;
+  nashvilleMinorMode: NashvilleMinorMode;
   hasSeenLandingPage: boolean;
   tutorialVersions: TutorialVersions;
   installPromptSnoozedUntil?: string;
