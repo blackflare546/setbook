@@ -6,6 +6,8 @@ import {
   type ChartColors,
   type ChartLayout,
   type ChartFontSettings,
+  type ChartNotation,
+  type NashvilleMinorMode,
 } from "@/core/songs/chart-font-settings";
 import { db, type SongbookDatabase } from "@/data/db/songbook-db";
 import type { TutorialId } from "@/core/tutorials/types";
@@ -18,6 +20,8 @@ const defaults: AppSettings = {
   chartColors: DEFAULT_CHART_COLORS,
   darkChartColors: DARK_CHART_COLORS,
   chartLayout: "auto",
+  chartNotation: "chords",
+  nashvilleMinorMode: "relative-major",
   hasSeenLandingPage: false,
   tutorialVersions: {},
 };
@@ -69,6 +73,14 @@ export class SettingsRepository {
   }
   async saveChartLayout(chartLayout: ChartLayout): Promise<AppSettings> {
     return this.update({ chartLayout });
+  }
+  async saveChartNotation(chartNotation: ChartNotation): Promise<AppSettings> {
+    return this.update({ chartNotation });
+  }
+  async saveNashvilleMinorMode(
+    nashvilleMinorMode: NashvilleMinorMode,
+  ): Promise<AppSettings> {
+    return this.update({ nashvilleMinorMode });
   }
   async saveChartColors(chartColors: ChartColors): Promise<AppSettings> {
     return this.update({ chartColors });

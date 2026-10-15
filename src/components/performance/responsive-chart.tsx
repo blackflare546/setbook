@@ -1,17 +1,12 @@
 "use client";
 
-import {
-  memo,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { SongLine, SongSection } from "@/core/songs/types";
 import type {
   ChartColors,
   ChartFontSettings,
+  ChartNotation,
+  NashvilleMinorMode,
 } from "@/core/songs/chart-font-settings";
 import { getChartContrastOutline } from "@/core/songs/chart-color-contrast";
 import {
@@ -19,6 +14,7 @@ import {
   type DisplayChord,
 } from "@/core/songs/chart-line-layout";
 import { transposeChordSymbol } from "@/core/transpose/transpose";
+import { toNashvilleChordSymbol } from "@/core/chords/nashville";
 import { cn } from "@/lib/utils";
 
 const COLUMN_PROBE = "0".repeat(100);
@@ -30,6 +26,10 @@ const ResponsiveChartLine = memo(function ResponsiveChartLine({
   colors,
   chartBackground,
   availableColumns,
+  notation,
+  nashvilleKey,
+  nashvilleBaseSemitones,
+  nashvilleMinorMode,
 }: {
   line: SongLine;
   semitones: number;
@@ -37,17 +37,34 @@ const ResponsiveChartLine = memo(function ResponsiveChartLine({
   colors: ChartColors;
   chartBackground: string;
   availableColumns: number | null;
+  notation: ChartNotation;
+  nashvilleKey: string;
+  nashvilleBaseSemitones: number;
+  nashvilleMinorMode: NashvilleMinorMode;
 }) {
   const chords = useMemo<DisplayChord[]>(
     () =>
       line.chords.map((chord) => ({
         ...chord,
-        displaySymbol: transposeChordSymbol(chord.symbol, semitones),
+        displaySymbol:
+          notation === "nashville"
+            ? (toNashvilleChordSymbol(
+                transposeChordSymbol(chord.symbol, nashvilleBaseSemitones),
+                nashvilleKey,
+                nashvilleMinorMode,
+              ) ?? transposeChordSymbol(chord.symbol, semitones))
+            : transposeChordSymbol(chord.symbol, semitones),
       })),
-    [line.chords, semitones],
+    [
+      line.chords,
+      nashvilleBaseSemitones,
+      nashvilleKey,
+      nashvilleMinorMode,
+      notation,
+      semitones,
+    ],
   );
-  const chordToLyricScale =
-    fontSettings.chordScale / fontSettings.lyricScale;
+  const chordToLyricScale = fontSettings.chordScale / fontSettings.lyricScale;
   const fragments = useMemo(
     () =>
       layoutChartLine(
@@ -78,9 +95,7 @@ const ResponsiveChartLine = memo(function ResponsiveChartLine({
             data-testid="chart-line-fragment"
             data-fragment-start={fragment.startColumn}
             data-fragment-end={fragment.endColumn}
-            data-performance-scroll-container={
-              scrollsHorizontally || undefined
-            }
+            data-performance-scroll-container={scrollsHorizontally || undefined}
             className={cn(
               "max-w-full overflow-y-hidden",
               scrollsHorizontally
@@ -153,12 +168,20 @@ export function ResponsiveChartSection({
   fontSettings,
   colors,
   chartBackground,
+  notation = "chords",
+  nashvilleKey = "",
+  nashvilleBaseSemitones = 0,
+  nashvilleMinorMode = "relative-major",
 }: {
   section: SongSection;
   semitones: number;
   fontSettings: ChartFontSettings;
   colors: ChartColors;
   chartBackground: string;
+  notation?: ChartNotation;
+  nashvilleKey?: string;
+  nashvilleBaseSemitones?: number;
+  nashvilleMinorMode?: NashvilleMinorMode;
 }) {
   const sectionRef = useRef<HTMLElement>(null);
   const probeRef = useRef<HTMLSpanElement>(null);
@@ -168,10 +191,7 @@ export function ResponsiveChartSection({
     const sectionWidth = sectionRef.current?.getBoundingClientRect().width ?? 0;
     const probeWidth = probeRef.current?.getBoundingClientRect().width ?? 0;
     if (sectionWidth <= 0 || probeWidth <= 0) return;
-    const next = Math.max(
-      1,
-      Math.floor(sectionWidth / (probeWidth / 100)) - 1,
-    );
+    const next = Math.max(1, Math.floor(sectionWidth / (probeWidth / 100)) - 1);
     setAvailableColumns((current) => (current === next ? current : next));
   }, []);
 
@@ -228,6 +248,10 @@ export function ResponsiveChartSection({
             colors={colors}
             chartBackground={chartBackground}
             availableColumns={availableColumns}
+            notation={notation}
+            nashvilleKey={nashvilleKey}
+            nashvilleBaseSemitones={nashvilleBaseSemitones}
+            nashvilleMinorMode={nashvilleMinorMode}
           />
         ))}
       </div>

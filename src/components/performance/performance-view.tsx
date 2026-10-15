@@ -16,6 +16,7 @@ import {
   Music2,
   Plus,
   RotateCcw,
+  SlidersHorizontal,
   StickyNote,
   X,
 } from "lucide-react";
@@ -32,7 +33,9 @@ import {
   type ChartColors,
   type ChartFontCategory,
   type ChartLayout,
+  type ChartNotation,
   type ChartFontSettings,
+  type NashvilleMinorMode,
 } from "@/core/songs/chart-font-settings";
 import {
   CHART_BACKGROUNDS,
@@ -41,6 +44,7 @@ import {
 } from "@/core/songs/chart-color-contrast";
 import { formatMusicalKey, transposeMusicalKey } from "@/core/chords/keys";
 import { semitoneDistance } from "@/core/transpose/transpose";
+import { getNashvilleReference } from "@/core/chords/nashville";
 import { Button } from "@/components/ui/button";
 import { settingsRepository } from "@/data/repositories/settings-repository";
 import { useTheme } from "@/components/theme/theme-provider";
@@ -65,28 +69,84 @@ interface ChartAppearanceProps {
   settings: ChartFontSettings;
   colors: ChartColors;
   layout: ChartLayout;
+  notation: ChartNotation;
+  nashvilleMinorMode: NashvilleMinorMode;
   resolvedTheme: "light" | "dark";
   onChange: (category: ChartFontCategory, change: number) => void;
   onColorChange: (category: ChartColorCategory, color: string) => void;
   onResetColors: () => void;
   onLineHeightChange: (change: number) => void;
   onLayoutChange: (layout: ChartLayout) => void;
+  onNotationChange: (notation: ChartNotation) => void;
+  onNashvilleMinorModeChange: (mode: NashvilleMinorMode) => void;
 }
 
 function ChartAppearancePanel({
   settings,
   colors,
   layout,
+  notation,
+  nashvilleMinorMode,
   resolvedTheme,
   onChange,
   onColorChange,
   onResetColors,
   onLineHeightChange,
   onLayoutChange,
+  onNotationChange,
+  onNashvilleMinorModeChange,
 }: ChartAppearanceProps) {
   const chartBackground = CHART_BACKGROUNDS[resolvedTheme];
   return (
     <div className="space-y-3">
+      <div className="border-b border-slate-200 pb-3 dark:border-slate-800">
+        <p className="mb-2 text-sm font-semibold">Notation</p>
+        <div
+          className="grid grid-cols-2 gap-1 rounded-lg bg-slate-100 p-1 dark:bg-slate-950"
+          role="group"
+          aria-label="Chart notation"
+        >
+          {(
+            [
+              { value: "chords", label: "Chord names" },
+              { value: "nashville", label: "Nashville numbers" },
+            ] as const
+          ).map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              className={cn(
+                "min-h-11 rounded-md px-2 text-xs font-bold transition-colors",
+                notation === option.value
+                  ? "bg-white text-indigo-700 shadow-sm dark:bg-slate-800 dark:text-indigo-300"
+                  : "text-slate-600 hover:bg-white/70 dark:text-slate-400 dark:hover:bg-slate-800/70",
+              )}
+              aria-pressed={notation === option.value}
+              onClick={() => onNotationChange(option.value)}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+        {notation === "nashville" && (
+          <label className="mt-3 block text-sm font-semibold">
+            Minor-key convention
+            <select
+              aria-label="Nashville minor-key convention"
+              className="mt-2 h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-base text-slate-950 outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+              value={nashvilleMinorMode}
+              onChange={(event) =>
+                onNashvilleMinorModeChange(
+                  event.target.value as NashvilleMinorMode,
+                )
+              }
+            >
+              <option value="relative-major">Relative major (6m)</option>
+              <option value="tonic-one">Minor tonic (1m)</option>
+            </select>
+          </label>
+        )}
+      </div>
       {FONT_ROWS.map(({ category, label }) => {
         const value = settings[`${category}Scale`];
         return (
@@ -248,7 +308,7 @@ function ChartAppearancePanel({
   );
 }
 
-function ChartFontControls(props: ChartAppearanceProps) {
+function ChartSettingsControls(props: ChartAppearanceProps) {
   return (
     <Dialog.Root>
       <Dialog.Trigger asChild>
@@ -256,9 +316,9 @@ function ChartFontControls(props: ChartAppearanceProps) {
           size="icon"
           variant="ghost"
           className="h-11 w-11"
-          aria-label="Chart font sizes"
+          aria-label="Chart settings"
         >
-          <span className="text-sm font-black">Aa</span>
+          <SlidersHorizontal size={19} aria-hidden="true" />
         </Button>
       </Dialog.Trigger>
       <Dialog.Portal>
@@ -266,14 +326,14 @@ function ChartFontControls(props: ChartAppearanceProps) {
         <Dialog.Content className="fixed left-1/2 top-1/2 z-50 max-h-[calc(100dvh-2rem)] w-[min(calc(100vw-2rem),24rem)] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-xl border border-slate-200 bg-white p-4 shadow-2xl outline-none dark:border-slate-700 dark:bg-slate-900">
           <div className="mb-4 flex min-h-11 items-center justify-between gap-3">
             <Dialog.Title className="text-lg font-bold">
-              Font &amp; Typography
+              Chart settings
             </Dialog.Title>
             <Dialog.Close asChild>
               <Button
                 size="icon"
                 variant="ghost"
                 className="h-11 w-11"
-                aria-label="Close font size controls"
+                aria-label="Close chart settings"
               >
                 <X size={20} aria-hidden="true" />
               </Button>
@@ -319,6 +379,9 @@ export function PerformanceView({
   const [darkChartColors, setDarkChartColors] =
     useState<ChartColors>(DARK_CHART_COLORS);
   const [chartLayout, setChartLayout] = useState<ChartLayout>("auto");
+  const [chartNotation, setChartNotation] = useState<ChartNotation>("chords");
+  const [nashvilleMinorMode, setNashvilleMinorMode] =
+    useState<NashvilleMinorMode>("relative-major");
   const performanceRootRef = useRef<HTMLElement>(null);
   const chartScrollRef = useRef<HTMLDivElement>(null);
   const autoHide = useResponsiveAutoHideControls(chartScrollRef, !singleSong);
@@ -344,6 +407,8 @@ export function PerformanceView({
         setChartColors(settings.chartColors);
         setDarkChartColors(settings.darkChartColors);
         setChartLayout(settings.chartLayout);
+        setChartNotation(settings.chartNotation);
+        setNashvilleMinorMode(settings.nashvilleMinorMode);
       })
       .catch(() => {
         // Keep the readable in-memory defaults when settings are unavailable.
@@ -480,6 +545,16 @@ export function PerformanceView({
     void settingsRepository.saveChartLayout(layout);
   }
 
+  function changeChartNotation(notation: ChartNotation) {
+    setChartNotation(notation);
+    void settingsRepository.saveChartNotation(notation);
+  }
+
+  function changeNashvilleMinorMode(mode: NashvilleMinorMode) {
+    setNashvilleMinorMode(mode);
+    void settingsRepository.saveNashvilleMinorMode(mode);
+  }
+
   async function toggleFullscreen() {
     try {
       if (document.fullscreenElement) await document.exitFullscreen?.();
@@ -520,9 +595,16 @@ export function PerformanceView({
   const baseKey = song.performanceKey || song.originalKey;
   const baseSemitones = semitoneDistance(song.originalKey, baseKey);
   const semitones = baseSemitones + transposeOffset;
-  const currentKey = baseKey
-    ? formatMusicalKey(transposeMusicalKey(baseKey, transposeOffset))
+  const currentKeyValue = baseKey
+    ? transposeMusicalKey(baseKey, transposeOffset)
+    : "";
+  const currentKey = currentKeyValue
+    ? formatMusicalKey(currentKeyValue)
     : "Not set";
+  const nashvilleReference = getNashvilleReference(
+    currentKeyValue,
+    nashvilleMinorMode,
+  );
   const activeChartColors =
     resolvedTheme === "dark" ? darkChartColors : chartColors;
   const controlsVisible =
@@ -670,18 +752,22 @@ export function PerformanceView({
 
                   <section className="mb-4 rounded-xl border border-slate-200 p-3 dark:border-slate-800">
                     <h2 className="mb-3 text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">
-                      Font &amp; Typography
+                      Chart settings
                     </h2>
                     <ChartAppearancePanel
                       settings={fontSettings}
                       colors={activeChartColors}
                       layout={chartLayout}
+                      notation={chartNotation}
+                      nashvilleMinorMode={nashvilleMinorMode}
                       resolvedTheme={resolvedTheme}
                       onChange={changeFontScale}
                       onColorChange={changeChartColor}
                       onResetColors={resetChartColors}
                       onLineHeightChange={changeLineHeight}
                       onLayoutChange={changeChartLayout}
+                      onNotationChange={changeChartNotation}
+                      onNashvilleMinorModeChange={changeNashvilleMinorMode}
                     />
                   </section>
 
@@ -744,16 +830,20 @@ export function PerformanceView({
             </Dialog.Root>
           )}
           {singleSong && (
-            <ChartFontControls
+            <ChartSettingsControls
               settings={fontSettings}
               colors={activeChartColors}
               layout={chartLayout}
+              notation={chartNotation}
+              nashvilleMinorMode={nashvilleMinorMode}
               resolvedTheme={resolvedTheme}
               onChange={changeFontScale}
               onColorChange={changeChartColor}
               onResetColors={resetChartColors}
               onLineHeightChange={changeLineHeight}
               onLayoutChange={changeChartLayout}
+              onNotationChange={changeChartNotation}
+              onNashvilleMinorModeChange={changeNashvilleMinorMode}
             />
           )}
           <Button
@@ -835,6 +925,14 @@ export function PerformanceView({
                     Capo {song.capo}
                   </p>
                 )}
+                {chartNotation === "nashville" && nashvilleReference && (
+                  <p
+                    className="mt-1 whitespace-nowrap font-mono text-[10px] font-bold text-indigo-700 dark:text-indigo-300"
+                    aria-label={`Nashville reference ${nashvilleReference.tonicLabel}`}
+                  >
+                    NNS · {nashvilleReference.tonicLabel}
+                  </p>
+                )}
               </div>
               <div
                 className="flex items-center gap-1"
@@ -881,6 +979,16 @@ export function PerformanceView({
               </div>
             </div>
           </div>
+
+          {chartNotation === "nashville" && !nashvilleReference && (
+            <p
+              role="status"
+              className="mb-6 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200"
+            >
+              Set a valid key to use Nashville numbers. Chord names are shown
+              for this song.
+            </p>
+          )}
 
           {song.arrangementCue && (
             <div className="mb-6 rounded-r-xl border-l-2 border-indigo-500 bg-indigo-50 px-4 py-3 dark:bg-indigo-500/10">
@@ -933,6 +1041,10 @@ export function PerformanceView({
                 fontSettings={fontSettings}
                 colors={displayedChartColors}
                 chartBackground={CHART_BACKGROUNDS[resolvedTheme]}
+                notation={nashvilleReference ? chartNotation : "chords"}
+                nashvilleKey={baseKey}
+                nashvilleBaseSemitones={baseSemitones}
+                nashvilleMinorMode={nashvilleMinorMode}
               />
             ))}
           </div>

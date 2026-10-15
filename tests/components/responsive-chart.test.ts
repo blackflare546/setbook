@@ -119,4 +119,43 @@ describe("responsive chart rendering", () => {
     );
     expect(source).toEqual(section);
   });
+
+  it("keeps Nashville numbers stable through temporary transposition", async () => {
+    const view = render(
+      React.createElement(ResponsiveChartSection, {
+        section,
+        semitones: 3,
+        fontSettings: DEFAULT_CHART_FONT_SETTINGS,
+        colors: DEFAULT_CHART_COLORS,
+        chartBackground: "#FFFFFF",
+        notation: "nashville",
+        nashvilleKey: "A",
+        nashvilleBaseSemitones: 2,
+        nashvilleMinorMode: "relative-major",
+      }),
+    );
+
+    expect(await screen.findByText("1")).toBeVisible();
+    expect(screen.getByText("1").parentElement).toHaveAttribute(
+      "data-chord-position",
+      "8",
+    );
+
+    view.rerender(
+      React.createElement(ResponsiveChartSection, {
+        section,
+        semitones: 5,
+        fontSettings: DEFAULT_CHART_FONT_SETTINGS,
+        colors: DEFAULT_CHART_COLORS,
+        chartBackground: "#FFFFFF",
+        notation: "nashville",
+        nashvilleKey: "A",
+        nashvilleBaseSemitones: 2,
+        nashvilleMinorMode: "relative-major",
+      }),
+    );
+
+    expect(screen.getByText("1")).toBeVisible();
+    expect(screen.queryByText("C")).not.toBeInTheDocument();
+  });
 });

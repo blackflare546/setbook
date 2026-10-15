@@ -53,6 +53,8 @@ describe("tutorial settings in backups", () => {
     await expect(settingsRepository.get()).resolves.toMatchObject({
       hasSeenLandingPage: true,
       tutorialVersions: {},
+      chartNotation: "chords",
+      nashvilleMinorMode: "relative-major",
     });
   });
 

@@ -48,6 +48,21 @@ describe("settings theme defaults", () => {
     });
   });
 
+  it("defaults and persists Nashville display preferences", async () => {
+    await expect(repository.get()).resolves.toMatchObject({
+      chartNotation: "chords",
+      nashvilleMinorMode: "relative-major",
+    });
+
+    await repository.saveChartNotation("nashville");
+    await repository.saveNashvilleMinorMode("tonic-one");
+
+    await expect(repository.get()).resolves.toMatchObject({
+      chartNotation: "nashville",
+      nashvilleMinorMode: "tonic-one",
+    });
+  });
+
   it("defaults tutorial versions and updates them without changing other settings", async () => {
     await expect(repository.get()).resolves.toMatchObject({
       tutorialVersions: {},

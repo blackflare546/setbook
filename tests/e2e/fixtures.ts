@@ -88,6 +88,8 @@ export const tutorialSettings = {
     lyric: "#FFFFFF",
   },
   chartLayout: "auto",
+  chartNotation: "chords",
+  nashvilleMinorMode: "relative-major",
   hasSeenLandingPage: false,
   tutorialVersions: {
     library: 1,

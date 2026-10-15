@@ -288,7 +288,23 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
     { position: 45, left: "45ch" },
   ]);
 
-  await page.getByLabel("Chart font sizes").click();
+  await page.getByLabel("Chart settings").click();
+  await expect(
+    page.getByRole("button", { name: "Chord names" }),
+  ).toHaveAttribute("aria-pressed", "true");
+  await page.getByRole("button", { name: "Nashville numbers" }).click();
+  await expect(page.getByLabel("Nashville reference 1 = G")).toBeVisible();
+  await expect(
+    page
+      .getByTestId("chart-line")
+      .first()
+      .locator("[data-chord-position]")
+      .first(),
+  ).toHaveText("1");
+  await expect(page.getByLabel("Nashville minor-key convention")).toHaveValue(
+    "relative-major",
+  );
+  await page.getByRole("button", { name: "Chord names" }).click();
   await expect(page.getByLabel("Sections font scale")).toHaveText("130%");
   await expect(page.getByLabel("Chords font scale")).toHaveText("100%");
   await expect(page.getByLabel("Lyrics font scale")).toHaveText("100%");
@@ -317,9 +333,7 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
     "aria-pressed",
     "true",
   );
-  const scaledWideChord = wideChartLine.locator(
-    '[data-chord-position="45"]',
-  );
+  const scaledWideChord = wideChartLine.locator('[data-chord-position="45"]');
   const scaledRenderedPosition = await scaledWideChord.getAttribute(
     "data-chord-render-position",
   );
@@ -327,9 +341,9 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
     "style",
     new RegExp(`left: ${scaledRenderedPosition}ch`),
   );
-  await page.getByLabel("Close font size controls").click();
+  await page.getByLabel("Close chart settings").click();
   await page.reload();
-  await page.getByLabel("Chart font sizes").click();
+  await page.getByLabel("Chart settings").click();
   await expect(page.getByLabel("Sections font scale")).toHaveText("140%");
   await expect(page.getByLabel("Chords font scale")).toHaveText("110%");
   await expect(page.getByLabel("Lyrics font scale")).toHaveText("110%");
@@ -339,23 +353,23 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
     "true",
   );
   await page.getByRole("button", { name: "Auto" }).click();
-  await page.getByLabel("Close font size controls").click();
+  await page.getByLabel("Close chart settings").click();
   await page.setViewportSize({ width: 768, height: 900 });
   await expect(page.locator('[data-chart-layout="auto"]')).toHaveCSS(
     "column-count",
     "2",
   );
-  await page.getByLabel("Chart font sizes").click();
+  await page.getByLabel("Chart settings").click();
   await page.getByRole("button", { name: "1 Column" }).click();
-  await page.getByLabel("Close font size controls").click();
+  await page.getByLabel("Close chart settings").click();
   await expect(page.locator('[data-chart-layout="one"]')).toHaveCSS(
     "column-count",
     "1",
   );
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.getByLabel("Chart font sizes").click();
+  await page.getByLabel("Chart settings").click();
   await page.getByRole("button", { name: "Auto" }).click();
-  await page.getByLabel("Close font size controls").click();
+  await page.getByLabel("Close chart settings").click();
   await expect(page.locator('[data-chart-layout="auto"]')).toHaveCSS(
     "column-count",
     "1",
@@ -497,9 +511,9 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
     { position: "41", renderedPosition: "10", left: "10ch" },
     { position: "45", renderedPosition: "14", left: "14ch" },
   ]);
-  await expect(
-    mobileWideLine.getByTestId("chart-line-fragment"),
-  ).toHaveCount(2);
+  await expect(mobileWideLine.getByTestId("chart-line-fragment")).toHaveCount(
+    2,
+  );
 
   await page
     .locator("[data-performance-chart-scroll]")
@@ -514,9 +528,7 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
   expect(performanceMenuBox?.height).toBeGreaterThanOrEqual(44);
   await performanceMenu.click();
   await expect(page.getByRole("dialog")).toBeVisible();
-  await expect(
-    page.getByText("Font & Typography", { exact: true }),
-  ).toBeVisible();
+  await expect(page.getByText("Chart settings", { exact: true })).toBeVisible();
   await page.getByLabel("Performance theme").selectOption("dark");
   await expect(page.locator("html")).toHaveClass(/dark/);
   await expect(
@@ -808,9 +820,7 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
     await sharedPerformanceScroller.click({ position: { x: 20, y: 300 } });
   }
   await performanceMenu.click();
-  await expect(
-    page.getByText("Font & Typography", { exact: true }),
-  ).toBeVisible();
+  await expect(page.getByText("Chart settings", { exact: true })).toBeVisible();
   await page.getByLabel("Performance theme").selectOption("light");
   await expect(page.locator("html")).not.toHaveClass(/dark/);
   await page.getByLabel("Performance theme").selectOption("dark");
@@ -876,9 +886,7 @@ test("mobile-first song, setlist, performance, and publishing flow", async ({
       ) {
         await expect(page.getByLabel("Current key")).toBeVisible();
         await expect(
-          page
-            .locator('[data-testid="chart-line"] .whitespace-pre')
-            .first(),
+          page.locator('[data-testid="chart-line"] .whitespace-pre').first(),
         ).toHaveCSS("color", "rgb(255, 255, 255)");
         await expect(
           page.locator("[data-chord-position] > span").first(),

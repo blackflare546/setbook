@@ -1,6 +1,8 @@
 export type ChartFontCategory = "section" | "chord" | "lyric";
 export type ChartColorCategory = ChartFontCategory;
 export type ChartLayout = "auto" | "one" | "two";
+export type ChartNotation = "chords" | "nashville";
+export type NashvilleMinorMode = "relative-major" | "tonic-one";
 
 export const CHART_LAYOUT_OPTIONS: Array<{
   value: ChartLayout;
