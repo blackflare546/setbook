@@ -146,6 +146,39 @@ async function expectEntryOrder(page: Page, titles: string[]) {
   ).toHaveText(titles);
 }
 
+async function swipePerformanceChart(
+  page: Page,
+  start: { x: number; y: number },
+  end: { x: number; y: number },
+) {
+  await page.locator("[data-performance-chart-scroll]").evaluate(
+    (element, points) => {
+      const touch = (identifier: number, point: { x: number; y: number }) =>
+        new Touch({
+          identifier,
+          target: element,
+          clientX: point.x,
+          clientY: point.y,
+        });
+      element.dispatchEvent(
+        new TouchEvent("touchstart", {
+          bubbles: true,
+          cancelable: true,
+          touches: [touch(1, points.start)],
+        }),
+      );
+      element.dispatchEvent(
+        new TouchEvent("touchend", {
+          bubbles: true,
+          cancelable: true,
+          changedTouches: [touch(1, points.end)],
+        }),
+      );
+    },
+    { start, end },
+  );
+}
+
 test("setlist cards show actions and open without hijacking them", async ({
   page,
 }) => {
@@ -560,4 +593,28 @@ test("performance controls auto-hide and reveal at every viewport size", async (
     });
     await expect(pagination).toHaveAttribute("data-visible", "false");
   }
+});
+
+test("performance swipes require a deliberate horizontal gesture", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await restoreSetlistFixture(page);
+  await page.goto(`/performance/${setlistId}`);
+
+  const chart = page.locator("[data-performance-chart-scroll]");
+  await expect(chart).toHaveCSS("touch-action", "pan-y");
+  await expect(page.getByRole("heading", { name: "Alpha Song" })).toBeVisible();
+
+  await swipePerformanceChart(page, { x: 260, y: 120 }, { x: 210, y: 330 });
+  await expect(page.getByRole("heading", { name: "Alpha Song" })).toBeVisible();
+
+  await swipePerformanceChart(page, { x: 260, y: 180 }, { x: 205, y: 180 });
+  await expect(page.getByRole("heading", { name: "Alpha Song" })).toBeVisible();
+
+  await swipePerformanceChart(page, { x: 310, y: 180 }, { x: 120, y: 190 });
+  await expect(page.getByRole("heading", { name: "Bravo Song" })).toBeVisible();
+
+  await swipePerformanceChart(page, { x: 90, y: 180 }, { x: 280, y: 170 });
+  await expect(page.getByRole("heading", { name: "Alpha Song" })).toBeVisible();
 });

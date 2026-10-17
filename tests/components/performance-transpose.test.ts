@@ -93,6 +93,63 @@ function displayedChord() {
 afterEach(cleanup);
 
 describe("performance transposition", () => {
+  it("navigates on deliberate horizontal swipes without treating vertical scrolls as swipes", () => {
+    const view = render(React.createElement(PerformanceView, { snapshot }));
+    const chart = view.container.querySelector<HTMLElement>(
+      "[data-performance-chart-scroll]",
+    );
+    expect(chart).not.toBeNull();
+
+    fireEvent.touchStart(chart!, {
+      touches: [{ clientX: 260, clientY: 180 }],
+    });
+    fireEvent.touchEnd(chart!, {
+      changedTouches: [{ clientX: 140, clientY: 190 }],
+    });
+    expect(screen.getByRole("heading", { name: "Song B" })).toBeVisible();
+
+    fireEvent.touchStart(chart!, {
+      touches: [{ clientX: 220, clientY: 100 }],
+    });
+    fireEvent.touchEnd(chart!, {
+      changedTouches: [{ clientX: 170, clientY: 260 }],
+    });
+    expect(screen.getByRole("heading", { name: "Song B" })).toBeVisible();
+
+    fireEvent.touchStart(chart!, {
+      touches: [{ clientX: 170, clientY: 180 }],
+    });
+    fireEvent.touchEnd(chart!, {
+      changedTouches: [{ clientX: 280, clientY: 175 }],
+    });
+    expect(screen.getByRole("heading", { name: "Song A" })).toBeVisible();
+  });
+
+  it("ignores short swipes and gestures that start on chart controls", () => {
+    const view = render(React.createElement(PerformanceView, { snapshot }));
+    const chart = view.container.querySelector<HTMLElement>(
+      "[data-performance-chart-scroll]",
+    );
+    expect(chart).not.toBeNull();
+
+    fireEvent.touchStart(chart!, {
+      touches: [{ clientX: 220, clientY: 180 }],
+    });
+    fireEvent.touchEnd(chart!, {
+      changedTouches: [{ clientX: 160, clientY: 180 }],
+    });
+    expect(screen.getByRole("heading", { name: "Song A" })).toBeVisible();
+
+    const transposeUp = screen.getByLabelText("Transpose up");
+    fireEvent.touchStart(transposeUp, {
+      touches: [{ clientX: 240, clientY: 180 }],
+    });
+    fireEvent.touchEnd(transposeUp, {
+      changedTouches: [{ clientX: 100, clientY: 180 }],
+    });
+    expect(screen.getByRole("heading", { name: "Song A" })).toBeVisible();
+  });
+
   it("keeps the active song valid when a refreshed snapshot becomes shorter", () => {
     const view = render(React.createElement(PerformanceView, { snapshot }));
 

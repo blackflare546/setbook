@@ -213,6 +213,11 @@ test("uses one setlist grid and applies shared updates explicitly", async ({
   await page.getByRole("link", { name: "Open in SetBook" }).click();
   await expect(page).toHaveURL(`/shared/${created.token}`);
   await expect(page.getByText(/Shared setlist · Read only/)).toBeVisible();
+  await expect(page.getByText("Studio A", { exact: true })).toBeVisible();
+  const sharedDate = await page.evaluate(() =>
+    new Date("2026-01-10T00:00:00").toLocaleDateString(),
+  );
+  await expect(page.getByText(sharedDate, { exact: true })).toBeVisible();
   await expect(page.getByText("C Major")).toBeVisible();
   await expect(page.getByText("Count four")).toBeVisible();
   const perform = page.getByRole("link", { name: "Perform" });
@@ -298,9 +303,6 @@ test("uses one setlist grid and applies shared updates explicitly", async ({
     page.getByRole("heading", { name: "Updated team rehearsal" }),
   ).toBeVisible();
   await expect(page.getByText("Studio A", { exact: true })).toBeVisible();
-  const sharedDate = await page.evaluate(() =>
-    new Date("2026-01-10T00:00:00").toLocaleDateString(),
-  );
   await expect(page.getByText(sharedDate, { exact: true })).toBeVisible();
   await expect(page.getByText("Shared", { exact: true })).toBeVisible();
   await expect(page.getByLabel("Status: Up to date")).toHaveClass(/emerald/);

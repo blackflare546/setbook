@@ -6,8 +6,10 @@ import * as Dialog from "@radix-ui/react-dialog";
 import { useLiveQuery } from "dexie-react-hooks";
 import {
   AlertTriangle,
+  CalendarDays,
   CloudDownload,
   Download,
+  MapPin,
   Play,
   WifiOff,
 } from "lucide-react";
@@ -266,8 +268,24 @@ export function SharedSetlistView({ token }: { token: string }) {
           <h1 className="mt-2 break-words text-3xl font-semibold tracking-[-0.04em] sm:text-4xl">
             {snapshot.name}
           </h1>
+          {(snapshot.venue || snapshot.date) && (
+            <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-sm font-medium text-slate-500 dark:text-slate-400">
+              {snapshot.venue && (
+                <p className="flex items-center gap-2">
+                  <MapPin size={16} aria-hidden="true" />
+                  {snapshot.venue}
+                </p>
+              )}
+              {snapshot.date && (
+                <p className="flex items-center gap-2">
+                  <CalendarDays size={16} aria-hidden="true" />
+                  {new Date(`${snapshot.date}T00:00:00`).toLocaleDateString()}
+                </p>
+              )}
+            </div>
+          )}
           {snapshot.version === 2 && snapshot.sharedBy && (
-            <p className="mt-1 text-sm text-slate-500">
+            <p className="mt-2 text-sm text-slate-500">
               Shared by {snapshot.sharedBy}
             </p>
           )}
