@@ -6,8 +6,10 @@ import * as Dialog from "@radix-ui/react-dialog";
 import { useLiveQuery } from "dexie-react-hooks";
 import {
   AlertTriangle,
+  CalendarDays,
   CloudDownload,
   Download,
+  MapPin,
   Play,
   WifiOff,
 } from "lucide-react";
@@ -17,7 +19,12 @@ import {
   fetchSharedSetlist,
   sharedSetlistRepository,
 } from "@/data/repositories/shared-setlist-repository";
-import { findImportedSong, importSharedSong } from "@/lib/sharing/import-song";
+import {
+  findImportedSong,
+  importSharedSong,
+  sharedSongImportContentHash,
+  sharedSongImportIdentity,
+} from "@/lib/sharing/import-song";
 import { formatMusicalKey } from "@/core/chords/keys";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -94,14 +101,26 @@ export function SharedSetlistView({ token }: { token: string }) {
     return () => window.clearTimeout(timeout);
   }, [feedback]);
 
-  const importedSongs = useMemo(
+  const importedVersions = useMemo(() => {
+    const versions = new Map<string, Set<string>>();
+    for (const song of library) {
+      if (song.sharedSource?.publicToken !== token) continue;
+      const hashes = versions.get(song.sharedSource.sharedSongId) ?? new Set();
+      hashes.add(song.sharedSource.contentHash);
+      versions.set(song.sharedSource.sharedSongId, hashes);
+    }
+    return versions;
+  }, [library, token]);
+
+  const songsToImport = useMemo(
     () =>
-      new Map(
-        library
-          .filter((song) => song.sharedSource?.publicToken === token)
-          .map((song) => [song.sharedSource!.sharedSongId, song] as const),
-      ),
-    [library, token],
+      snapshot?.songs.filter((song) => {
+        const importedHashes = importedVersions.get(
+          sharedSongImportIdentity(song),
+        );
+        return !importedHashes?.has(sharedSongImportContentHash(song));
+      }) ?? [],
+    [importedVersions, snapshot],
   );
 
   async function updateSharedSetlist() {
@@ -135,7 +154,7 @@ export function SharedSetlistView({ token }: { token: string }) {
     const changed =
       existing &&
       existing.sharedSource?.contentHash !==
-        (sharedSong.contentHash ?? existing.sharedSource?.contentHash);
+        sharedSongImportContentHash(sharedSong);
     if (changed) {
       setImportConflictIndex(index);
       return;
@@ -146,7 +165,7 @@ export function SharedSetlistView({ token }: { token: string }) {
   async function performImport(index: number, replace: boolean) {
     if (!snapshot || !followed || importingSongId || importingAll) return;
     const sharedSong = snapshot.songs[index];
-    const identity = sharedSong.sharedSongId ?? sharedSong.entryId;
+    const identity = sharedSongImportIdentity(sharedSong);
     setImportConflictIndex(null);
     setImportingSongId(identity);
     setFeedback(null);
@@ -181,7 +200,7 @@ export function SharedSetlistView({ token }: { token: string }) {
     setFeedback(null);
     let count = 0;
     try {
-      for (const song of snapshot.songs) {
+      for (const song of songsToImport) {
         const result = await importSharedSong(token, followed.revision, song);
         if (!result.existed) count += 1;
       }
@@ -244,13 +263,29 @@ export function SharedSetlistView({ token }: { token: string }) {
       <div className="mb-8 flex flex-col gap-5 border-b border-slate-200 pb-7 sm:flex-row sm:items-end dark:border-slate-800">
         <div className="min-w-0 flex-1">
           <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-indigo-600 dark:text-indigo-400">
-            Shared setlist · Read only · Revision {followed?.revision ?? 1}
+            Shared setlist · Read only
           </p>
           <h1 className="mt-2 break-words text-3xl font-semibold tracking-[-0.04em] sm:text-4xl">
             {snapshot.name}
           </h1>
+          {(snapshot.venue || snapshot.date) && (
+            <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-sm font-medium text-slate-500 dark:text-slate-400">
+              {snapshot.venue && (
+                <p className="flex items-center gap-2">
+                  <MapPin size={16} aria-hidden="true" />
+                  {snapshot.venue}
+                </p>
+              )}
+              {snapshot.date && (
+                <p className="flex items-center gap-2">
+                  <CalendarDays size={16} aria-hidden="true" />
+                  {new Date(`${snapshot.date}T00:00:00`).toLocaleDateString()}
+                </p>
+              )}
+            </div>
+          )}
           {snapshot.version === 2 && snapshot.sharedBy && (
-            <p className="mt-1 text-sm text-slate-500">
+            <p className="mt-2 text-sm text-slate-500">
               Shared by {snapshot.sharedBy}
             </p>
           )}
@@ -306,12 +341,12 @@ export function SharedSetlistView({ token }: { token: string }) {
 
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
         {snapshot.songs.map((song, index) => {
-          const identity = song.sharedSongId ?? song.entryId;
-          const imported = importedSongs.get(identity);
-          const newer =
-            Boolean(imported) &&
-            Boolean(song.contentHash) &&
-            imported?.sharedSource?.contentHash !== song.contentHash;
+          const identity = sharedSongImportIdentity(song);
+          const importedHashes = importedVersions.get(identity);
+          const imported = importedHashes?.has(
+            sharedSongImportContentHash(song),
+          );
+          const newer = Boolean(importedHashes?.size) && !imported;
           return (
             <div
               key={song.entryId}
@@ -342,7 +377,7 @@ export function SharedSetlistView({ token }: { token: string }) {
                       </p>
                     )}
                   </div>
-                  {imported && (
+                  {(imported || newer) && (
                     <p
                       className={`mt-2 text-xs font-semibold ${newer ? "text-amber-600" : "text-emerald-600"}`}
                     >
@@ -356,7 +391,9 @@ export function SharedSetlistView({ token }: { token: string }) {
                   type="button"
                   size="sm"
                   variant="secondary"
-                  disabled={Boolean(importingSongId) || importingAll}
+                  disabled={
+                    imported || Boolean(importingSongId) || importingAll
+                  }
                   isLoading={importingSongId === identity}
                   loadingLabel="Importing…"
                   aria-label={`Import ${song.title} to My Library`}
@@ -381,14 +418,14 @@ export function SharedSetlistView({ token }: { token: string }) {
           type="button"
           className="mt-3"
           disabled={
-            !snapshot.songs.length || importingAll || Boolean(importingSongId)
+            !songsToImport.length || importingAll || Boolean(importingSongId)
           }
           isLoading={importingAll}
           loadingLabel="Importing…"
           onClick={() => setImportAllDialogOpen(true)}
         >
           <Download size={16} aria-hidden="true" />
-          {`Import all ${snapshot.songs.length} ${snapshot.songs.length === 1 ? "song" : "songs"}`}
+          {`Import all ${songsToImport.length} ${songsToImport.length === 1 ? "song" : "songs"}`}
         </Button>
       </Card>
 
@@ -451,10 +488,10 @@ export function SharedSetlistView({ token }: { token: string }) {
               Import all songs?
             </Dialog.Title>
             <Dialog.Description className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
-              This creates {snapshot.songs.length}{" "}
-              {snapshot.songs.length === 1 ? "private copy" : "private copies"}{" "}
-              in My Library. Songs already imported from this shared setlist
-              will be skipped.
+              This creates {songsToImport.length}{" "}
+              {songsToImport.length === 1 ? "private copy" : "private copies"}{" "}
+              in My Library, including newer shared versions. Songs already
+              imported at the current version will be skipped.
             </Dialog.Description>
             <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
               <Dialog.Close asChild>

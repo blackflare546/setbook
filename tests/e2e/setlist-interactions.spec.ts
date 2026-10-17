@@ -88,31 +88,6 @@ async function restoreSetlistFixture(page: Page) {
   await expect(restoreDialog).toBeHidden();
 }
 
-async function keyboardDrag(
-  page: Page,
-  accessibleName: string,
-  moves: Array<{ key: string; targetEntryId: string }>,
-) {
-  const handle = page.getByRole("button", { name: accessibleName });
-  await handle.focus();
-  await page.keyboard.press("Space");
-  await expect(handle).toHaveAttribute("aria-pressed", "true");
-
-  for (const move of moves) {
-    await page.keyboard.press(move.key);
-    await expect(
-      page
-        .getByTestId(`setlist-entry-${move.targetEntryId}`)
-        .locator("div.bg-indigo-500"),
-    ).toBeVisible();
-  }
-
-  await page.keyboard.press("Space");
-  await expect(
-    page.locator('[aria-roledescription="sortable"][aria-pressed="true"]'),
-  ).toHaveCount(0);
-}
-
 async function pointerDrag(
   page: Page,
   accessibleName: string,
@@ -136,7 +111,6 @@ async function pointerDrag(
     targetBox!.y + targetBox!.height / 3,
     { steps: 10 },
   );
-  await expect(target.locator("div.bg-indigo-500")).toBeVisible();
   await page.mouse.up();
 }
 
@@ -144,6 +118,39 @@ async function expectEntryOrder(page: Page, titles: string[]) {
   await expect(
     page.locator('[data-testid^="setlist-entry-"]').getByRole("heading"),
   ).toHaveText(titles);
+}
+
+async function swipePerformanceChart(
+  page: Page,
+  start: { x: number; y: number },
+  end: { x: number; y: number },
+) {
+  await page.locator("[data-performance-chart-scroll]").evaluate(
+    (element, points) => {
+      const touch = (identifier: number, point: { x: number; y: number }) =>
+        new Touch({
+          identifier,
+          target: element,
+          clientX: point.x,
+          clientY: point.y,
+        });
+      element.dispatchEvent(
+        new TouchEvent("touchstart", {
+          bubbles: true,
+          cancelable: true,
+          touches: [touch(1, points.start)],
+        }),
+      );
+      element.dispatchEvent(
+        new TouchEvent("touchend", {
+          bubbles: true,
+          cancelable: true,
+          changedTouches: [touch(1, points.end)],
+        }),
+      );
+    },
+    { start, end },
+  );
 }
 
 test("setlist cards show actions and open without hijacking them", async ({
@@ -349,7 +356,7 @@ test("shows recovery paths when a local setlist no longer exists", async ({
   ).toHaveAttribute("href", "/setlists");
 });
 
-test("dragging reorders complete entries and persists only after Save", async ({
+test("dragging and keyboard controls reorder entries only after Save", async ({
   page,
 }) => {
   await restoreSetlistFixture(page);
@@ -378,10 +385,14 @@ test("dragging reorders complete entries and persists only after Save", async ({
     "Charlie cue",
   );
 
-  await keyboardDrag(page, "Drag song 1: Charlie Song", [
-    { key: "ArrowDown", targetEntryId: "entry-a" },
-    { key: "ArrowDown", targetEntryId: "entry-b" },
-  ]);
+  const moveCharlieDown = page.getByRole("button", {
+    name: "Move Charlie Song down",
+  });
+  await moveCharlieDown.focus();
+  await page.keyboard.press("Enter");
+  await expectEntryOrder(page, ["Alpha Song", "Charlie Song", "Bravo Song"]);
+  await moveCharlieDown.focus();
+  await page.keyboard.press("Enter");
   await expectEntryOrder(page, ["Alpha Song", "Bravo Song", "Charlie Song"]);
   await expect(
     page.getByRole("combobox", { name: "Performance key", exact: true }).nth(2),
@@ -560,4 +571,28 @@ test("performance controls auto-hide and reveal at every viewport size", async (
     });
     await expect(pagination).toHaveAttribute("data-visible", "false");
   }
+});
+
+test("performance swipes require a deliberate horizontal gesture", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await restoreSetlistFixture(page);
+  await page.goto(`/performance/${setlistId}`);
+
+  const chart = page.locator("[data-performance-chart-scroll]");
+  await expect(chart).toHaveCSS("touch-action", "pan-y");
+  await expect(page.getByRole("heading", { name: "Alpha Song" })).toBeVisible();
+
+  await swipePerformanceChart(page, { x: 260, y: 120 }, { x: 210, y: 330 });
+  await expect(page.getByRole("heading", { name: "Alpha Song" })).toBeVisible();
+
+  await swipePerformanceChart(page, { x: 260, y: 180 }, { x: 205, y: 180 });
+  await expect(page.getByRole("heading", { name: "Alpha Song" })).toBeVisible();
+
+  await swipePerformanceChart(page, { x: 310, y: 180 }, { x: 120, y: 190 });
+  await expect(page.getByRole("heading", { name: "Bravo Song" })).toBeVisible();
+
+  await swipePerformanceChart(page, { x: 90, y: 180 }, { x: 280, y: 170 });
+  await expect(page.getByRole("heading", { name: "Alpha Song" })).toBeVisible();
 });

@@ -40,7 +40,7 @@ const sections = [
   },
   {
     title: "Performance View",
-    body: "Move through songs with Previous and Next. Use the performance menu for the running order, Band Notes, theme, section/chord/lyric sizes, line height, and chart layout. Transpose controls change the displayed performance key without changing the master song. On supported larger screens, use Fullscreen for a focused chart.",
+    body: "Move through songs with Previous and Next, or swipe horizontally across the chart. Vertical and diagonal movements keep scrolling the song instead. Use the performance menu for the running order, Band Notes, theme, section/chord/lyric sizes, line height, and chart layout. Transpose controls change the displayed performance key without changing the master song. On supported larger screens, use Fullscreen for a focused chart.",
   },
   {
     title: "Sharing a setlist",

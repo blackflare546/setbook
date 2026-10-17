@@ -87,6 +87,60 @@ async function restoreLargeCollection(page: Page) {
   await expect(restoreDialog).toBeHidden();
 }
 
+test("requires a deliberate tap for right-side song actions on touch layouts", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 768, height: 1024 });
+  await page.goto("/library");
+  await restoreLargeCollection(page);
+
+  const row = page.getByTestId("song-row-song-1");
+  const menuButton = row.getByLabel(/Song actions for Long Library title/);
+  const title = row.getByRole("heading");
+  const menuBox = await menuButton.boundingBox();
+  const titleBox = await title.boundingBox();
+  expect(menuBox).not.toBeNull();
+  expect(titleBox).not.toBeNull();
+  expect(menuBox!.x).toBeGreaterThanOrEqual(titleBox!.x + titleBox!.width);
+  await expect(row.getByLabel(/Edit song:/)).toBeHidden();
+
+  await menuButton.evaluate((element) => {
+    const touch = (identifier: number, y: number) =>
+      new Touch({
+        identifier,
+        target: element,
+        clientX: 740,
+        clientY: y,
+      });
+    element.dispatchEvent(
+      new TouchEvent("touchstart", {
+        bubbles: true,
+        cancelable: true,
+        touches: [touch(1, 300)],
+      }),
+    );
+    element.dispatchEvent(
+      new TouchEvent("touchend", {
+        bubbles: true,
+        cancelable: true,
+        changedTouches: [touch(1, 220)],
+      }),
+    );
+    element.dispatchEvent(
+      new MouseEvent("click", { bubbles: true, cancelable: true }),
+    );
+  });
+  await expect(page.getByRole("menu")).toHaveCount(0);
+
+  await menuButton.click();
+  await expect(page.getByRole("menu")).toBeVisible();
+  await page.keyboard.press("Escape");
+
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await expect(menuButton).toBeHidden();
+  await expect(row.getByLabel(/Edit song:/)).toBeVisible();
+});
+
 test("progressively renders and searches the full song and setlist collections", async ({
   page,
 }) => {

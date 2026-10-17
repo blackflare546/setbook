@@ -14,11 +14,11 @@ const importLocks = new WeakMap<
   Map<string, Promise<{ song: Song; existed: boolean }>>
 >();
 
-function sourceIdentity(song: SharedSong): string {
+export function sharedSongImportIdentity(song: SharedSong): string {
   return song.sharedSongId ?? song.entryId;
 }
 
-function contentHash(song: SharedSong): string {
+export function sharedSongImportContentHash(song: SharedSong): string {
   return (
     song.contentHash ??
     sharedSongContentHash({
@@ -37,10 +37,10 @@ export async function findImportedSong(
   song: SharedSong,
   repository: SongRepository = songRepository,
 ): Promise<Song | undefined> {
-  const hash = contentHash(song);
+  const hash = sharedSongImportContentHash(song);
   const sourceMatches = await repository.findBySharedSource(
     publicToken,
-    sourceIdentity(song),
+    sharedSongImportIdentity(song),
   );
 
   // Prefer the exact shared version. A user may have intentionally kept an
@@ -60,8 +60,8 @@ export async function importSharedSong(
   replaceExisting = false,
   repository: SongRepository = songRepository,
 ): Promise<{ song: Song; existed: boolean }> {
-  const hash = contentHash(song);
-  const lockKey = `${publicToken}:${sourceIdentity(song)}:${hash}`;
+  const hash = sharedSongImportContentHash(song);
+  const lockKey = `${publicToken}:${sharedSongImportIdentity(song)}:${hash}`;
   const locks = importLocks.get(repository) ?? new Map();
   importLocks.set(repository, locks);
 
@@ -112,7 +112,7 @@ async function performImport(
     updatedAt: now,
     sharedSource: {
       publicToken,
-      sharedSongId: sourceIdentity(song),
+      sharedSongId: sharedSongImportIdentity(song),
       importedRevision: revision,
       contentHash: hash,
     },

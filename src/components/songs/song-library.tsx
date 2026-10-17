@@ -35,7 +35,7 @@ import { AreaTutorial } from "@/components/tutorials/area-tutorial";
 import { LoadingState } from "@/components/ui/loading-state";
 import { settingsRepository } from "@/data/repositories/settings-repository";
 
-function SongActions({
+function DesktopSongActions({
   song,
   onDelete,
   onDuplicate,
@@ -46,86 +46,159 @@ function SongActions({
   onDuplicate: (song: Song) => void;
   duplicating: boolean;
 }) {
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   return (
-    <>
-      <div className="hidden gap-1 sm:flex">
+    <div className="hidden gap-1 xl:flex">
+      <Button
+        asChild
+        variant="ghost"
+        size="icon"
+        aria-label={`Edit song: ${song.title}`}
+      >
+        <Link href={`/songs/${song.id}/edit`}>
+          <Pencil size={17} aria-hidden="true" />
+        </Link>
+      </Button>
+      <Button
+        variant="ghost"
+        size="icon"
+        aria-label={`Duplicate song: ${song.title}`}
+        onClick={() => onDuplicate(song)}
+        isLoading={duplicating}
+        loadingLabel={`Duplicating ${song.title}…`}
+      >
+        <Copy size={17} aria-hidden="true" />
+      </Button>
+      <Button
+        variant="ghost"
+        size="icon"
+        className="text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:text-rose-400 dark:hover:bg-rose-950/40 dark:hover:text-rose-300"
+        aria-label={`Delete song: ${song.title}`}
+        onClick={() => onDelete(song)}
+      >
+        <Trash2 size={17} aria-hidden="true" />
+      </Button>
+    </div>
+  );
+}
+
+function MobileSongActions({
+  song,
+  onDelete,
+  onDuplicate,
+  duplicating,
+}: {
+  song: Song;
+  onDelete: (song: Song) => void;
+  onDuplicate: (song: Song) => void;
+  duplicating: boolean;
+}) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const touchStartRef = useRef<{
+    x: number;
+    y: number;
+    scrollY: number;
+    moved: boolean;
+  } | null>(null);
+  const suppressTapUntilRef = useRef(0);
+
+  function shouldSuppressTap() {
+    return Date.now() < suppressTapUntilRef.current;
+  }
+
+  return (
+    <DropdownMenu.Root
+      open={menuOpen}
+      onOpenChange={(open) => {
+        if (open && shouldSuppressTap()) return;
+        setMenuOpen(open);
+      }}
+    >
+      <DropdownMenu.Trigger asChild>
         <Button
-          asChild
           variant="ghost"
           size="icon"
-          aria-label={`Edit song: ${song.title}`}
+          className="h-11 w-11 shrink-0 xl:hidden"
+          aria-label={`Song actions for ${song.title}`}
+          onTouchStart={(event) => {
+            const touch = event.touches[0];
+            if (!touch) return;
+            touchStartRef.current = {
+              x: touch.clientX,
+              y: touch.clientY,
+              scrollY: window.scrollY,
+              moved: false,
+            };
+          }}
+          onTouchMove={(event) => {
+            const start = touchStartRef.current;
+            const touch = event.touches[0];
+            if (
+              start &&
+              touch &&
+              Math.hypot(touch.clientX - start.x, touch.clientY - start.y) > 8
+            )
+              start.moved = true;
+          }}
+          onTouchEnd={(event) => {
+            const start = touchStartRef.current;
+            const touch = event.changedTouches[0];
+            touchStartRef.current = null;
+            if (!start || !touch) return;
+            const moved =
+              start.moved ||
+              Math.hypot(touch.clientX - start.x, touch.clientY - start.y) > 8;
+            const scrolled = Math.abs(window.scrollY - start.scrollY) > 2;
+            if (moved || scrolled)
+              suppressTapUntilRef.current = Date.now() + 500;
+          }}
+          onTouchCancel={() => {
+            touchStartRef.current = null;
+            suppressTapUntilRef.current = Date.now() + 500;
+          }}
+          onClickCapture={(event) => {
+            if (!shouldSuppressTap()) return;
+            event.preventDefault();
+            event.stopPropagation();
+            suppressTapUntilRef.current = 0;
+          }}
         >
-          <Link href={`/songs/${song.id}/edit`}>
-            <Pencil size={17} aria-hidden="true" />
-          </Link>
+          <MoreHorizontal size={20} aria-hidden="true" />
         </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          aria-label={`Duplicate song: ${song.title}`}
-          onClick={() => onDuplicate(song)}
-          isLoading={duplicating}
-          loadingLabel={`Duplicating ${song.title}…`}
+      </DropdownMenu.Trigger>
+      <DropdownMenu.Portal>
+        <DropdownMenu.Content
+          align="end"
+          sideOffset={6}
+          className="z-50 min-w-44 rounded-lg border border-slate-200 bg-white p-1.5 text-slate-950 shadow-xl dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
         >
-          <Copy size={17} aria-hidden="true" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:text-rose-400 dark:hover:bg-rose-950/40 dark:hover:text-rose-300"
-          aria-label={`Delete song: ${song.title}`}
-          onClick={() => onDelete(song)}
-        >
-          <Trash2 size={17} aria-hidden="true" />
-        </Button>
-      </div>
-      <DropdownMenu.Root open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-        <DropdownMenu.Trigger asChild>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-11 w-11 shrink-0 sm:hidden"
-            aria-label={`Song actions for ${song.title}`}
-          >
-            <MoreHorizontal size={20} aria-hidden="true" />
-          </Button>
-        </DropdownMenu.Trigger>
-        <DropdownMenu.Portal>
-          <DropdownMenu.Content
-            align="end"
-            sideOffset={6}
-            className="z-50 min-w-44 rounded-lg border border-slate-200 bg-white p-1.5 text-slate-950 shadow-xl dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
-          >
-            <DropdownMenu.Item asChild>
-              <Link
-                href={`/songs/${song.id}/edit`}
-                className="flex min-h-11 cursor-pointer items-center gap-3 rounded-md px-3 text-sm font-semibold outline-none hover:bg-slate-100 focus:bg-slate-100 dark:hover:bg-slate-800 dark:focus:bg-slate-800"
-              >
-                <Pencil size={17} aria-hidden="true" />
-                Edit
-              </Link>
-            </DropdownMenu.Item>
-            <DropdownMenu.Item
+          <DropdownMenu.Item asChild>
+            <Link
+              href={`/songs/${song.id}/edit`}
               className="flex min-h-11 cursor-pointer items-center gap-3 rounded-md px-3 text-sm font-semibold outline-none hover:bg-slate-100 focus:bg-slate-100 dark:hover:bg-slate-800 dark:focus:bg-slate-800"
-              disabled={duplicating}
-              onSelect={() => onDuplicate(song)}
             >
-              <Copy size={17} aria-hidden="true" />
-              {duplicating ? "Duplicating…" : "Duplicate"}
-            </DropdownMenu.Item>
-            <DropdownMenu.Separator className="my-1 h-px bg-slate-200 dark:bg-slate-700" />
-            <DropdownMenu.Item
-              className="flex min-h-11 cursor-pointer items-center gap-3 rounded-md px-3 text-sm font-semibold text-rose-600 outline-none hover:bg-rose-50 focus:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/40 dark:focus:bg-rose-950/40"
-              onSelect={() => onDelete(song)}
-            >
-              <Trash2 size={17} aria-hidden="true" />
-              Delete
-            </DropdownMenu.Item>
-          </DropdownMenu.Content>
-        </DropdownMenu.Portal>
-      </DropdownMenu.Root>
-    </>
+              <Pencil size={17} aria-hidden="true" />
+              Edit
+            </Link>
+          </DropdownMenu.Item>
+          <DropdownMenu.Item
+            className="flex min-h-11 cursor-pointer items-center gap-3 rounded-md px-3 text-sm font-semibold outline-none hover:bg-slate-100 focus:bg-slate-100 dark:hover:bg-slate-800 dark:focus:bg-slate-800"
+            disabled={duplicating}
+            onSelect={() => onDuplicate(song)}
+          >
+            <Copy size={17} aria-hidden="true" />
+            {duplicating ? "Duplicating…" : "Duplicate"}
+          </DropdownMenu.Item>
+          <DropdownMenu.Separator className="my-1 h-px bg-slate-200 dark:bg-slate-700" />
+          <DropdownMenu.Item
+            className="flex min-h-11 cursor-pointer items-center gap-3 rounded-md px-3 text-sm font-semibold text-rose-600 outline-none hover:bg-rose-50 focus:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/40 dark:focus:bg-rose-950/40"
+            onSelect={() => onDelete(song)}
+          >
+            <Trash2 size={17} aria-hidden="true" />
+            Delete
+          </DropdownMenu.Item>
+        </DropdownMenu.Content>
+      </DropdownMenu.Portal>
+    </DropdownMenu.Root>
   );
 }
 
@@ -145,7 +218,7 @@ const SongRow = memo(function SongRow({
       data-testid={`song-row-${song.id}`}
       className="group flex min-w-0 items-center gap-3 p-4 transition-colors hover:bg-slate-50 sm:gap-4 sm:px-5 dark:hover:bg-slate-800/50"
     >
-      <div className="hidden h-10 w-10 place-items-center rounded-[10px] border border-indigo-100 bg-indigo-50 text-indigo-600 sm:grid dark:border-indigo-900 dark:bg-indigo-950/50">
+      <div className="hidden h-10 w-10 place-items-center rounded-[10px] border border-indigo-100 bg-indigo-50 text-indigo-600 xl:grid dark:border-indigo-900 dark:bg-indigo-950/50">
         <FileMusic size={19} aria-hidden="true" />
       </div>
       <Link href={`/songs/${song.id}`} className="min-w-0 flex-1">
@@ -160,7 +233,13 @@ const SongRow = memo(function SongRow({
           · {song.sections.length} sections
         </p>
       </Link>
-      <SongActions
+      <MobileSongActions
+        song={song}
+        onDelete={onDelete}
+        onDuplicate={onDuplicate}
+        duplicating={duplicating}
+      />
+      <DesktopSongActions
         song={song}
         onDelete={onDelete}
         onDuplicate={onDuplicate}

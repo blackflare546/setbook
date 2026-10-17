@@ -53,6 +53,14 @@ import { AreaTutorial } from "@/components/tutorials/area-tutorial";
 import { useResponsiveAutoHideControls } from "./use-responsive-auto-hide-controls";
 import { ResponsiveChartSection } from "./responsive-chart";
 
+const SWIPE_MIN_DISTANCE = 80;
+const SWIPE_HORIZONTAL_BIAS = 1.5;
+
+interface SwipeStart {
+  x: number;
+  y: number;
+}
+
 const FONT_ROWS: Array<{ category: ChartFontCategory; label: string }> = [
   { category: "section", label: "Sections" },
   { category: "chord", label: "Chords" },
@@ -384,6 +392,8 @@ export function PerformanceView({
     useState<NashvilleMinorMode>("relative-major");
   const performanceRootRef = useRef<HTMLElement>(null);
   const chartScrollRef = useRef<HTMLDivElement>(null);
+  const swipeStartRef = useRef<SwipeStart | null>(null);
+  const ignoreClickUntilRef = useRef(0);
   const autoHide = useResponsiveAutoHideControls(chartScrollRef, !singleSong);
   const currentIndex = Math.min(
     current,
@@ -395,6 +405,47 @@ export function PerformanceView({
       setCurrent(Math.max(0, Math.min(snapshot.songs.length - 1, index)));
     },
     [snapshot.songs.length],
+  );
+
+  const handleTouchStart = useCallback(
+    (event: React.TouchEvent<HTMLDivElement>) => {
+      swipeStartRef.current = null;
+      if (singleSong || showOrder || event.touches.length !== 1) return;
+
+      const target = event.target;
+      if (
+        target instanceof Element &&
+        target.closest("button, a, input, select, textarea, [role='button']")
+      )
+        return;
+
+      const touch = event.touches[0];
+      swipeStartRef.current = { x: touch.clientX, y: touch.clientY };
+    },
+    [showOrder, singleSong],
+  );
+
+  const handleTouchEnd = useCallback(
+    (event: React.TouchEvent<HTMLDivElement>) => {
+      const start = swipeStartRef.current;
+      swipeStartRef.current = null;
+      const touch = event.changedTouches[0];
+      if (!start || !touch || singleSong || showOrder) return;
+
+      const deltaX = touch.clientX - start.x;
+      const deltaY = touch.clientY - start.y;
+      const horizontalDistance = Math.abs(deltaX);
+      const verticalDistance = Math.abs(deltaY);
+      if (
+        horizontalDistance < SWIPE_MIN_DISTANCE ||
+        horizontalDistance < verticalDistance * SWIPE_HORIZONTAL_BIAS
+      )
+        return;
+
+      ignoreClickUntilRef.current = Date.now() + 500;
+      selectSong(currentIndex + (deltaX < 0 ? 1 : -1));
+    },
+    [currentIndex, selectSong, showOrder, singleSong],
   );
 
   useEffect(() => {
@@ -874,7 +925,16 @@ export function PerformanceView({
       <div
         ref={chartScrollRef}
         data-performance-chart-scroll
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+        onTouchCancel={() => {
+          swipeStartRef.current = null;
+        }}
         onClick={(event) => {
+          if (Date.now() < ignoreClickUntilRef.current) {
+            ignoreClickUntilRef.current = 0;
+            return;
+          }
           const target = event.target as HTMLElement;
           if (
             target.closest(
@@ -886,7 +946,7 @@ export function PerformanceView({
             autoHide.toggleControls();
           }
         }}
-        className="mx-auto max-w-7xl"
+        className="mx-auto max-w-7xl touch-pan-y"
       >
         <article
           data-performance-chart-article
