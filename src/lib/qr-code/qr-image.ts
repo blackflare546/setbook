@@ -135,8 +135,11 @@ export async function createSetlistQrImageDataUrl({
   context.drawImage(qrCanvas, QR_OFFSET, QR_OFFSET, QR_SIZE, QR_SIZE);
   context.imageSmoothingEnabled = true;
 
-  const plateSize = 116;
-  const markSize = 96;
+  // Keep the brand mark comfortably inside QR level-H recovery capacity.
+  // Larger center cutouts can make particular payload/mask combinations
+  // unreadable even when visually similar codes still scan successfully.
+  const plateSize = 88;
+  const markSize = 72;
   const plateOffset = (IMAGE_WIDTH - plateSize) / 2;
   roundedRect(
     context,
@@ -230,6 +233,15 @@ export async function decodeQrImageFile(file: File): Promise<string> {
     const centeredX = (width - square) / 2;
     const centeredY = (height - square) / 2;
     candidates.push([centeredX, 0, square, square]);
+    if (height > width) {
+      // SetBook's share image places a square QR near the top with a narrow
+      // white frame and caption below it. Isolating the framed code makes the
+      // fallback deterministic when a decoder mistakes the caption for part
+      // of the symbol under load.
+      const inset = square * (QR_OFFSET / IMAGE_WIDTH);
+      const qrSize = square - inset * 2;
+      candidates.push([centeredX + inset, inset, qrSize, qrSize]);
+    }
     if (centeredY > 0) {
       candidates.push([centeredX, centeredY, square, square]);
       candidates.push([centeredX, height - square, square, square]);
