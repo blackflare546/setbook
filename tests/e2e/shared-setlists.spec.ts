@@ -5,6 +5,7 @@ const snapshot = {
   version: 2,
   name: "Team rehearsal",
   venue: "Studio A",
+  date: "2026-01-10",
   notes: "Bring in-ears",
   sharedBy: "The Test Band",
   songs: [
@@ -222,10 +223,16 @@ test("uses one setlist grid and applies shared updates explicitly", async ({
   await page.getByRole("button", { name: /Import all 1 song/ }).click();
   const importDialog = page.getByRole("dialog", { name: "Import all songs?" });
   await expect(importDialog).toContainText(
-    "This creates 1 private copy in My Library.",
+    "This creates 1 private copy in My Library, including newer shared versions.",
   );
   await importDialog.getByRole("button", { name: "Import songs" }).click();
   await expect(page.getByRole("status")).toContainText("1 song imported");
+  await expect(
+    page.getByRole("button", { name: "Import Shared Song to My Library" }),
+  ).toBeDisabled();
+  await expect(
+    page.getByRole("button", { name: "Import all 0 songs" }),
+  ).toBeDisabled();
   await expect(page.getByRole("status")).toHaveCount(0, { timeout: 4000 });
 
   const revisionTwoResponse = await page.request.patch(
@@ -233,7 +240,14 @@ test("uses one setlist grid and applies shared updates explicitly", async ({
     {
       headers: { authorization: `Bearer ${created.ownerCapability}` },
       data: {
-        snapshot: { ...snapshot, name: "Updated team rehearsal" },
+        snapshot: {
+          ...snapshot,
+          name: "Updated team rehearsal",
+          songs: snapshot.songs.map((song) => ({
+            ...song,
+            contentHash: "hash-2",
+          })),
+        },
         expectedRevision: 1,
         expectedEtag: created.etag,
       },
@@ -255,6 +269,23 @@ test("uses one setlist grid and applies shared updates explicitly", async ({
   await expect(page.getByRole("status")).toContainText(
     "Shared setlist updated. No songs were imported.",
   );
+  await expect(page.getByText("Newer shared version available")).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Import all 1 song" }),
+  ).toBeEnabled();
+  await page.getByRole("button", { name: "Import all 1 song" }).click();
+  await page
+    .getByRole("dialog", { name: "Import all songs?" })
+    .getByRole("button", { name: "Import songs" })
+    .click();
+  await expect(page.getByText("In your library")).toBeVisible();
+  await expect(page.getByText("Newer shared version available")).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "Import Shared Song to My Library" }),
+  ).toBeDisabled();
+  await expect(
+    page.getByRole("button", { name: "Import all 0 songs" }),
+  ).toBeDisabled();
 
   await page.goto("/setlists");
   await expect(page.getByRole("button", { name: "My Setlists" })).toHaveCount(
@@ -266,6 +297,11 @@ test("uses one setlist grid and applies shared updates explicitly", async ({
   await expect(
     page.getByRole("heading", { name: "Updated team rehearsal" }),
   ).toBeVisible();
+  await expect(page.getByText("Studio A", { exact: true })).toBeVisible();
+  const sharedDate = await page.evaluate(() =>
+    new Date("2026-01-10T00:00:00").toLocaleDateString(),
+  );
+  await expect(page.getByText(sharedDate, { exact: true })).toBeVisible();
   await expect(page.getByText("Shared", { exact: true })).toBeVisible();
   await expect(page.getByLabel("Status: Up to date")).toHaveClass(/emerald/);
   await expect(page.getByRole("button", { name: "Scan QR" })).toBeVisible();

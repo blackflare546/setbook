@@ -11,6 +11,7 @@ import {
   CloudDownload,
   Copy,
   ListMusic,
+  MapPin,
   Plus,
   Search,
   Share2,
@@ -194,8 +195,25 @@ const SharedSetlistCard = memo(function SharedSetlistCard({
         <p className="mt-2 text-sm text-slate-500">
           {shared.snapshot.songs.length}{" "}
           {shared.snapshot.songs.length === 1 ? "song" : "songs"}
-          {shared.snapshot.venue ? ` · ${shared.snapshot.venue}` : ""}
         </p>
+        {(shared.snapshot.venue || shared.snapshot.date) && (
+          <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs font-medium text-slate-500">
+            {shared.snapshot.venue && (
+              <p className="flex items-center gap-2">
+                <MapPin size={14} aria-hidden="true" />
+                {shared.snapshot.venue}
+              </p>
+            )}
+            {shared.snapshot.date && (
+              <p className="flex items-center gap-2">
+                <CalendarDays size={14} aria-hidden="true" />
+                {new Date(
+                  `${shared.snapshot.date}T00:00:00`,
+                ).toLocaleDateString()}
+              </p>
+            )}
+          </div>
+        )}
       </div>
       <div className="pointer-events-auto relative z-10 mt-3 flex flex-wrap gap-2">
         {shared.status === "update-available" && (
