@@ -283,7 +283,9 @@ test("uses one setlist grid and applies shared updates explicitly", async ({
     .getByRole("dialog", { name: "Import all songs?" })
     .getByRole("button", { name: "Import songs" })
     .click();
-  await expect(page.getByText("In your library")).toBeVisible();
+  await expect(
+    page.getByText("In your library", { exact: true }),
+  ).toBeVisible();
   await expect(page.getByText("Newer shared version available")).toHaveCount(0);
   await expect(
     page.getByRole("button", { name: "Import Shared Song to My Library" }),

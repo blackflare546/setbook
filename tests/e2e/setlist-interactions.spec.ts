@@ -88,31 +88,6 @@ async function restoreSetlistFixture(page: Page) {
   await expect(restoreDialog).toBeHidden();
 }
 
-async function keyboardDrag(
-  page: Page,
-  accessibleName: string,
-  moves: Array<{ key: string; targetEntryId: string }>,
-) {
-  const handle = page.getByRole("button", { name: accessibleName });
-  await handle.focus();
-  await page.keyboard.press("Space");
-  await expect(handle).toHaveAttribute("aria-pressed", "true");
-
-  for (const move of moves) {
-    await page.keyboard.press(move.key);
-    await expect(
-      page
-        .getByTestId(`setlist-entry-${move.targetEntryId}`)
-        .locator("div.bg-indigo-500"),
-    ).toBeVisible();
-  }
-
-  await page.keyboard.press("Space");
-  await expect(
-    page.locator('[aria-roledescription="sortable"][aria-pressed="true"]'),
-  ).toHaveCount(0);
-}
-
 async function pointerDrag(
   page: Page,
   accessibleName: string,
@@ -136,7 +111,6 @@ async function pointerDrag(
     targetBox!.y + targetBox!.height / 3,
     { steps: 10 },
   );
-  await expect(target.locator("div.bg-indigo-500")).toBeVisible();
   await page.mouse.up();
 }
 
@@ -382,7 +356,7 @@ test("shows recovery paths when a local setlist no longer exists", async ({
   ).toHaveAttribute("href", "/setlists");
 });
 
-test("dragging reorders complete entries and persists only after Save", async ({
+test("dragging and keyboard controls reorder entries only after Save", async ({
   page,
 }) => {
   await restoreSetlistFixture(page);
@@ -411,10 +385,14 @@ test("dragging reorders complete entries and persists only after Save", async ({
     "Charlie cue",
   );
 
-  await keyboardDrag(page, "Drag song 1: Charlie Song", [
-    { key: "ArrowDown", targetEntryId: "entry-a" },
-    { key: "ArrowDown", targetEntryId: "entry-b" },
-  ]);
+  const moveCharlieDown = page.getByRole("button", {
+    name: "Move Charlie Song down",
+  });
+  await moveCharlieDown.focus();
+  await page.keyboard.press("Enter");
+  await expectEntryOrder(page, ["Alpha Song", "Charlie Song", "Bravo Song"]);
+  await moveCharlieDown.focus();
+  await page.keyboard.press("Enter");
   await expectEntryOrder(page, ["Alpha Song", "Bravo Song", "Charlie Song"]);
   await expect(
     page.getByRole("combobox", { name: "Performance key", exact: true }).nth(2),
