@@ -573,6 +573,62 @@ test("performance controls auto-hide and reveal at every viewport size", async (
   }
 });
 
+test("jumps to a song from the numbered navigator below the key controls", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await restoreSetlistFixture(page);
+  await page.goto(`/performance/${setlistId}`);
+
+  const keyControls = page.locator('[data-tour="performance-key"]');
+  const navigator = page.getByRole("navigation", { name: "Jump to song" });
+  const firstSong = navigator.getByRole("button", {
+    name: "Go to song 1: Alpha Song",
+  });
+  const thirdSong = navigator.getByRole("button", {
+    name: "Go to song 3: Charlie Song",
+  });
+
+  await expect(navigator).toBeVisible();
+  await expect(firstSong).toHaveAttribute("aria-current", "page");
+
+  const keyControlsBox = await keyControls.boundingBox();
+  const navigatorBox = await navigator.boundingBox();
+  expect(keyControlsBox).not.toBeNull();
+  expect(navigatorBox).not.toBeNull();
+  expect(navigatorBox!.y).toBeGreaterThanOrEqual(
+    keyControlsBox!.y + keyControlsBox!.height,
+  );
+
+  await thirdSong.click();
+  await expect(
+    page.getByRole("heading", { name: "Charlie Song" }),
+  ).toBeVisible();
+  await expect(thirdSong).toHaveAttribute("aria-current", "page");
+  await expect(firstSong).not.toHaveAttribute("aria-current");
+});
+
+test("persists the song number navigation visibility setting", async ({
+  page,
+}) => {
+  await restoreSetlistFixture(page);
+  await page.goto(`/performance/${setlistId}`);
+
+  const navigator = page.getByRole("navigation", { name: "Jump to song" });
+  await expect(navigator).toBeVisible();
+
+  await page.getByLabel("Open performance menu").click();
+  const visibilitySetting = page.getByRole("checkbox", {
+    name: "Song number navigation",
+  });
+  await expect(visibilitySetting).toBeChecked();
+  await visibilitySetting.uncheck();
+  await expect(navigator).toBeHidden();
+
+  await page.reload();
+  await expect(navigator).toBeHidden();
+});
+
 test("performance swipes require a deliberate horizontal gesture", async ({
   page,
 }) => {

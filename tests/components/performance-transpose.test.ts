@@ -93,6 +93,26 @@ function displayedChord() {
 afterEach(cleanup);
 
 describe("performance transposition", () => {
+  it("jumps directly to a song from the numbered navigator", () => {
+    render(React.createElement(PerformanceView, { snapshot }));
+
+    const firstSong = screen.getByRole("button", {
+      name: "Go to song 1: Song A",
+    });
+    const thirdSong = screen.getByRole("button", {
+      name: "Go to song 3: Song C",
+    });
+
+    expect(firstSong).toHaveAttribute("aria-current", "page");
+    expect(thirdSong).not.toHaveAttribute("aria-current");
+
+    fireEvent.click(thirdSong);
+
+    expect(screen.getByRole("heading", { name: "Song C" })).toBeVisible();
+    expect(thirdSong).toHaveAttribute("aria-current", "page");
+    expect(firstSong).not.toHaveAttribute("aria-current");
+  });
+
   it("navigates on deliberate horizontal swipes without treating vertical scrolls as swipes", () => {
     const view = render(React.createElement(PerformanceView, { snapshot }));
     const chart = view.container.querySelector<HTMLElement>(

@@ -55,6 +55,7 @@ describe("tutorial settings in backups", () => {
       tutorialVersions: {},
       chartNotation: "chords",
       nashvilleMinorMode: "relative-major",
+      showSongNumberNavigation: true,
     });
   });
 

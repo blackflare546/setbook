@@ -393,6 +393,8 @@ export function PerformanceView({
   const [chartNotation, setChartNotation] = useState<ChartNotation>("chords");
   const [nashvilleMinorMode, setNashvilleMinorMode] =
     useState<NashvilleMinorMode>("relative-major");
+  const [showSongNumberNavigation, setShowSongNumberNavigation] =
+    useState(true);
   const performanceRootRef = useRef<HTMLElement>(null);
   const chartScrollRef = useRef<HTMLDivElement>(null);
   const swipeStartRef = useRef<SwipeStart | null>(null);
@@ -464,6 +466,7 @@ export function PerformanceView({
         setChartLayout(settings.chartLayout);
         setChartNotation(settings.chartNotation);
         setNashvilleMinorMode(settings.nashvilleMinorMode);
+        setShowSongNumberNavigation(settings.showSongNumberNavigation);
       })
       .catch(() => {
         // Keep the readable in-memory defaults when settings are unavailable.
@@ -633,6 +636,11 @@ export function PerformanceView({
   function changeNashvilleMinorMode(mode: NashvilleMinorMode) {
     setNashvilleMinorMode(mode);
     void settingsRepository.saveNashvilleMinorMode(mode);
+  }
+
+  function changeShowSongNumberNavigation(visible: boolean) {
+    setShowSongNumberNavigation(visible);
+    void settingsRepository.saveShowSongNumberNavigation(visible);
   }
 
   async function toggleFullscreen() {
@@ -860,6 +868,23 @@ export function PerformanceView({
                     />
                   </section>
 
+                  <div className="mb-4 rounded-xl border border-slate-200 p-3 dark:border-slate-800">
+                    <label className="flex min-h-11 cursor-pointer items-center justify-between gap-3 font-semibold">
+                      <span>Song number navigation</span>
+                      <input
+                        type="checkbox"
+                        className="h-5 w-5 accent-indigo-600"
+                        checked={showSongNumberNavigation}
+                        onChange={(event) =>
+                          changeShowSongNumberNavigation(event.target.checked)
+                        }
+                      />
+                    </label>
+                    <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
+                      Show numbered shortcuts above the chart.
+                    </p>
+                  </div>
+
                   <div className="mb-6 rounded-xl border border-slate-200 p-3 dark:border-slate-800">
                     <button
                       className="flex min-h-11 w-full items-center justify-between gap-3 text-left font-semibold"
@@ -991,91 +1016,127 @@ export function PerformanceView({
           data-tour="performance-chart"
           className="min-w-0 px-3 py-5 min-[375px]:px-4 sm:px-8 sm:py-8 lg:px-12"
         >
-          <div className="mb-6 border-b border-slate-200 pb-5 dark:border-slate-800 sm:mb-8 sm:flex sm:items-end sm:justify-between sm:gap-4">
-            <div className="min-w-0">
-              <h1
-                aria-live="polite"
-                className="break-words text-2xl font-semibold tracking-[-0.04em] min-[375px]:text-3xl sm:text-4xl"
-              >
-                {song.title}
-              </h1>
-              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400 sm:text-base">
-                {song.artist || "Unknown artist"}
-              </p>
-            </div>
-            <div
-              data-tour="performance-key"
-              className="mt-4 flex items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50 p-2 shadow-sm dark:border-slate-700 dark:bg-slate-900 sm:mt-0 sm:justify-start"
-            >
-              <div className="min-w-14 px-1 text-center">
-                <p className="text-[9px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">
-                  Key
-                </p>
-                <p
-                  aria-label="Current key"
+          <div className="mb-6 border-b border-slate-200 pb-5 dark:border-slate-800 sm:mb-8">
+            <div className="sm:flex sm:items-end sm:justify-between sm:gap-4">
+              <div className="min-w-0">
+                <h1
                   aria-live="polite"
-                  className="font-mono text-xl font-bold text-indigo-700 dark:text-amber-200"
+                  className="break-words text-2xl font-semibold tracking-[-0.04em] min-[375px]:text-3xl sm:text-4xl"
                 >
-                  {currentKey}
+                  {song.title}
+                </h1>
+                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400 sm:text-base">
+                  {song.artist || "Unknown artist"}
                 </p>
-                {song.capo && (
-                  <p className="whitespace-nowrap text-[10px] font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                    Capo {song.capo}
-                  </p>
-                )}
-                {chartNotation === "nashville" && nashvilleReference && (
-                  <p
-                    className="mt-1 whitespace-nowrap font-mono text-[10px] font-bold text-indigo-700 dark:text-indigo-300"
-                    aria-label={`Nashville reference ${nashvilleReference.tonicLabel}`}
-                  >
-                    NNS · {nashvilleReference.tonicLabel}
-                  </p>
-                )}
               </div>
               <div
-                className="flex items-center gap-1"
-                role="group"
-                aria-label="Transpose controls"
+                data-tour="performance-key"
+                className="mt-4 flex items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50 p-2 shadow-sm dark:border-slate-700 dark:bg-slate-900 sm:mt-0 sm:justify-start"
               >
-                <Button
-                  size="icon"
-                  variant="secondary"
-                  className="h-11 w-11"
-                  aria-label="Transpose down"
-                  onClick={() => changeTransposeOffset(-1)}
+                <div className="min-w-14 px-1 text-center">
+                  <p className="text-[9px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">
+                    Key
+                  </p>
+                  <p
+                    aria-label="Current key"
+                    aria-live="polite"
+                    className="font-mono text-xl font-bold text-indigo-700 dark:text-amber-200"
+                  >
+                    {currentKey}
+                  </p>
+                  {song.capo && (
+                    <p className="whitespace-nowrap text-[10px] font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                      Capo {song.capo}
+                    </p>
+                  )}
+                  {chartNotation === "nashville" && nashvilleReference && (
+                    <p
+                      className="mt-1 whitespace-nowrap font-mono text-[10px] font-bold text-indigo-700 dark:text-indigo-300"
+                      aria-label={`Nashville reference ${nashvilleReference.tonicLabel}`}
+                    >
+                      NNS · {nashvilleReference.tonicLabel}
+                    </p>
+                  )}
+                </div>
+                <div
+                  className="flex items-center gap-1"
+                  role="group"
+                  aria-label="Transpose controls"
                 >
-                  <Minus size={18} aria-hidden="true" />
-                </Button>
-                <span
-                  className="w-8 text-center text-xs font-bold"
-                  aria-label="Transpose offset"
-                  aria-live="polite"
-                >
-                  {transposeOffset > 0
-                    ? `+${transposeOffset}`
-                    : transposeOffset}
-                </span>
-                <Button
-                  size="icon"
-                  variant="secondary"
-                  className="h-11 w-11"
-                  aria-label="Transpose up"
-                  onClick={() => changeTransposeOffset(1)}
-                >
-                  <Plus size={18} aria-hidden="true" />
-                </Button>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="h-11 w-11"
-                  aria-label="Reset transposition"
-                  disabled={transposeOffset === 0}
-                  onClick={resetTransposeOffset}
-                >
-                  <RotateCcw size={16} aria-hidden="true" />
-                </Button>
+                  <Button
+                    size="icon"
+                    variant="secondary"
+                    className="h-11 w-11"
+                    aria-label="Transpose down"
+                    onClick={() => changeTransposeOffset(-1)}
+                  >
+                    <Minus size={18} aria-hidden="true" />
+                  </Button>
+                  <span
+                    className="w-8 text-center text-xs font-bold"
+                    aria-label="Transpose offset"
+                    aria-live="polite"
+                  >
+                    {transposeOffset > 0
+                      ? `+${transposeOffset}`
+                      : transposeOffset}
+                  </span>
+                  <Button
+                    size="icon"
+                    variant="secondary"
+                    className="h-11 w-11"
+                    aria-label="Transpose up"
+                    onClick={() => changeTransposeOffset(1)}
+                  >
+                    <Plus size={18} aria-hidden="true" />
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-11 w-11"
+                    aria-label="Reset transposition"
+                    disabled={transposeOffset === 0}
+                    onClick={resetTransposeOffset}
+                  >
+                    <RotateCcw size={16} aria-hidden="true" />
+                  </Button>
+                </div>
               </div>
             </div>
+            {!singleSong &&
+              showSongNumberNavigation &&
+              snapshot.songs.length > 1 && (
+                <nav
+                  aria-label="Jump to song"
+                  className="mt-3 overflow-x-auto overscroll-x-contain pb-1"
+                >
+                  <div className="flex w-max min-w-full items-center gap-1">
+                    {snapshot.songs.map((item, index) => (
+                      <Button
+                        key={item.entryId}
+                        type="button"
+                        size="md"
+                        variant={
+                          index === currentIndex ? "primary" : "secondary"
+                        }
+                        aria-label={`Go to song ${index + 1}: ${item.title}`}
+                        aria-current={
+                          index === currentIndex ? "page" : undefined
+                        }
+                        title={item.title}
+                        onClick={() => selectSong(index)}
+                        className={cn(
+                          "h-8 min-w-8 shrink-0 rounded-md px-2 font-mono text-[11px] font-bold tabular-nums",
+                          index === currentIndex &&
+                            "border-indigo-600 bg-indigo-600 hover:bg-indigo-700 dark:border-indigo-400 dark:bg-indigo-400 dark:text-slate-950 dark:hover:bg-indigo-300",
+                        )}
+                      >
+                        {index + 1}
+                      </Button>
+                    ))}
+                  </div>
+                </nav>
+              )}
           </div>
 
           {chartNotation === "nashville" && !nashvilleReference && (

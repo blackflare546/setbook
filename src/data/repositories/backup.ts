@@ -45,6 +45,7 @@ const backupSchema = z.object({
       nashvilleMinorMode: z
         .enum(["relative-major", "tonic-one"])
         .default("relative-major"),
+      showSongNumberNavigation: z.boolean().default(true),
       hasSeenLandingPage: z.boolean().default(false),
       tutorialVersions: z
         .object({
