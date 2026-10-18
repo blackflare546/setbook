@@ -96,6 +96,7 @@ export const tutorialSettings = {
   chartLayout: "auto",
   chartNotation: "chords",
   nashvilleMinorMode: "relative-major",
+  showSongNumberNavigation: true,
   hasSeenLandingPage: false,
   tutorialVersions: {
     library: 1,

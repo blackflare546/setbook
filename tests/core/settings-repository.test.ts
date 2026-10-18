@@ -63,6 +63,18 @@ describe("settings theme defaults", () => {
     });
   });
 
+  it("shows song number navigation by default and persists changes", async () => {
+    await expect(repository.get()).resolves.toMatchObject({
+      showSongNumberNavigation: true,
+    });
+
+    await repository.saveShowSongNumberNavigation(false);
+
+    await expect(repository.get()).resolves.toMatchObject({
+      showSongNumberNavigation: false,
+    });
+  });
+
   it("defaults tutorial versions and updates them without changing other settings", async () => {
     await expect(repository.get()).resolves.toMatchObject({
       tutorialVersions: {},

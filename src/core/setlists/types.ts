@@ -55,6 +55,7 @@ export interface AppSettings {
   chartLayout: ChartLayout;
   chartNotation: ChartNotation;
   nashvilleMinorMode: NashvilleMinorMode;
+  showSongNumberNavigation: boolean;
   hasSeenLandingPage: boolean;
   tutorialVersions: TutorialVersions;
   installPromptSnoozedUntil?: string;

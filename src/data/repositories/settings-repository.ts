@@ -22,6 +22,7 @@ const defaults: AppSettings = {
   chartLayout: "auto",
   chartNotation: "chords",
   nashvilleMinorMode: "relative-major",
+  showSongNumberNavigation: true,
   hasSeenLandingPage: false,
   tutorialVersions: {},
 };
@@ -81,6 +82,11 @@ export class SettingsRepository {
     nashvilleMinorMode: NashvilleMinorMode,
   ): Promise<AppSettings> {
     return this.update({ nashvilleMinorMode });
+  }
+  async saveShowSongNumberNavigation(
+    showSongNumberNavigation: boolean,
+  ): Promise<AppSettings> {
+    return this.update({ showSongNumberNavigation });
   }
   async saveChartColors(chartColors: ChartColors): Promise<AppSettings> {
     return this.update({ chartColors });
