@@ -204,6 +204,82 @@ a {
   border-color: var(--setbook-surface);
 }
 
+@keyframes setbook-swipe-hand {
+  0%,
+  10% {
+    opacity: 0;
+    transform: translate3d(calc(-50% + 42px), -50%, 0) rotate(-8deg);
+  }
+  22% {
+    opacity: 1;
+  }
+  72% {
+    opacity: 1;
+    transform: translate3d(calc(-50% - 42px), -50%, 0) rotate(-8deg);
+  }
+  84%,
+  100% {
+    opacity: 0;
+    transform: translate3d(calc(-50% - 42px), -50%, 0) rotate(-8deg);
+  }
+}
+
+.setbook-swipe-hand {
+  animation: setbook-swipe-hand 1.9s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.setbook-tutorial-swipe-demo {
+  position: relative;
+  height: 5.75rem;
+  margin: 0.75rem 0;
+  overflow: hidden;
+  border: 1px solid var(--setbook-border);
+  border-radius: 12px;
+  background:
+    radial-gradient(
+      circle at 50% 120%,
+      rgb(99 102 241 / 0.35),
+      transparent 62%
+    ),
+    var(--setbook-surface);
+}
+
+.setbook-tutorial-swipe-track {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 7.5rem;
+  color: var(--setbook-accent);
+  opacity: 0.45;
+  transform: translate(-50%, -50%);
+}
+
+.setbook-tutorial-swipe-hand {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: grid;
+  width: 3.25rem;
+  height: 3.25rem;
+  place-items: center;
+  border: 1px solid var(--setbook-border-strong);
+  border-radius: 999px;
+  background: var(--setbook-text);
+  color: var(--setbook-surface);
+  box-shadow: 0 12px 30px -14px rgb(0 0 0 / 0.7);
+}
+
+.setbook-tutorial-swipe-hand svg {
+  width: 1.75rem;
+  height: 1.75rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .setbook-swipe-hand {
+    animation: none;
+  }
+}
+
 [data-performance-chart-scroll] [data-performance-scroll-container] {
   overflow-y: hidden;
 }

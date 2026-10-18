@@ -1,13 +1,40 @@
 "use client";
 
 import { useEffect } from "react";
-import type { DriveStep } from "driver.js";
+import type { DriveStep, PopoverDOM } from "driver.js";
 import { TUTORIAL_VERSIONS, type TutorialId } from "@/core/tutorials/types";
 import { settingsRepository } from "@/data/repositories/settings-repository";
 import {
+  SWIPE_TUTORIAL_STORAGE_KEY,
   TUTORIAL_COMPLETED_EVENT,
   type TutorialCompletedDetail,
 } from "@/core/tutorials/events";
+
+function renderSwipeGesture(popover: PopoverDOM) {
+  if (popover.wrapper.querySelector("[data-tutorial-swipe-gesture]")) return;
+
+  const illustration = document.createElement("div");
+  illustration.className = "setbook-tutorial-swipe-demo";
+  illustration.dataset.tutorialSwipeGesture = "";
+  illustration.setAttribute("aria-hidden", "true");
+  illustration.innerHTML = `
+    <svg class="setbook-tutorial-swipe-track" viewBox="0 0 120 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M8 12h104M8 12l8-8M8 12l8 8M112 12l-8-8M112 12l-8 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+    </svg>
+    <span class="setbook-swipe-hand setbook-tutorial-swipe-hand">
+      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M18 11V6a2 2 0 0 0-4 0M14 10V4a2 2 0 0 0-4 0v2M10 10.5V6a2 2 0 0 0-4 0v8M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+      </svg>
+    </span>
+  `;
+  popover.description.before(illustration);
+
+  try {
+    window.localStorage.setItem(SWIPE_TUTORIAL_STORAGE_KEY, "true");
+  } catch {
+    // The in-tour gesture remains visible when storage is unavailable.
+  }
+}
 
 const steps: Record<TutorialId, DriveStep[]> = {
   library: [
@@ -200,7 +227,8 @@ const steps: Record<TutorialId, DriveStep[]> = {
       popover: {
         title: "Move through the set",
         description:
-          "Use Previous and Next to follow the running order without returning to the editor.",
+          "Swipe left for the next song and right for the previous song. You can also use the buttons below.",
+        onPopoverRender: renderSwipeGesture,
       },
     },
   ],

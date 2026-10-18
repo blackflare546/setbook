@@ -596,3 +596,45 @@ test("performance swipes require a deliberate horizontal gesture", async ({
   await swipePerformanceChart(page, { x: 90, y: 180 }, { x: 280, y: 170 });
   await expect(page.getByRole("heading", { name: "Alpha Song" })).toBeVisible();
 });
+
+test("teaches performance swiping with an interactive foreground gesture", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.evaluate(() => {
+    window.localStorage.removeItem(
+      "setbook:performance-swipe-tutorial-seen-v1",
+    );
+  });
+  await restoreSetlistFixture(page);
+  await page.goto(`/performance/${setlistId}`);
+
+  const tutorial = page.getByRole("dialog", {
+    name: "Swipe across the chart",
+  });
+  await expect(tutorial).toBeVisible();
+  await expect(
+    tutorial.locator("[data-swipe-gesture-illustration]"),
+  ).toBeVisible();
+  await expect(tutorial).toContainText("Swipe left for the next song");
+
+  const tutorialBox = await tutorial.boundingBox();
+  expect(tutorialBox).not.toBeNull();
+  await page.mouse.move(
+    tutorialBox!.x + tutorialBox!.width - 36,
+    tutorialBox!.y + tutorialBox!.height / 2,
+  );
+  await page.mouse.down();
+  await page.mouse.move(
+    tutorialBox!.x + 36,
+    tutorialBox!.y + tutorialBox!.height / 2,
+    { steps: 8 },
+  );
+  await page.mouse.up();
+
+  await expect(tutorial).toBeHidden();
+  await expect(page.getByRole("heading", { name: "Bravo Song" })).toBeVisible();
+  await page.reload();
+  await page.waitForTimeout(1_000);
+  await expect(tutorial).toBeHidden();
+});

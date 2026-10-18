@@ -221,6 +221,16 @@ test("starts each contextual tutorial when its area becomes ready", async ({
   await expect(performanceHeader).toHaveAttribute("data-visible", "true");
   await expect(performanceNavigation).toHaveAttribute("data-visible", "true");
   await expect(page.getByLabel("Open performance menu")).toBeVisible();
+  for (let step = 0; step < 4; step += 1) {
+    await performanceTutorial.getByRole("button", { name: "Next" }).click();
+  }
+  await expect(performanceTutorial).toContainText("Move through the set");
+  await expect(
+    performanceTutorial.locator("[data-tutorial-swipe-gesture]"),
+  ).toBeVisible();
+  await expect(performanceTutorial).toContainText(
+    "Swipe left for the next song",
+  );
   await page.waitForTimeout(2_300);
   await expect(performanceHeader).toHaveAttribute("data-visible", "true");
   await expect(performanceNavigation).toHaveAttribute("data-visible", "true");

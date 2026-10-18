@@ -61,6 +61,12 @@ export const test = base.extend<{ tutorialState: void }>({
             };
           }),
       );
+      await page.evaluate(() => {
+        window.localStorage.setItem(
+          "setbook:performance-swipe-tutorial-seen-v1",
+          "true",
+        );
+      });
       await use();
     },
     { auto: true },
