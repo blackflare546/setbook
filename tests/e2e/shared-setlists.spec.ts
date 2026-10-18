@@ -179,6 +179,45 @@ test("shows an upload error instead of crashing on an image without a QR", async
   ).toBeVisible();
 });
 
+test("shows the foreground swipe lesson in shared performance", async ({
+  page,
+}) => {
+  const sharedSnapshot = {
+    ...snapshot,
+    songs: [
+      snapshot.songs[0],
+      {
+        ...snapshot.songs[0],
+        entryId: "entry-2",
+        sharedSongId: "shared-song-2",
+        contentHash: "hash-2",
+        title: "Second Shared Song",
+      },
+    ],
+  };
+  const createdResponse = await page.request.post("/api/published-setlists", {
+    data: { snapshot: sharedSnapshot },
+  });
+  expect(createdResponse.status()).toBe(201);
+  const created = await createdResponse.json();
+  await page.evaluate(() => {
+    window.localStorage.removeItem(
+      "setbook:performance-swipe-tutorial-seen-v1",
+    );
+  });
+
+  await page.goto(`/shared/${created.token}/performance`);
+  const tutorial = page.getByRole("dialog", {
+    name: "Swipe across the chart",
+  });
+  await expect(tutorial).toBeVisible();
+  await expect(
+    tutorial.locator("[data-swipe-gesture-illustration]"),
+  ).toBeVisible();
+  await tutorial.getByRole("button", { name: "Got it" }).click();
+  await expect(tutorial).toBeHidden();
+});
+
 test("uses one setlist grid and applies shared updates explicitly", async ({
   page,
 }) => {

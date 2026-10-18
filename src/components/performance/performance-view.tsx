@@ -47,9 +47,11 @@ import { semitoneDistance } from "@/core/transpose/transpose";
 import { getNashvilleReference } from "@/core/chords/nashville";
 import { Button } from "@/components/ui/button";
 import { settingsRepository } from "@/data/repositories/settings-repository";
+import { SWIPE_TUTORIAL_STORAGE_KEY } from "@/core/tutorials/events";
 import { useTheme } from "@/components/theme/theme-provider";
 import { cn } from "@/lib/utils";
 import { AreaTutorial } from "@/components/tutorials/area-tutorial";
+import { SwipeGestureTutorial } from "@/components/tutorials/swipe-gesture-tutorial";
 import { useResponsiveAutoHideControls } from "./use-responsive-auto-hide-controls";
 import { ResponsiveChartSection } from "./responsive-chart";
 
@@ -373,6 +375,7 @@ export function PerformanceView({
   const [current, setCurrent] = useState(0);
   const [showOrder, setShowOrder] = useState(false);
   const [tutorialActive, setTutorialActive] = useState(false);
+  const [swipeTutorialOpen, setSwipeTutorialOpen] = useState(false);
   const [showBandNotes, setShowBandNotes] = useState(false);
   const [transposeOffsets, setTransposeOffsets] = useState<
     Record<string, number>
@@ -420,6 +423,7 @@ export function PerformanceView({
         return;
 
       const touch = event.touches[0];
+      if (!touch) return;
       swipeStartRef.current = { x: touch.clientX, y: touch.clientY };
     },
     [showOrder, singleSong],
@@ -468,6 +472,22 @@ export function PerformanceView({
       active = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (singleSong || snapshot.songs.length < 2) return;
+    if (tutorialActive) return;
+
+    try {
+      if (window.localStorage.getItem(SWIPE_TUTORIAL_STORAGE_KEY)) return;
+    } catch {
+      // The tutorial can still be shown when storage is unavailable.
+    }
+
+    const timeout = window.setTimeout(() => {
+      setSwipeTutorialOpen(true);
+    }, 800);
+    return () => window.clearTimeout(timeout);
+  }, [singleSong, snapshot.songs.length, tutorialActive]);
 
   useEffect(() => {
     if (window.scrollX !== 0 || window.scrollY !== 0) {
@@ -591,6 +611,15 @@ export function PerformanceView({
     void settingsRepository.saveChartColors(next);
   }
 
+  function dismissSwipeTutorial() {
+    setSwipeTutorialOpen(false);
+    try {
+      window.localStorage.setItem(SWIPE_TUTORIAL_STORAGE_KEY, "true");
+    } catch {
+      // Dismissing still works when storage is unavailable.
+    }
+  }
+
   function changeChartLayout(layout: ChartLayout) {
     setChartLayout(layout);
     void settingsRepository.saveChartLayout(layout);
@@ -672,6 +701,15 @@ export function PerformanceView({
     >
       {!singleSong && !publicMode && (
         <AreaTutorial id="performance" onActiveChange={setTutorialActive} />
+      )}
+      {!singleSong && snapshot.songs.length > 1 && (
+        <SwipeGestureTutorial
+          open={swipeTutorialOpen && !tutorialActive}
+          canGoPrevious={currentIndex > 0}
+          canGoNext={currentIndex < snapshot.songs.length - 1}
+          onNavigate={(change) => selectSong(currentIndex + change)}
+          onDismiss={dismissSwipeTutorial}
+        />
       )}
       {!singleSong && autoHide.responsive && controlsVisible && (
         <Button
